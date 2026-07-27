@@ -226,7 +226,7 @@
   .doku-check-inline input[type="checkbox"]{width:13px;height:13px;cursor:pointer;accent-color:var(--violet);}
   .badge.doku{background:var(--violet-bg);color:var(--violet);border:1px solid var(--violet-border);}
   .doku-list-row{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--paper-raised);
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;background:var(--paper-raised);
     border:1px solid var(--line-soft);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;
   }
   .doku-list-row .doku-list-title{font-size:13px;}
@@ -1250,6 +1250,7 @@
               </select>
               <input type="date" id="de-faellig-${t.id}" value="${t.faelligAm||''}">
               <select id="de-kontakt-${t.id}">${contactOptions({contacts}, t.kontaktId)}</select>
+              <label class="doku-check-inline"><input type="checkbox" id="de-doku-${t.id}" ${t.doku?"checked":""}> Doku</label>
             </div>
             <div class="field wartet-auf-field" id="de-wartet-field-${t.id}" style="display:${t.status==='wartet'?'block':'none'};">
               <label>Wartet auf (Person)</label>
@@ -1270,7 +1271,7 @@
           <div class="agg-row" style="cursor:pointer;" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}">
             <span class="prio-badge prio-${slug(t.prioritaet||'should')}" title="${prioLabel(t.prioritaet||'should')}">${prioAbbr(t.prioritaet||'should')}</span>
             <span class="agg-project">${escapeHtml(t.projectName)}</span>
-            <span class="agg-title"><span class="task-nr">${t.nr||'—'}</span>${escapeHtml(t.titel)}${t.status==="wartet"?' <span class="badge wartet" style="margin-left:6px;">wartet auf '+escapeHtml(t.wartetAuf||"jemanden")+'</span>':''}</span>
+            <span class="agg-title"><span class="task-nr">${t.nr||'—'}</span>${escapeHtml(t.titel)}${t.doku?' <span class="badge doku" style="margin-left:4px;">Doku</span>':''}${t.status==="wartet"?' <span class="badge wartet" style="margin-left:6px;">wartet auf '+escapeHtml(t.wartetAuf||"jemanden")+'</span>':''}</span>
             <span class="agg-date"${overdue?' style="color:var(--rust);font-weight:600;"':''}>${overdue?'⚠ ':''}${fmtDate(t.faelligAm)}</span>
           </div>`;
       }
@@ -1307,6 +1308,7 @@
         if(newStatus==="erledigt" && prevStatus!=="erledigt") abgeschlossenAm = new Date().toISOString();
         else if(newStatus!=="erledigt" && prevStatus==="erledigt") abgeschlossenAm = null;
         const wartetAufInput = document.getElementById("de-wartet-auf-"+t.id);
+        const dokuCheckbox = document.getElementById("de-doku-"+t.id);
         data.tasks[idx] = {
           ...data.tasks[idx],
           titel,
@@ -1318,7 +1320,8 @@
           beschreibung: pendingDesc,
           notizen: pendingNotizen,
           afns: pendingAfns,
-          abgeschlossenAm
+          abgeschlossenAm,
+          doku: dokuCheckbox ? dokuCheckbox.checked : (data.tasks[idx].doku||false)
         };
         await sSet("tasks:"+t.projectId, data.tasks);
       }
@@ -2142,11 +2145,12 @@
       dokuTasks.slice().sort((a,b)=>(b.abgeschlossenAm||"").localeCompare(a.abgeschlossenAm||"")).forEach(t=>{
         html += `
           <div class="doku-list-row">
-            <div>
+            <div style="flex:1;">
               <div class="doku-list-title"><span class="task-nr">${t.nr||'—'}</span><strong>${escapeHtml(t.titel)}</strong></div>
               <div class="doku-list-meta">${t.abgeschlossenAm?('Erledigt: '+fmtDate(t.abgeschlossenAm.slice(0,10))):''}</div>
+              ${!isEmptyHtml(t.beschreibung)?'<div class="rtf-content rtf-field-preview-compact" style="margin-top:6px;">'+t.beschreibung+'</div>':'<div class="doc-report-empty" style="margin-top:6px;">Keine Beschreibung erfasst.</div>'}
             </div>
-            <button class="btn secondary small" data-doku-done="${t.id}">Doku abgeschlossen</button>
+            <button class="btn secondary small" data-doku-done="${t.id}" style="flex-shrink:0;">Doku abgeschlossen</button>
           </div>`;
       });
     }
