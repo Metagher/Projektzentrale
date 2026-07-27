@@ -150,6 +150,8 @@
   .prio-badge.prio-should{color:var(--amber-deep);background:none;}
   .prio-badge.prio-could{color:var(--sage);background:none;}
   .prio-badge.prio-wont{color:var(--ink-soft);background:none;}
+  .task-nr{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);margin-right:6px;white-space:nowrap;}
+  .task-nr::before{content:"#";}
 
   /* Dashboard calendar */
   .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
@@ -512,6 +514,10 @@
   .an-week-bar{position:absolute;left:0;bottom:0;right:0;top:auto;background:#22402E;z-index:0;}
   .an-year-select{padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;background:var(--field-bg);color:var(--ink);}
   .an-note{font-size:11.5px;color:var(--ink-soft);margin-bottom:18px;max-width:640px;}
+  .an-daily-grid{grid-template-columns:repeat(auto-fill, minmax(48px,1fr));}
+  .an-daily-grid .an-week-cell{min-height:70px;padding:5px 4px;}
+  .an-daily-grid .an-week-num{font-size:9px;}
+  .an-daily-grid .an-week-count{font-size:14px;}
 
   /* Update / Versionsverlauf */
   .current-version-card{
@@ -608,7 +614,7 @@
   const CSV_COLUMNS = [
     "Typ","ProjektId","Id","Titel","Kunde","ProjektTyp","Status","Beschreibung",
     "ErstelltAm","AusgeblendeteOberpunkte","Level","Reihenfolge","Rolle","Telefon",
-    "Email","Notiz","Datum","Kanal","KontaktId","Betreff","OberpunktId","Inhalt","AktualisiertAm","Prioritaet","AbgeschlossenAm","AFN","WartetAuf","Revision","AktuelleVersion"
+    "Email","Notiz","Datum","Kanal","KontaktId","Betreff","OberpunktId","Inhalt","AktualisiertAm","Prioritaet","AbgeschlossenAm","AFN","WartetAuf","Revision","AktuelleVersion","Nr"
   ];
 
   let state = {
@@ -656,11 +662,54 @@
     knowledgeSearch: "",
     analyticsYear: new Date().getFullYear(),
     analyticsSubTab: "aufgaben", // 'aufgaben' | 'afn'
+    analyticsDailyRange: 30, // Anzahl Tage für "offene Aufgaben am Tagesanfang"-Chart
     afnLog: undefined,      // undefined = noch nicht geladen; array = geladen
     afnLogSaving: false
   };
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+  // ---------- FORTLAUFENDE AUFGABEN-NUMMER ----------
+  // Globaler, projektübergreifender Zähler. Wird beim Anlegen einer Aufgabe einmalig
+  // vergeben (state.taskNrCounter), nie neu berechnet oder verändert.
+  async function nextTaskNr(){
+    if(state.taskNrCounter === undefined){
+      state.taskNrCounter = (await sGet("taskNrCounter")) || 0;
+    }
+    state.taskNrCounter += 1;
+    await sSet("taskNrCounter", state.taskNrCounter);
+    return state.taskNrCounter;
+  }
+
+  // Einmalige Migration: bestehende Aufgaben ohne Nr erhalten, chronologisch nach
+  // Erstelldatum sortiert, projektübergreifend fortlaufende Nummern ab 1.
+  async function migrateTaskNumbers(){
+    const projects = state.projects || [];
+    const dataByProject = {};
+    let anyMissing = false;
+    for(const p of projects){
+      const data = await ensureProjectData(p.id);
+      dataByProject[p.id] = data;
+      if(data.tasks.some(t=>!t.nr)) anyMissing = true;
+    }
+    if(!anyMissing) return;
+    const allMissing = [];
+    projects.forEach(p=>{
+      dataByProject[p.id].tasks.forEach(t=>{ if(!t.nr) allMissing.push(t); });
+    });
+    allMissing.sort((a,b)=>(a.erstelltAm||"").localeCompare(b.erstelltAm||"") || (a.id||"").localeCompare(b.id||""));
+    let maxExisting = 0;
+    projects.forEach(p=>{
+      dataByProject[p.id].tasks.forEach(t=>{ if(t.nr && t.nr>maxExisting) maxExisting = t.nr; });
+    });
+    let counter = maxExisting;
+    allMissing.forEach(t=>{ counter += 1; t.nr = counter; });
+    for(const p of projects){
+      await sSet("tasks:"+p.id, dataByProject[p.id].tasks);
+    }
+    state.taskNrCounter = counter;
+    await sSet("taskNrCounter", counter);
+  }
   function todayStr(){ return new Date().toISOString().slice(0,10); }
   function fmtDate(d){
     if(!d) return "—";
@@ -1177,7 +1226,7 @@
         const contacts = (state.cache[t.projectId] && state.cache[t.projectId].contacts) || [];
         html += `
           <div class="list-item task-edit-row" data-task-row="${t.id}">
-            <div class="meta mono" style="margin-bottom:6px;">${escapeHtml(t.projectName)}</div>
+            <div class="meta mono" style="margin-bottom:6px;"><span class="task-nr">${t.nr||'—'}</span>${escapeHtml(t.projectName)}</div>
             <div class="task-inline-row">
               <span class="prio-dot prio-${slug(t.prioritaet||'should')}"></span>
               <input type="text" id="de-titel-${t.id}" value="${escapeHtml(t.titel)}">
@@ -1209,7 +1258,7 @@
           <div class="agg-row" style="cursor:pointer;" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}">
             <span class="prio-badge prio-${slug(t.prioritaet||'should')}" title="${prioLabel(t.prioritaet||'should')}">${prioAbbr(t.prioritaet||'should')}</span>
             <span class="agg-project">${escapeHtml(t.projectName)}</span>
-            <span class="agg-title">${escapeHtml(t.titel)}${t.status==="wartet"?' <span class="badge wartet" style="margin-left:6px;">wartet auf '+escapeHtml(t.wartetAuf||"jemanden")+'</span>':''}</span>
+            <span class="agg-title"><span class="task-nr">${t.nr||'—'}</span>${escapeHtml(t.titel)}${t.status==="wartet"?' <span class="badge wartet" style="margin-left:6px;">wartet auf '+escapeHtml(t.wartetAuf||"jemanden")+'</span>':''}</span>
             <span class="agg-date"${overdue?' style="color:var(--rust);font-weight:600;"':''}>${overdue?'⚠ ':''}${fmtDate(t.faelligAm)}</span>
           </div>`;
       }
@@ -1313,7 +1362,7 @@
         html += `<div class="cal-cell${cell.inMonth?'':' other-month'}${isToday?' today':''}">
           <div class="cal-daynum">${cell.date.getDate()}</div>`;
         dayTasks.slice(0,3).forEach(t=>{
-          html += `<div class="cal-task prio-${slug(t.prioritaet||'should')}" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}" title="${escapeHtml(t.projectName)}: ${escapeHtml(t.titel)}">${escapeHtml(t.titel)}</div>`;
+          html += `<div class="cal-task prio-${slug(t.prioritaet||'should')}" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}" title="#${t.nr||'?'} · ${escapeHtml(t.projectName)}: ${escapeHtml(t.titel)}">${escapeHtml(t.titel)}</div>`;
         });
         if(dayTasks.length>3) html += `<div class="cal-more">+${dayTasks.length-3} weitere</div>`;
         html += `</div>`;
@@ -2305,6 +2354,7 @@
         if(t.id === state.editingTaskId){
           html += `
             <div class="list-item task-edit-row" data-task-row="${t.id}">
+              <div class="meta mono" style="margin-bottom:6px;"><span class="task-nr">${t.nr||'—'}</span></div>
               <div class="task-inline-row">
                 <span class="prio-dot prio-${slug(t.prioritaet||'should')}"></span>
                 <input type="text" id="te-titel-${t.id}" value="${escapeHtml(t.titel)}">
@@ -2337,6 +2387,7 @@
               <div class="top-row">
                 <div>
                   <span class="prio-dot prio-${slug(t.prioritaet||'should')}" style="display:inline-block;margin-right:4px;"></span>
+                  <span class="task-nr">${t.nr||'—'}</span>
                   <strong>${escapeHtml(t.titel)}</strong>
                   <span class="badge ${slug(t.status)}" style="margin-left:6px;">${t.status}</span>
                   ${t.afns&&t.afns.length?' '+afnViewMarkup(t.afns):''}
@@ -2400,8 +2451,10 @@
       const titel = document.getElementById("t-titel").value.trim();
       if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
       const newStatus = document.getElementById("t-status").value;
+      const nr = await nextTaskNr();
       data.tasks.push({
         id: uid(),
+        nr,
         titel,
         faelligAm: document.getElementById("t-faellig").value,
         prioritaet: document.getElementById("t-prio").value,
@@ -2962,7 +3015,7 @@
         }
       });
       data.tasks.forEach(t=>{
-        rows.push({Typ:"aufgabe", ProjektId:p.id, Id:t.id, Titel:t.titel, Datum:t.faelligAm||"", Prioritaet:t.prioritaet||"", Status:t.status||"", KontaktId:t.kontaktId||"", Beschreibung:t.beschreibung||"", ErstelltAm:t.erstelltAm||"", AbgeschlossenAm:t.abgeschlossenAm||"", AFN:(t.afns||[]).join(";"), WartetAuf:t.wartetAuf||"", Notiz:t.notizen||""});
+        rows.push({Typ:"aufgabe", ProjektId:p.id, Id:t.id, Titel:t.titel, Datum:t.faelligAm||"", Prioritaet:t.prioritaet||"", Status:t.status||"", KontaktId:t.kontaktId||"", Beschreibung:t.beschreibung||"", ErstelltAm:t.erstelltAm||"", AbgeschlossenAm:t.abgeschlossenAm||"", AFN:(t.afns||[]).join(";"), WartetAuf:t.wartetAuf||"", Notiz:t.notizen||"", Nr:t.nr||""});
       });
       data.timeline.forEach(m=>{
         rows.push({Typ:"meilenstein", ProjektId:p.id, Id:m.id, Titel:m.titel, Datum:m.datum||"", Status:m.status||"", Notiz:m.notiz||""});
@@ -3034,7 +3087,8 @@
         status:r.Status||"offen", kontaktId:r.KontaktId||"", beschreibung:r.Beschreibung||"",
         erstelltAm:r.ErstelltAm||null, abgeschlossenAm:r.AbgeschlossenAm||null,
         afns: (r.AFN||"").split(";").map(s=>s.trim()).filter(Boolean),
-        wartetAuf: r.WartetAuf||"", notizen: r.Notiz||""
+        wartetAuf: r.WartetAuf||"", notizen: r.Notiz||"",
+        nr: r.Nr!==undefined && r.Nr!=="" ? (parseInt(r.Nr)||undefined) : undefined
       });
     });
     rows.filter(r=>r.Typ==="meilenstein").forEach(r=>{
@@ -3075,6 +3129,7 @@
     state.docDefs = newDocDefs;
     state.cache = {};
     state.view = "dashboard"; state.selectedId = null;
+    await migrateTaskNumbers();
     await showAlert("Import abgeschlossen: "+newProjects.length+" Projekt(e) und "+newDocDefs.length+" Oberpunkt(e) geladen.");
     renderAll();
   }
@@ -3413,9 +3468,11 @@
       const extracted = await extractTasksFromComm(c, p, data);
       const selected = await showTaskExtractionReview(extracted);
       if(selected && selected.length){
-        selected.forEach(t=>{
+        for(const t of selected){
+          const nr = await nextTaskNr();
           data.tasks.push({
             id: uid(),
+            nr,
             titel: t.titel,
             faelligAm: t.faelligAm,
             prioritaet: t.prioritaet,
@@ -3426,7 +3483,7 @@
             erstelltAm: new Date().toISOString(),
             abgeschlossenAm: null
           });
-        });
+        }
         await sSet("tasks:"+p.id, data.tasks);
         renderProject();
         return;
@@ -3742,6 +3799,31 @@
     return (Math.round(n*10)/10).toString().replace(".",",") + " Tag(e)";
   }
 
+  /**
+   * Zählt pro Tag, wie viele Aufgaben zu Tagesbeginn (00:00) bereits angelegt und
+   * noch nicht abgeschlossen waren. Eine Aufgabe gilt an einem Tag als "offen am
+   * Morgen", wenn erstelltAm vor Tagesbeginn liegt und abgeschlossenAm entweder
+   * fehlt oder erst an/nach diesem Tag liegt. Aufgaben ohne erstelltAm werden
+   * mangels Datenbasis nicht gezählt.
+   */
+  function computeDailyOpenCounts(allTasks, days){
+    const withCreated = allTasks.filter(t=>t.erstelltAm);
+    const now = new Date();
+    const todayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const result = [];
+    for(let i=days-1; i>=0; i--){
+      const dayStart = new Date(todayStart.getTime() - i*86400000);
+      const count = withCreated.filter(t=>{
+        const created = new Date(t.erstelltAm);
+        if(created >= dayStart) return false;
+        if(!t.abgeschlossenAm) return true;
+        return new Date(t.abgeschlossenAm) >= dayStart;
+      }).length;
+      result.push({ date: dayStart, count });
+    }
+    return result;
+  }
+
   async function collectAllTasksForAnalytics(){
     const projects = state.projects || [];
     const all = [];
@@ -3848,6 +3930,40 @@
             <div class="an-week-count">${count}</div>
           </div>`;
       }
+      html += '</div>';
+    }
+
+    const dailyRange = state.analyticsDailyRange || 30;
+    const dailyCounts = computeDailyOpenCounts(allTasks, dailyRange);
+    const dailyMax = Math.max(1, ...dailyCounts.map(d=>d.count));
+    const todayKey = todayStr();
+    html += `
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Offene Aufgaben am Tagesanfang</span>
+        <select class="an-year-select" id="an-daily-range-select">
+          <option value="14" ${dailyRange===14?"selected":""}>Letzte 14 Tage</option>
+          <option value="30" ${dailyRange===30?"selected":""}>Letzte 30 Tage</option>
+          <option value="60" ${dailyRange===60?"selected":""}>Letzte 60 Tage</option>
+          <option value="90" ${dailyRange===90?"selected":""}>Letzte 90 Tage</option>
+        </select>
+      </div>
+      <div class="an-note">Anzahl Aufgaben, die um 00:00 Uhr bereits angelegt und noch nicht abgeschlossen waren. Aufgaben ohne Erstelldatum fließen hier nicht ein.</div>
+    `;
+    if(dailyCounts.every(d=>d.count===0)){
+      html += '<div class="empty-state"><h3>Keine Daten</h3><div>Sobald Aufgaben mit Erstelldatum vorliegen, erscheint hier der Tagesverlauf.</div></div>';
+    }else{
+      html += '<div class="an-week-grid an-daily-grid">';
+      dailyCounts.forEach(d=>{
+        const dKey = d.date.toISOString().slice(0,10);
+        const barPct = dailyMax>0 ? Math.round((d.count/dailyMax)*100) : 0;
+        const isToday = dKey===todayKey;
+        html += `
+          <div class="an-week-cell${isToday?' an-current':''}" title="${fmtDate(dKey)}">
+            <div class="an-week-bar" style="height:${barPct}%;"></div>
+            <div class="an-week-num">${d.date.getUTCDate()}.${d.date.getUTCMonth()+1}.</div>
+            <div class="an-week-count">${d.count}</div>
+          </div>`;
+      });
       html += '</div>';
     }
     return html;
@@ -3978,6 +4094,11 @@
       state.analyticsYear = parseInt(yearSelect.value);
       renderAnalyticsView();
     });
+    const dailyRangeSelect = document.getElementById("an-daily-range-select");
+    if(dailyRangeSelect) dailyRangeSelect.addEventListener("change", ()=>{
+      state.analyticsDailyRange = parseInt(dailyRangeSelect.value);
+      renderAnalyticsView();
+    });
   }
 
   // --- Tab: Auswertung (pro Projekt) ---
@@ -3995,6 +4116,11 @@
     const yearSelect = document.getElementById("an-year-select");
     if(yearSelect) yearSelect.addEventListener("change", ()=>{
       state.analyticsYear = parseInt(yearSelect.value);
+      renderProject();
+    });
+    const dailyRangeSelect = document.getElementById("an-daily-range-select");
+    if(dailyRangeSelect) dailyRangeSelect.addEventListener("change", ()=>{
+      state.analyticsDailyRange = parseInt(dailyRangeSelect.value);
       renderProject();
     });
   }
@@ -4184,6 +4310,7 @@
       await sSet("projects", state.projects);
     }
     await loadDocDefs();
+    await migrateTaskNumbers();
     renderAll();
   }
 
