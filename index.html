@@ -138,6 +138,14 @@
   .prio-should{background:var(--amber);}
   .prio-could{background:var(--sage);}
   .prio-wont{background:var(--ink-soft);}
+  .prio-badge{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.3px;
+    flex-shrink:0;color:var(--ink-soft);
+  }
+  .prio-badge.prio-must{color:var(--rust);background:none;}
+  .prio-badge.prio-should{color:var(--amber-deep);background:none;}
+  .prio-badge.prio-could{color:var(--sage);background:none;}
+  .prio-badge.prio-wont{color:var(--ink-soft);background:none;}
 
   /* Dashboard calendar */
   .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
@@ -482,6 +490,9 @@
   }
 
   /* Auswertung / Analytics */
+  .afn-log-form{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .afn-log-form input{padding:8px 10px;}
+  .afn-log-form input[type="number"]{width:180px;}
   .an-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;}
   .an-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);padding:6px 10px;border-bottom:1px solid var(--line);}
   .an-table td{padding:7px 10px;border-bottom:1px solid var(--line-soft);}
@@ -582,6 +593,8 @@
   const TASK_PRIO = ["must","should","could","wont"];
   const PRIO_LABELS = {must:"Must have", should:"Should have", could:"Could have", wont:"Won't have"};
   function prioLabel(key){ return PRIO_LABELS[key] || key; }
+  const PRIO_ABBR = {must:"M", should:"S", could:"C", wont:"W"};
+  function prioAbbr(key){ return "["+(PRIO_ABBR[key]||"?")+"]"; }
   function migratePrio(val){
     const legacy = {hoch:"must", mittel:"should", niedrig:"could"};
     return legacy[val] || val || "should";
@@ -637,7 +650,10 @@
     knowledgeBaseError: null,
     editingKnowledgeId: null,
     knowledgeSearch: "",
-    analyticsYear: new Date().getFullYear()
+    analyticsYear: new Date().getFullYear(),
+    analyticsSubTab: "aufgaben", // 'aufgaben' | 'afn'
+    afnLog: undefined,      // undefined = noch nicht geladen; array = geladen
+    afnLogSaving: false
   };
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -1187,7 +1203,7 @@
         const overdue = t.faelligAm && t.faelligAm < today;
         html += `
           <div class="agg-row" style="cursor:pointer;" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}">
-            <span class="prio-dot prio-${slug(t.prioritaet||'should')}"></span>
+            <span class="prio-badge prio-${slug(t.prioritaet||'should')}" title="${prioLabel(t.prioritaet||'should')}">${prioAbbr(t.prioritaet||'should')}</span>
             <span class="agg-project">${escapeHtml(t.projectName)}</span>
             <span class="agg-title">${escapeHtml(t.titel)}${t.status==="wartet"?' <span class="badge wartet" style="margin-left:6px;">wartet auf '+escapeHtml(t.wartetAuf||"jemanden")+'</span>':''}</span>
             <span class="agg-date"${overdue?' style="color:var(--rust);font-weight:600;"':''}>${overdue?'⚠ ':''}${fmtDate(t.faelligAm)}</span>
@@ -3834,21 +3850,126 @@
     return html;
   }
 
-  async function renderAnalyticsView(){
-    const el = document.getElementById("main-inner");
-    el.innerHTML = '<div class="loading-note">Werte Aufgaben aus…</div>';
-    const allTasks = await collectAllTasksForAnalytics();
+  // ---------- AFN-LESESTAND (täglich gelesene AFN der Firma, projektunabhängig) ----------
+  async function loadAfnLog(){
+    if(state.afnLog === undefined){
+      state.afnLog = (await sGet("afnLeseLog")) || [];
+    }
+    return state.afnLog;
+  }
+  function afnLogSorted(log){
+    return log.slice().sort((a,b)=> a.datum.localeCompare(b.datum));
+  }
+  function buildAfnTabHtml(log){
+    const sorted = afnLogSorted(log);
+    const last = sorted[sorted.length-1];
+    const today = todayStr();
+    const todayEntry = sorted.find(e=>e.datum===today);
 
     let html = `
-      <h2>📊 Auswertung — Aufgaben</h2>
+      <div class="stat-row">
+        <div class="stat-card"><div class="num">${last?last.nummer:"–"}</div><div class="label">Letzte gelesene Nummer</div></div>
+        <div class="stat-card"><div class="num">${last?fmtDate(last.datum):"–"}</div><div class="label">Zuletzt eingetragen am</div></div>
+        <div class="stat-card"><div class="num">${sorted.length}</div><div class="label">Einträge gesamt</div></div>
+      </div>
+      <div class="section-title">Neue Nummer eintragen</div>
+      <div class="afn-log-form">
+        <input type="date" id="afn-log-datum" value="${todayEntry?todayEntry.datum:today}">
+        <input type="number" id="afn-log-nummer" placeholder="Letzte gelesene Nummer" value="${todayEntry?todayEntry.nummer:''}">
+        <button class="btn" id="afn-log-save-btn">Eintragen</button>
+      </div>
+      <div id="afn-log-error" class="ai-error" style="display:none;margin-top:8px;"></div>
+    `;
+
+    html += '<div class="section-title">Historie</div>';
+    if(sorted.length===0){
+      html += '<div class="empty-state"><h3>Noch keine Einträge</h3><div>Trage oben die zuletzt gelesene AFN-Nummer ein.</div></div>';
+    }else{
+      html += '<table class="an-table"><tr><th>Datum</th><th>Nummer</th><th>Gelesen</th></tr>';
+      const desc = sorted.slice().reverse();
+      desc.forEach((e, i)=>{
+        const idxInSorted = sorted.length-1-i;
+        const prev = sorted[idxInSorted-1];
+        const diff = prev ? (e.nummer - prev.nummer) : null;
+        html += `<tr>
+          <td>${fmtDate(e.datum)}</td>
+          <td>${e.nummer}</td>
+          <td>${diff===null?'–':diff}</td>
+        </tr>`;
+      });
+      html += '</table>';
+    }
+    return html;
+  }
+  async function wireAfnTab(){
+    const saveBtn = document.getElementById("afn-log-save-btn");
+    if(!saveBtn) return;
+    saveBtn.addEventListener("click", async ()=>{
+      const datum = document.getElementById("afn-log-datum").value;
+      const nummerRaw = document.getElementById("afn-log-nummer").value;
+      const errEl = document.getElementById("afn-log-error");
+      errEl.style.display = "none";
+      if(!datum || nummerRaw===""){
+        errEl.textContent = "Bitte Datum und Nummer angeben.";
+        errEl.style.display = "block";
+        return;
+      }
+      const nummer = parseInt(nummerRaw, 10);
+      if(isNaN(nummer)){
+        errEl.textContent = "Die Nummer muss eine ganze Zahl sein.";
+        errEl.style.display = "block";
+        return;
+      }
+      const log = await loadAfnLog();
+      const idx = log.findIndex(e=>e.datum===datum);
+      if(idx>=0) log[idx] = {datum, nummer};
+      else log.push({datum, nummer});
+      state.afnLog = log;
+      const ok = await sSet("afnLeseLog", log);
+      if(!ok){ await showAlert("Der Eintrag konnte nicht gespeichert werden."); return; }
+      renderAnalyticsView();
+    });
+  }
+
+  async function renderAnalyticsView(){
+    const el = document.getElementById("main-inner");
+    el.innerHTML = '<div class="loading-note">Lade Auswertung…</div>';
+
+    let html = `
+      <h2>📊 Auswertung</h2>
+      <div class="tabs">
+        <button class="tab-btn" data-an-tab="aufgaben">Aufgaben</button>
+        <button class="tab-btn" data-an-tab="afn">AFN-Lesestand</button>
+      </div>
+      <div id="an-tab-content"></div>
+    `;
+    el.innerHTML = html;
+    el.querySelectorAll("[data-an-tab]").forEach(b=>{
+      b.classList.toggle("active", b.dataset.anTab===state.analyticsSubTab);
+      b.addEventListener("click", ()=>{ state.analyticsSubTab = b.dataset.anTab; renderAnalyticsView(); });
+    });
+    const contentEl = document.getElementById("an-tab-content");
+
+    if(state.analyticsSubTab === "afn"){
+      contentEl.innerHTML = '<div class="loading-note">Lade AFN-Lesestand…</div>';
+      const log = await loadAfnLog();
+      contentEl.innerHTML = `
+        <div class="sub" style="color:var(--ink-soft);margin:4px 0 6px;">
+          Zuletzt gelesene AFN-Nummer der Firma, Historie und tägliche Anzahl gelesener Nummern.
+        </div>
+      ` + buildAfnTabHtml(log);
+      wireAfnTab();
+      return;
+    }
+
+    const allTasks = await collectAllTasksForAnalytics();
+    contentEl.innerHTML = `
       <div class="sub" style="color:var(--ink-soft);margin:4px 0 6px;">
         Durchlaufzeit von Erstellung bis Abschluss, projektübergreifend, nach Projekt und Priorität — sowie deine Produktivität pro Kalenderwoche.
       </div>
       <div class="an-note">Basiert nur auf Aufgaben, die seit Einführung dieser Auswertung angelegt bzw. abgeschlossen wurden — ältere Aufgaben ohne Erstelldatum fließen in die Durchlaufzeit nicht ein, zählen aber bei der Wochenübersicht mit, sobald sie ein Abschlussdatum haben.</div>
     `;
-    html += buildTaskAnalyticsHtml(allTasks, {showProjectBreakdown:true});
-
-    el.innerHTML = html;
+    contentEl.innerHTML += buildTaskAnalyticsHtml(allTasks, {showProjectBreakdown:true});
     const yearSelect = document.getElementById("an-year-select");
     if(yearSelect) yearSelect.addEventListener("change", ()=>{
       state.analyticsYear = parseInt(yearSelect.value);
