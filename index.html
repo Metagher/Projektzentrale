@@ -219,6 +219,18 @@
   }
   .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--focus);}
   .field textarea{resize:vertical;min-height:70px;}
+  .doku-check-field{display:flex;align-items:center;margin-bottom:12px;}
+  .doku-check-field label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);cursor:pointer;text-transform:none;letter-spacing:0;}
+  .doku-check-field input[type="checkbox"]{width:14px;height:14px;cursor:pointer;accent-color:var(--violet);}
+  .doku-check-inline{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-soft);cursor:pointer;flex-shrink:0;white-space:nowrap;}
+  .doku-check-inline input[type="checkbox"]{width:13px;height:13px;cursor:pointer;accent-color:var(--violet);}
+  .badge.doku{background:var(--violet-bg);color:var(--violet);border:1px solid var(--violet-border);}
+  .doku-list-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--paper-raised);
+    border:1px solid var(--line-soft);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;
+  }
+  .doku-list-row .doku-list-title{font-size:13px;}
+  .doku-list-row .doku-list-meta{font-size:11px;color:var(--ink-soft);margin-top:2px;}
   .btn{
     padding:8px 14px;border-radius:var(--radius);border:1px solid var(--amber);background:var(--amber);color:#1B1F1A;
     cursor:pointer;font-size:13px;font-weight:600;
@@ -2122,8 +2134,23 @@
     const hidden = data.doc._hidden || [];
     const visibleDefs = defs.filter(d => !hidden.includes(d.id));
     const hiddenDefs = defs.filter(d => hidden.includes(d.id));
+    const dokuTasks = (data.tasks||[]).filter(t=>t.status==="erledigt" && t.doku && !t.dokuErledigt);
 
     let html = "";
+    if(dokuTasks.length>0){
+      html += '<div class="section-title">Erledigte Aufgaben zur Dokumentation (' + dokuTasks.length + ')</div>';
+      dokuTasks.slice().sort((a,b)=>(b.abgeschlossenAm||"").localeCompare(a.abgeschlossenAm||"")).forEach(t=>{
+        html += `
+          <div class="doku-list-row">
+            <div>
+              <div class="doku-list-title"><span class="task-nr">${t.nr||'—'}</span><strong>${escapeHtml(t.titel)}</strong></div>
+              <div class="doku-list-meta">${t.abgeschlossenAm?('Erledigt: '+fmtDate(t.abgeschlossenAm.slice(0,10))):''}</div>
+            </div>
+            <button class="btn secondary small" data-doku-done="${t.id}">Doku abgeschlossen</button>
+          </div>`;
+      });
+    }
+
     if(defs.length===0){
       html += '<div class="empty-state"><h3>Noch keine Oberpunkte definiert</h3><div>Lege sie unter „⚙ Oberpunkte verwalten" in der Seitenleiste an — sie gelten dann für alle Projekte.</div></div>';
     }
@@ -2171,6 +2198,16 @@
       });
     }
     el.innerHTML = html;
+
+    el.querySelectorAll("[data-doku-done]").forEach(b=>b.addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      const idx = data.tasks.findIndex(x=>x.id===b.dataset.dokuDone);
+      if(idx>=0){
+        data.tasks[idx] = {...data.tasks[idx], dokuErledigt:true};
+        await sSet("tasks:"+p.id, data.tasks);
+      }
+      renderProject();
+    }));
 
     el.querySelectorAll("[data-open-doc]").forEach(row=>{
       row.addEventListener("click", (e)=>{
@@ -2310,6 +2347,7 @@
             <label>Wartet auf (Person)</label>
             <input id="t-wartet-auf" placeholder="z.B. Kollege Müller, Chef, IT-Abteilung…">
           </div>
+          <div class="doku-check-field"><label><input type="checkbox" id="t-doku"> Für Dokumentation vormerken (erscheint nach Erledigung im Reiter „Dokumentation")</label></div>
           <div class="field"><label>Beschreibung</label>${rtfFieldBlockHtml("t-beschreibung-preview", "", "Klicken, um eine Beschreibung zu erfassen…")}</div>
           <div class="field"><label>Interne Notizen</label>${rtfFieldBlockHtml("t-notizen-preview", "", "Klicken, um interne Notizen zu erfassen…")}</div>
           <div class="field"><label>AFN-Nummer(n)</label>${afnFieldBlockHtml("t-afn-field", [])}</div>
@@ -2366,6 +2404,7 @@
                 </select>
                 <input type="date" id="te-faellig-${t.id}" value="${t.faelligAm||''}">
                 <select id="te-kontakt-${t.id}">${contactOptions(data, t.kontaktId)}</select>
+                <label class="doku-check-inline"><input type="checkbox" id="te-doku-${t.id}" ${t.doku?"checked":""}> Doku</label>
               </div>
               <div class="field wartet-auf-field" id="te-wartet-field-${t.id}" style="display:${t.status==='wartet'?'block':'none'};">
                 <label>Wartet auf (Person)</label>
@@ -2390,6 +2429,7 @@
                   <span class="task-nr">${t.nr||'—'}</span>
                   <strong>${escapeHtml(t.titel)}</strong>
                   <span class="badge ${slug(t.status)}" style="margin-left:6px;">${t.status}</span>
+                  ${t.doku?'<span class="badge doku" style="margin-left:4px;">Doku</span>':''}
                   ${t.afns&&t.afns.length?' '+afnViewMarkup(t.afns):''}
                   <div class="meta">Fällig: ${fmtDate(t.faelligAm)} ${contact?('· '+escapeHtml(contact.name)):''}${t.erstelltAm?(' · Erstellt: '+fmtDate(t.erstelltAm.slice(0,10))):''}${t.abgeschlossenAm?(' · Erledigt: '+fmtDate(t.abgeschlossenAm.slice(0,10))):''}</div>
                   ${t.status==="wartet"?'<div class="wartet-auf-note">⏳ Wartet auf: '+escapeHtml(t.wartetAuf||"—")+'</div>':''}
@@ -2465,7 +2505,9 @@
         notizen: pendingNewTaskNotizen,
         afns: pendingNewTaskAfns,
         erstelltAm: new Date().toISOString(),
-        abgeschlossenAm: null
+        abgeschlossenAm: null,
+        doku: document.getElementById("t-doku").checked,
+        dokuErledigt: false
       });
       await sSet("tasks:"+p.id, data.tasks);
       state.showNewTaskForm = false;
@@ -2519,6 +2561,7 @@
             abgeschlossenAm = null;
           }
           const wartetAufInput = document.getElementById("te-wartet-auf-"+editingTask.id);
+          const dokuCheckbox = document.getElementById("te-doku-"+editingTask.id);
           data.tasks[idx] = {
             ...data.tasks[idx],
             titel,
@@ -2530,7 +2573,8 @@
             beschreibung: pendingEditBeschreibung,
             notizen: pendingEditNotizen,
             afns: pendingEditAfns,
-            abgeschlossenAm
+            abgeschlossenAm,
+            doku: dokuCheckbox ? dokuCheckbox.checked : (data.tasks[idx].doku||false)
           };
           await sSet("tasks:"+p.id, data.tasks);
         }
