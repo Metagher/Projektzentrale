@@ -85,6 +85,10 @@
     margin-bottom:4px;cursor:pointer;overflow:hidden;transition:border-color 0.15s, transform 0.1s;
   }
   .ticket:hover{border-color:rgba(195,135,46,0.5);}
+  .ticket[draggable="true"]{cursor:grab;}
+  .ticket.dragging{opacity:0.4;}
+  .ticket.drag-over-top{box-shadow:inset 0 2px 0 0 var(--amber);}
+  .ticket.drag-over-bottom{box-shadow:inset 0 -2px 0 0 var(--amber);}
   .ticket.active{border-color:var(--amber);background:#22301F;}
   .ticket-perf{
     position:absolute;left:0;top:0;bottom:0;width:6px;
@@ -237,6 +241,13 @@
   .doc-updated{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
   .doc-section textarea{width:100%;min-height:100px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);color:var(--ink);}
   .doc-section textarea:focus{border-color:var(--focus);outline:none;}
+  .doc-report-row{
+    padding:10px 4px;margin-bottom:2px;border-radius:var(--radius);cursor:pointer;
+    border:1px solid transparent;transition:border-color 0.12s, background 0.12s;
+  }
+  .doc-report-row:hover{border-color:var(--line);background:var(--paper-raised);}
+  .doc-report-row .doc-report-empty{color:var(--ink-soft);font-style:italic;font-size:13px;}
+  .doc-report-row .doc-report-afns{margin-bottom:6px;}
   .lvl-1{margin-left:0;}
   .lvl-2{margin-left:26px;border-left:2px solid var(--line);padding-left:14px;}
   .lvl-3{margin-left:52px;border-left:2px solid var(--line-soft);padding-left:14px;}
@@ -591,6 +602,7 @@
     editingMilestone: null,
     showNewUpdateForm: false,
     editingUpdateId: null,
+    editingDocSectionId: null,
     taskFilterTab: "offen",  // 'offen' | 'erledigt' — controls which tasks show in a project's Aufgaben tab
     showNewTaskForm: false,
     showNewCommForm: false,
@@ -1109,13 +1121,15 @@
   function renderDashboardTaskRows(tasks){
     if(tasks.length===0) return '<div class="empty-state" style="padding:24px;"><h3>Keine Aufgaben in dieser Ansicht</h3></div>';
     let html = "";
+    const today = todayStr();
     tasks.forEach(t=>{
+      const overdue = t.faelligAm && t.faelligAm < today;
       html += `
         <div class="agg-row" style="cursor:pointer;" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}">
           <span class="prio-dot prio-${slug(t.prioritaet||'mittel')}"></span>
           <span class="agg-project">${escapeHtml(t.projectName)}</span>
           <span class="agg-title">${escapeHtml(t.titel)}${t.status==="wartet"?' <span class="badge wartet" style="margin-left:6px;">wartet auf '+escapeHtml(t.wartetAuf||"jemanden")+'</span>':''}</span>
-          <span class="agg-date">${fmtDate(t.faelligAm)}</span>
+          <span class="agg-date"${overdue?' style="color:var(--rust);font-weight:600;"':''}>${overdue?'⚠ ':''}${fmtDate(t.faelligAm)}</span>
         </div>`;
     });
     return html;
@@ -1165,6 +1179,26 @@
     return html;
   }
 
+  /**
+   * Sets faelligAm = today for every currently overdue task, grouped by project so
+   * each project's task list is only saved once.
+   */
+  async function setAllOverdueTasksToToday(){
+    const today = todayStr();
+    const byProject = {};
+    (state.dashboardData.overdueTasks||[]).forEach(t=>{
+      (byProject[t.projectId] = byProject[t.projectId]||[]).push(t.id);
+    });
+    for(const projectId of Object.keys(byProject)){
+      const data = await ensureProjectData(projectId);
+      const ids = byProject[projectId];
+      data.tasks.forEach(t=>{
+        if(ids.includes(t.id)) t.faelligAm = today;
+      });
+      await sSet("tasks:"+projectId, data.tasks);
+    }
+  }
+
   async function loadDashboardData(){
     const projects = state.projects || [];
     const allTasks = [];
@@ -1194,7 +1228,11 @@
     allContacts.sort((a,b) => a.name.localeCompare(b.name));
     const withDate = allTasks.filter(t=>t.faelligAm);
     const noDate = allTasks.filter(t=>!t.faelligAm);
-    state.dashboardData = { openTasks: allTasks, tasksWithDate: withDate, tasksNoDate: noDate, waitingTasks, completedTasks, upcomingMilestones: allMilestones, allContacts };
+    const today = todayStr();
+    const overdueTasks = [...allTasks, ...waitingTasks]
+      .filter(t=>t.faelligAm && t.faelligAm < today)
+      .sort((a,b)=>(a.faelligAm||"").localeCompare(b.faelligAm||""));
+    state.dashboardData = { openTasks: allTasks, tasksWithDate: withDate, tasksNoDate: noDate, waitingTasks, completedTasks, upcomingMilestones: allMilestones, allContacts, overdueTasks };
   }
 
   // ---------- RENDER: SIDEBAR ----------
@@ -1232,6 +1270,8 @@
       const order = {aktiv:0, pausiert:1, abgeschlossen:2};
       const oa = order[a.status] ?? 3, ob = order[b.status] ?? 3;
       if(oa!==ob) return oa-ob;
+      const ia = a.sortIndex??0, ib = b.sortIndex??0;
+      if(ia!==ib) return ia-ib;
       return (b.createdAt||"").localeCompare(a.createdAt||"");
     });
     if(search){
@@ -1243,6 +1283,7 @@
       listEl.innerHTML = '<div class="empty-hint">Keine Projekte gefunden.</div>';
       return;
     }
+    const dragEnabled = !search; // Umsortieren nur in der ungefilterten Ansicht, damit die Reihenfolge eindeutig bleibt
     let html = "";
     let lastStatus = null;
     const labels = {aktiv:"Aktiv", pausiert:"Pausiert", abgeschlossen:"Abgeschlossen"};
@@ -1253,7 +1294,7 @@
       }
       const active = (state.view==="project" && state.selectedId===p.id);
       html += `
-        <div class="ticket${active?' active':''}" data-id="${p.id}" title="${escapeHtml(p.name)} — ${escapeHtml(p.kunde||'—')}">
+        <div class="ticket${active?' active':''}" data-id="${p.id}" data-status="${p.status}" ${dragEnabled?'draggable="true"':''} title="${escapeHtml(p.name)} — ${escapeHtml(p.kunde||'—')}${dragEnabled?' — ziehen zum Umsortieren':''}">
           <div class="ticket-perf"></div>
           <div class="ticket-body">
             <div class="ticket-top-row">
@@ -1265,12 +1306,74 @@
         </div>`;
     });
     listEl.innerHTML = html;
+
+    let draggingProjectId = null;
+    let suppressClick = false;
     listEl.querySelectorAll(".ticket").forEach(el=>{
       el.addEventListener("click", ()=>{
+        if(suppressClick){ suppressClick = false; return; }
         state.view="project"; state.selectedId = el.dataset.id; state.activeTab="aufgaben";
         renderAll();
       });
+      if(!dragEnabled) return;
+      el.addEventListener("dragstart", (e)=>{
+        draggingProjectId = el.dataset.id;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", draggingProjectId);
+        el.classList.add("dragging");
+      });
+      el.addEventListener("dragend", ()=>{
+        listEl.querySelectorAll(".ticket").forEach(t=>t.classList.remove("dragging","drag-over-top","drag-over-bottom"));
+        draggingProjectId = null;
+      });
+      el.addEventListener("dragover", (e)=>{
+        if(!draggingProjectId || el.dataset.id===draggingProjectId || el.dataset.status!==listEl.querySelector('[data-id="'+draggingProjectId+'"]')?.dataset.status) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const rect = el.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > rect.height/2;
+        el.classList.toggle("drag-over-top", !after);
+        el.classList.toggle("drag-over-bottom", after);
+      });
+      el.addEventListener("dragleave", ()=>{
+        el.classList.remove("drag-over-top","drag-over-bottom");
+      });
+      el.addEventListener("drop", async (e)=>{
+        e.preventDefault();
+        suppressClick = true;
+        const targetId = el.dataset.id;
+        const placeAfter = el.classList.contains("drag-over-bottom");
+        el.classList.remove("drag-over-top","drag-over-bottom");
+        if(!draggingProjectId || draggingProjectId===targetId) return;
+        await reorderProjects(draggingProjectId, targetId, placeAfter);
+      });
     });
+  }
+
+  /**
+   * Reorders projects within the same status group by moving sourceId to sit
+   * directly before/after targetId, then persists a fresh sequential sortIndex
+   * for all projects (grouped by status, in their new display order).
+   */
+  async function reorderProjects(sourceId, targetId, placeAfter){
+    const order = {aktiv:0, pausiert:1, abgeschlossen:2};
+    const sorted = state.projects.slice().sort((a,b)=>{
+      const oa = order[a.status] ?? 3, ob = order[b.status] ?? 3;
+      if(oa!==ob) return oa-ob;
+      const ia = a.sortIndex??0, ib = b.sortIndex??0;
+      if(ia!==ib) return ia-ib;
+      return (b.createdAt||"").localeCompare(a.createdAt||"");
+    });
+    const srcIdx = sorted.findIndex(p=>p.id===sourceId);
+    const tgtIdx = sorted.findIndex(p=>p.id===targetId);
+    if(srcIdx<0 || tgtIdx<0 || sorted[srcIdx].status!==sorted[tgtIdx].status) return;
+    const [moved] = sorted.splice(srcIdx, 1);
+    const newTgtIdx = sorted.findIndex(p=>p.id===targetId);
+    sorted.splice(placeAfter ? newTgtIdx+1 : newTgtIdx, 0, moved);
+    sorted.forEach((p,i)=>{ p.sortIndex = i; });
+    state.projects = sorted;
+    await sSet("projects", state.projects);
+    renderSidebar();
   }
 
   // ---------- RENDER: DASHBOARD ----------
@@ -1284,6 +1387,7 @@
     const projects = state.projects || [];
     const active = projects.filter(p=>p.status==="aktiv").length;
     const openTaskCount = state.dashboardData.openTasks.length;
+    const overdueCount = state.dashboardData.overdueTasks.length;
     const soon = state.dashboardData.upcomingMilestones.filter(m=>{
       if(!m.datum) return false;
       const diff = (new Date(m.datum) - new Date(todayStr())) / 86400000;
@@ -1298,10 +1402,19 @@
     html += `
       <div class="stat-row">
         <div class="stat-card"><div class="num">${active}</div><div class="label">Aktive Projekte</div></div>
-        <div class="stat-card warn"><div class="num">${openTaskCount}</div><div class="label">Offene Aufgaben</div></div>
+        <div class="stat-card"><div class="num">${openTaskCount}</div><div class="label">Offene Aufgaben</div></div>
+        <div class="stat-card warn"><div class="num">${overdueCount}</div><div class="label">Überfällig</div></div>
         <div class="stat-card upcoming"><div class="num">${soon}</div><div class="label">Echtläufe in 30 Tagen</div></div>
       </div>
     `;
+    if(overdueCount>0){
+      html += `
+        <div class="kb-stale-note" style="border-left-color:var(--rust);">
+          <span>⚠ ${overdueCount} Aufgabe${overdueCount===1?'':'n'} ${overdueCount===1?'ist':'sind'} überfällig (Fälligkeitsdatum liegt vor heute).</span>
+          <button class="btn small danger" id="set-overdue-today-btn">Alle überfälligen auf heute setzen</button>
+        </div>
+      `;
+    }
 
     html += `
       <div class="tabs" style="justify-content:space-between;">
@@ -1356,6 +1469,14 @@
     if(filterBarEl) wireDashboardFilterBar(filterBarEl);
     const toggleDashFiltersBtn = document.getElementById("toggle-dash-filters");
     if(toggleDashFiltersBtn) toggleDashFiltersBtn.addEventListener("click", ()=>{ state.showDashFilters = !state.showDashFilters; renderDashboard(); });
+    const setOverdueTodayBtn = document.getElementById("set-overdue-today-btn");
+    if(setOverdueTodayBtn) setOverdueTodayBtn.addEventListener("click", async ()=>{
+      const n = state.dashboardData.overdueTasks.length;
+      const sure = await showConfirm("Wirklich alle "+n+" überfälligen Aufgabe"+(n===1?"":"n")+" auf das heutige Datum ("+fmtDate(todayStr())+") setzen?");
+      if(!sure) return;
+      await setAllOverdueTasksToToday();
+      renderDashboard();
+    });
     el.querySelectorAll(".tab-btn").forEach(b=>{
       b.classList.toggle("active", b.dataset.dtab===state.dashboardTab);
       b.addEventListener("click", ()=>{ state.dashboardTab=b.dataset.dtab; renderDashboard(); });
@@ -1777,22 +1898,36 @@
 
     visibleDefs.forEach(s=>{
       const entry = data.doc[s.id] || {content:"", updatedAt:null, afns:[]};
-      html += `
-        <div class="doc-section lvl-${defLevel(s)}">
-          <div class="doc-section-head">
-            <h3>${labels[s.id]} ${escapeHtml(s.title)}</h3>
-            <div style="display:flex;align-items:center;gap:10px;">
+      if(s.id === state.editingDocSectionId){
+        html += `
+          <div class="doc-section lvl-${defLevel(s)}">
+            <div class="doc-section-head">
+              <h3>${labels[s.id]} ${escapeHtml(s.title)}</h3>
               <span class="doc-updated">${entry.updatedAt ? "zuletzt aktualisiert: "+fmtDateTime(entry.updatedAt) : "noch nicht bearbeitet"}</span>
-              <button class="icon-btn" data-hide="${s.id}" title="Für dieses Projekt ausblenden (inkl. Unterpunkte)">Ausblenden</button>
             </div>
-          </div>
-          ${rtfFieldBlockHtml("docfield-"+s.id, entry.content, "Klicken, um Text einzugeben…")}
-          ${afnFieldBlockHtml("docafn-"+s.id, entry.afns||[])}
-        </div>`;
+            ${rtfFieldBlockHtml("docfield-"+s.id, entry.content, "Klicken, um Text einzugeben…")}
+            ${afnFieldBlockHtml("docafn-"+s.id, entry.afns||[])}
+            <div class="btn-row" style="margin-top:8px;">
+              <button class="btn small" id="doc-save-${s.id}">Speichern</button>
+              <button class="btn secondary small" id="doc-cancel-${s.id}">Abbrechen</button>
+              <button class="icon-btn" data-hide="${s.id}" style="margin-left:auto;" title="Für dieses Projekt ausblenden (inkl. Unterpunkte)">Ausblenden</button>
+            </div>
+          </div>`;
+      }else{
+        html += `
+          <div class="doc-report-row lvl-${defLevel(s)}" data-open-doc="${s.id}">
+            <div class="doc-section-head">
+              <h3>${labels[s.id]} ${escapeHtml(s.title)}</h3>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span class="doc-updated">${entry.updatedAt ? "zuletzt aktualisiert: "+fmtDateTime(entry.updatedAt) : "noch nicht bearbeitet"}</span>
+                <button class="icon-btn" data-hide="${s.id}" title="Für dieses Projekt ausblenden (inkl. Unterpunkte)">Ausblenden</button>
+              </div>
+            </div>
+            ${entry.afns&&entry.afns.length?'<div class="doc-report-afns">'+afnViewMarkup(entry.afns)+'</div>':''}
+            ${!isEmptyHtml(entry.content) ? '<div class="rtf-content">'+entry.content+'</div>' : '<div class="doc-report-empty">Noch kein Text erfasst — klicken zum Bearbeiten.</div>'}
+          </div>`;
+      }
     });
-    if(visibleDefs.length>0){
-      html += '<div class="btn-row"><button class="btn" id="save-doc">Dokumentation speichern</button></div>';
-    }
     if(hiddenDefs.length>0){
       html += '<div class="section-title">Ausgeblendete Punkte für dieses Projekt (' + hiddenDefs.length + ')</div>';
       hiddenDefs.forEach(s=>{
@@ -1805,41 +1940,18 @@
     }
     el.innerHTML = html;
 
-    const pendingDocContent = {};
-    const pendingDocAfns = {};
-    visibleDefs.forEach(s=>{
-      const entry = data.doc[s.id] || {content:"", updatedAt:null, afns:[]};
-      pendingDocContent[s.id] = entry.content || "";
-      pendingDocAfns[s.id] = (entry.afns||[]).slice();
-      wireRtfPreviewBox(
-        document.getElementById("docfield-"+s.id), s.title,
-        ()=>pendingDocContent[s.id], (v)=>{ pendingDocContent[s.id] = v; },
-        "Klicken, um Text einzugeben…"
-      );
-      wireAfnField(
-        document.getElementById("docafn-"+s.id),
-        ()=>pendingDocAfns[s.id], (v)=>{ pendingDocAfns[s.id] = v; }
-      );
-    });
-
-    const saveBtn = document.getElementById("save-doc");
-    if(saveBtn) saveBtn.addEventListener("click", async ()=>{
-      const now = new Date().toISOString();
-      Object.keys(pendingDocContent).forEach(key=>{
-        const prevEntry = data.doc[key] || {content:"", updatedAt:null, afns:[]};
-        const contentChanged = pendingDocContent[key] !== (prevEntry.content||"");
-        data.doc[key] = {
-          content: pendingDocContent[key],
-          updatedAt: contentChanged ? now : (prevEntry.updatedAt||null),
-          afns: pendingDocAfns[key]
-        };
+    el.querySelectorAll("[data-open-doc]").forEach(row=>{
+      row.addEventListener("click", (e)=>{
+        if(e.target.closest("[data-hide]")) return;
+        state.editingDocSectionId = row.dataset.openDoc;
+        renderProject();
       });
-      await sSet("doc:"+p.id, data.doc);
-      renderProject();
     });
-    el.querySelectorAll("[data-hide]").forEach(b=>b.addEventListener("click", async ()=>{
+    el.querySelectorAll("[data-hide]").forEach(b=>b.addEventListener("click", async (e)=>{
+      e.stopPropagation();
       const ids = getSubtreeIds(state.docDefs||[], b.dataset.hide);
       data.doc._hidden = Array.from(new Set([...(data.doc._hidden||[]), ...ids]));
+      if(state.editingDocSectionId && ids.includes(state.editingDocSectionId)) state.editingDocSectionId = null;
       await sSet("doc:"+p.id, data.doc);
       renderProject();
     }));
@@ -1849,6 +1961,38 @@
       await sSet("doc:"+p.id, data.doc);
       renderProject();
     }));
+
+    const editingDef = visibleDefs.find(s=>s.id===state.editingDocSectionId);
+    if(editingDef){
+      const entry = data.doc[editingDef.id] || {content:"", updatedAt:null, afns:[]};
+      let pendingContent = entry.content || "";
+      let pendingAfns = (entry.afns||[]).slice();
+      wireRtfPreviewBox(
+        document.getElementById("docfield-"+editingDef.id), editingDef.title,
+        ()=>pendingContent, (v)=>{ pendingContent = v; },
+        "Klicken, um Text einzugeben…"
+      );
+      wireAfnField(
+        document.getElementById("docafn-"+editingDef.id),
+        ()=>pendingAfns, (v)=>{ pendingAfns = v; }
+      );
+      document.getElementById("doc-save-"+editingDef.id).addEventListener("click", async ()=>{
+        const prevEntry = data.doc[editingDef.id] || {content:"", updatedAt:null, afns:[]};
+        const contentChanged = pendingContent !== (prevEntry.content||"");
+        data.doc[editingDef.id] = {
+          content: pendingContent,
+          updatedAt: contentChanged ? new Date().toISOString() : (prevEntry.updatedAt||null),
+          afns: pendingAfns
+        };
+        await sSet("doc:"+p.id, data.doc);
+        state.editingDocSectionId = null;
+        renderProject();
+      });
+      document.getElementById("doc-cancel-"+editingDef.id).addEventListener("click", ()=>{
+        state.editingDocSectionId = null;
+        renderProject();
+      });
+    }
   }
 
   function renderProjectTaskFilterBar(data){
@@ -2599,7 +2743,8 @@
       rows.push({
         Typ:"projekt", ProjektId:p.id, Id:p.id, Titel:p.name, Kunde:p.kunde||"",
         ProjektTyp:p.typ||"", Status:p.status||"", Beschreibung:p.beschreibung||"",
-        ErstelltAm:p.createdAt||"", AusgeblendeteOberpunkte:(data.doc._hidden||[]).join(";"), AktuelleVersion:p.aktuelleVersion||""
+        ErstelltAm:p.createdAt||"", AusgeblendeteOberpunkte:(data.doc._hidden||[]).join(";"), AktuelleVersion:p.aktuelleVersion||"",
+        Reihenfolge: p.sortIndex??0
       });
       data.contacts.forEach(c=>{
         rows.push({Typ:"kontakt", ProjektId:p.id, Id:c.id, Titel:c.name, Rolle:c.rolle||"", Telefon:c.telefon||"", Email:c.email||"", Notiz:c.notiz||""});
@@ -2656,11 +2801,11 @@
       newDocDefs.push({id:r.Id, title:r.Titel||"", level: Math.min(3, Math.max(1, parseInt(r.Level)||1))});
     });
 
-    rows.filter(r=>r.Typ==="projekt").forEach(r=>{
+    rows.filter(r=>r.Typ==="projekt").forEach((r,i)=>{
       newProjects.push({
         id:r.Id, name:r.Titel||"(ohne Namen)", kunde:r.Kunde||"", typ:r.ProjektTyp||"Bestandskunde",
         status:r.Status||"aktiv", beschreibung:r.Beschreibung||"", createdAt:r.ErstelltAm||new Date().toISOString(),
-        aktuelleVersion:r.AktuelleVersion||""
+        aktuelleVersion:r.AktuelleVersion||"", sortIndex: r.Reihenfolge!==undefined && r.Reihenfolge!=="" ? (parseInt(r.Reihenfolge)||0) : i
       });
       hiddenByProject[r.Id] = (r.AusgeblendeteOberpunkte||"").split(";").map(s=>s.trim()).filter(Boolean);
     });
@@ -3638,9 +3783,10 @@
   async function createProject(){
     const result = await showNewProjectForm();
     if(!result) return;
+    const maxSortIndex = state.projects.reduce((m,p)=>Math.max(m, p.sortIndex??0), -1);
     const newP = {
       id: uid(), name: result.name, kunde: result.kunde, typ: result.typ,
-      status:"aktiv", beschreibung:"", createdAt: new Date().toISOString()
+      status:"aktiv", beschreibung:"", createdAt: new Date().toISOString(), sortIndex: maxSortIndex+1
     };
     state.projects.push(newP);
     const ok = await sSet("projects", state.projects);
@@ -3697,6 +3843,10 @@
     });
 
     state.projects = (await sGet("projects")) || [];
+    if(state.projects.some(p=>p.sortIndex===undefined)){
+      state.projects.forEach((p,i)=>{ if(p.sortIndex===undefined) p.sortIndex = i; });
+      await sSet("projects", state.projects);
+    }
     await loadDocDefs();
     renderAll();
   }
