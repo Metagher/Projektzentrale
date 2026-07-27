@@ -227,8 +227,9 @@
   .badge.doku{background:var(--violet-bg);color:var(--violet);border:1px solid var(--violet-border);}
   .doku-list-row{
     display:flex;align-items:flex-start;justify-content:space-between;gap:10px;background:var(--paper-raised);
-    border:1px solid var(--line-soft);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;
+    border:1px solid var(--line-soft);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;cursor:pointer;
   }
+  .doku-list-row:hover{border-color:rgba(195,135,46,0.5);}
   .doku-list-row .doku-list-title{font-size:13px;}
   .doku-list-row .doku-list-meta{font-size:11px;color:var(--ink-soft);margin-top:2px;}
   .btn{
@@ -2144,7 +2145,7 @@
       html += '<div class="section-title">Erledigte Aufgaben zur Dokumentation (' + dokuTasks.length + ')</div>';
       dokuTasks.slice().sort((a,b)=>(b.abgeschlossenAm||"").localeCompare(a.abgeschlossenAm||"")).forEach(t=>{
         html += `
-          <div class="doku-list-row">
+          <div class="doku-list-row" data-open-task-from-doku="${t.id}">
             <div style="flex:1;">
               <div class="doku-list-title"><span class="task-nr">${t.nr||'—'}</span><strong>${escapeHtml(t.titel)}</strong></div>
               <div class="doku-list-meta">${t.abgeschlossenAm?('Erledigt: '+fmtDate(t.abgeschlossenAm.slice(0,10))):''}</div>
@@ -2212,6 +2213,15 @@
       }
       renderProject();
     }));
+
+    el.querySelectorAll("[data-open-task-from-doku]").forEach(row=>{
+      row.addEventListener("click", (e)=>{
+        if(e.target.closest("[data-doku-done]")) return;
+        state.activeTab = "aufgaben";
+        state.editingTaskId = row.dataset.openTaskFromDoku;
+        renderProject();
+      });
+    });
 
     el.querySelectorAll("[data-open-doc]").forEach(row=>{
       row.addEventListener("click", (e)=>{
