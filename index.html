@@ -8,23 +8,28 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#182420;
-    --ink-soft:#425048;
-    --paper:#F2F4F1;
-    --paper-raised:#FFFFFF;
-    --sidebar:#152019;
+    --ink:#E7EBE3;
+    --ink-soft:#93A092;
+    --paper:#141815;
+    --paper-raised:#1D231F;
+    --sidebar:#0E120F;
     --sidebar-text:#D8DED8;
-    --sidebar-text-dim:#8A968E;
-    --line:#D8DDD6;
-    --line-soft:#E7EAE4;
-    --amber:#C3872E;
-    --amber-deep:#9C6A1F;
-    --rust:#B5493B;
-    --sage:#5C7A63;
-    --focus:#2F6E4F;
+    --sidebar-text-dim:#7C8A80;
+    --line:#333C35;
+    --line-soft:#262E28;
+    --amber:#D9A24D;
+    --amber-deep:#EFC077;
+    --rust:#E38271;
+    --sage:#87AF93;
+    --focus:#57B587;
+    --field-bg:#262E28;
+    --violet:#C9A9F0;
+    --violet-bg:#362A4D;
+    --violet-border:#4E3D6E;
     --radius:3px;
   }
   *{box-sizing:border-box;}
+  html{color-scheme:dark;}
   html,body{margin:0;padding:0;height:100%;}
   body{
     font-family:'IBM Plex Sans', sans-serif;
@@ -36,7 +41,8 @@
   ::selection{background:var(--amber);color:#fff;}
   h1,h2,h3{font-family:'Fraunces', serif;font-weight:600;margin:0;}
   button{font-family:inherit;}
-  input,textarea,select{font-family:inherit;font-size:13px;}
+  input,textarea,select{font-family:inherit;font-size:13px;background:var(--field-bg);color:var(--ink);border:1px solid var(--line);border-radius:var(--radius);}
+  input::placeholder,textarea::placeholder{color:var(--ink-soft);opacity:0.8;}
   a{color:inherit;}
   .mono{font-family:'IBM Plex Mono', monospace;}
 
@@ -63,7 +69,7 @@
     font-weight:600;cursor:pointer;text-align:left;font-size:13px;letter-spacing:0.2px;
     transition:background 0.15s;
   }
-  .new-project-btn:hover{background:#D8973B;}
+  .new-project-btn:hover{background:#E6B266;}
   .dashboard-link{
     margin:0 16px 10px;padding:9px 10px;border-radius:var(--radius);cursor:pointer;font-size:13px;
     color:var(--sidebar-text-dim);border:1px solid transparent;
@@ -146,7 +152,7 @@
     font-size:10.5px;line-height:1.3;background:var(--paper);border-radius:2px;padding:2px 5px;cursor:pointer;
     border-left:2px solid var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
-  .cal-task:hover{background:#EFEAE0;}
+  .cal-task:hover{background:#2C362E;}
   .cal-task.prio-hoch{border-left-color:var(--rust);}
   .cal-task.prio-niedrig{border-left-color:var(--sage);}
   .cal-more{font-size:10px;color:var(--ink-soft);padding:1px 5px;}
@@ -163,7 +169,7 @@
   .filter-field{display:flex;flex-direction:column;gap:3px;}
   .filter-field label{font-size:10px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);}
   .filter-field select, .filter-field input{
-    padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:12.5px;background:#fff;min-width:120px;
+    padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:12.5px;background:var(--field-bg);color:var(--ink);min-width:120px;
   }
   .filter-field select:focus, .filter-field input:focus{border-color:var(--focus);outline:none;}
   .filter-reset{margin-left:auto;}
@@ -189,19 +195,19 @@
   .field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
   .field label{font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.4px;}
   .field input, .field select, .field textarea{
-    padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:var(--ink);outline:none;
+    padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);color:var(--ink);outline:none;
   }
   .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--focus);}
   .field textarea{resize:vertical;min-height:70px;}
   .btn{
-    padding:8px 14px;border-radius:var(--radius);border:1px solid var(--ink);background:var(--ink);color:#fff;
-    cursor:pointer;font-size:13px;font-weight:500;
+    padding:8px 14px;border-radius:var(--radius);border:1px solid var(--amber);background:var(--amber);color:#1B1F1A;
+    cursor:pointer;font-size:13px;font-weight:600;
   }
-  .btn:hover{background:#2A3830;}
-  .btn.secondary{background:none;color:var(--ink);border-color:var(--line);}
-  .btn.secondary:hover{border-color:var(--ink);}
-  .btn.danger{background:none;color:var(--rust);border-color:var(--rust);}
-  .btn.danger:hover{background:var(--rust);color:#fff;}
+  .btn:hover{background:var(--amber-deep);border-color:var(--amber-deep);}
+  .btn.secondary{background:none;color:var(--ink);border-color:var(--line);font-weight:500;}
+  .btn.secondary:hover{border-color:var(--ink-soft);background:var(--field-bg);}
+  .btn.danger{background:none;color:var(--rust);border-color:var(--rust);font-weight:500;}
+  .btn.danger:hover{background:var(--rust);color:#1B1F1A;}
   .btn.small{padding:5px 9px;font-size:11.5px;}
   .btn-row{display:flex;gap:8px;margin-top:4px;}
 
@@ -217,10 +223,10 @@
   .icon-btn.edit:hover{color:var(--focus);}
 
   .badge{font-size:10.5px;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:0.4px;font-weight:600;}
-  .badge.offen{background:#F4E3D0;color:var(--amber-deep);}
-  .badge.in-arbeit{background:#DCEAE1;color:var(--focus);}
-  .badge.erledigt{background:#E5E7E3;color:var(--ink-soft);}
-  .badge.geplant{background:#E9E4F2;color:#6A4E9C;}
+  .badge.offen{background:#4A3419;color:var(--amber-deep);}
+  .badge.in-arbeit{background:#1B3B2C;color:var(--focus);}
+  .badge.erledigt{background:var(--line-soft);color:var(--ink-soft);}
+  .badge.geplant{background:var(--violet-bg);color:var(--violet);}
 
   .channel-tag{font-size:10.5px;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);border:1px solid var(--line);padding:1px 6px;border-radius:2px;}
 
@@ -229,7 +235,7 @@
   .doc-section-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
   .doc-section-head h3{font-size:15px;}
   .doc-updated{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
-  .doc-section textarea{width:100%;min-height:100px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;}
+  .doc-section textarea{width:100%;min-height:100px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);color:var(--ink);}
   .doc-section textarea:focus{border-color:var(--focus);outline:none;}
   .lvl-1{margin-left:0;}
   .lvl-2{margin-left:26px;border-left:2px solid var(--line);padding-left:14px;}
@@ -272,10 +278,10 @@
   .setup-box p{color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin-bottom:20px;}
   .setup-box .field{margin-bottom:14px;}
   .setup-box .field label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);margin-bottom:4px;}
-  .setup-box .field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;font-family:'IBM Plex Mono',monospace;}
+  .setup-box .field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;font-family:'IBM Plex Mono',monospace;background:var(--field-bg);color:var(--ink);}
   .setup-box .field input:focus{border-color:var(--focus);outline:none;}
   .setup-box .btn{width:100%;padding:11px;font-size:14px;margin-top:6px;}
-  .setup-error{background:#FBE4E0;color:#8A2E1F;border-radius:var(--radius);padding:9px 12px;font-size:12.5px;margin-bottom:14px;}
+  .setup-error{background:#4A241C;color:#F3B8A9;border-radius:var(--radius);padding:9px 12px;font-size:12.5px;margin-bottom:14px;}
 
   /* Timeline */
   .timeline{position:relative;padding-left:22px;}
@@ -283,7 +289,7 @@
   .timeline-item{position:relative;margin-bottom:14px;}
   .timeline-item::before{
     content:'';position:absolute;left:-22px;top:4px;width:10px;height:10px;border-radius:50%;
-    background:#fff;border:2px solid var(--amber);
+    background:var(--paper);border:2px solid var(--amber);
   }
   .timeline-item.erledigt::before{background:var(--sage);border-color:var(--sage);}
   .timeline-item .t-date{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber-deep);}
@@ -311,7 +317,7 @@
   .ai-scope-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
 
   .ai-summary-card{
-    background:linear-gradient(180deg, #FBF7EF, var(--paper-raised) 40%);
+    background:linear-gradient(180deg, #2C2515, var(--paper-raised) 40%);
     border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:var(--radius);
     padding:16px 18px;margin-bottom:18px;
   }
@@ -326,7 +332,7 @@
   }
   .ai-summary-meta{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
   .ai-summary-empty{font-size:13px;color:var(--ink-soft);}
-  .ai-advisor-card{border-left-color:var(--focus);background:linear-gradient(180deg, #EEF4EF, var(--paper-raised) 45%);margin-bottom:22px;}
+  .ai-advisor-card{border-left-color:var(--focus);background:linear-gradient(180deg, #16261D, var(--paper-raised) 45%);margin-bottom:22px;}
   .ai-advisor-card .ai-summary-list li::before{color:var(--focus);}
 
   /* ===== MODAL ===== */
@@ -335,8 +341,8 @@
     z-index:1000;padding:20px;
   }
   .modal-box{
-    background:#fff;border-radius:var(--radius);max-width:420px;width:100%;padding:22px 24px;
-    box-shadow:0 12px 40px rgba(0,0,0,0.25);
+    background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);max-width:420px;width:100%;padding:22px 24px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.5);
   }
   .modal-box h3{font-size:17px;margin-bottom:14px;}
   .modal-box p{margin:0 0 16px;color:var(--ink-soft);font-size:13.5px;line-height:1.5;}
@@ -346,15 +352,15 @@
   .modal-box.rtf-modal{max-width:660px;}
   .rtf-toolbar{display:flex;gap:4px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
   .rtf-btn{
-    padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:var(--ink);
+    padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);color:var(--ink);
     cursor:pointer;font-size:12.5px;
   }
-  .rtf-btn:hover{border-color:var(--focus);background:#F3F6F3;}
+  .rtf-btn:hover{border-color:var(--focus);background:#2C362E;}
   .rtf-btn.rtf-heading{font-family:'Fraunces',serif;font-weight:600;}
   .rtf-sep{width:1px;align-self:stretch;background:var(--line);margin:0 4px;}
   .rtf-editor{
     min-height:220px;max-height:50vh;overflow-y:auto;padding:12px 14px;border:1px solid var(--line);
-    border-radius:var(--radius);background:#fff;font-size:13.5px;line-height:1.55;
+    border-radius:var(--radius);background:var(--field-bg);color:var(--ink);font-size:13.5px;line-height:1.55;
   }
   .rtf-editor:focus{outline:none;border-color:var(--focus);}
   /* Shared typography for rendered rich-text content, used both in the editor and in previews */
@@ -368,7 +374,7 @@
 
   .rtf-field-preview{
     border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;min-height:20px;
-    cursor:pointer;background:#fff;font-size:13px;
+    cursor:pointer;background:var(--field-bg);font-size:13px;color:var(--ink);
   }
   .rtf-field-preview:hover{border-color:var(--focus);}
   .rtf-field-preview.empty{color:var(--ink-soft);font-style:italic;font-size:13px;}
@@ -384,31 +390,31 @@
     flex:1;min-width:180px;border:1px solid transparent;background:none;padding:4px 6px;border-radius:var(--radius);
     font-size:13.5px;font-weight:500;color:var(--ink);
   }
-  .task-inline-row input[type="text"]:hover{border-color:var(--line);background:#fff;}
-  .task-inline-row input[type="text"]:focus{border-color:var(--focus);background:#fff;outline:none;}
+  .task-inline-row input[type="text"]:hover{border-color:var(--line);background:var(--field-bg);}
+  .task-inline-row input[type="text"]:focus{border-color:var(--focus);background:var(--field-bg);outline:none;}
   .task-inline-row select, .task-inline-row input[type="date"]{
-    border:1px solid var(--line);border-radius:var(--radius);padding:4px 6px;font-size:12px;background:#fff;color:var(--ink);
+    border:1px solid var(--line);border-radius:var(--radius);padding:4px 6px;font-size:12px;background:var(--field-bg);color:var(--ink);
   }
   .task-inline-row select:focus, .task-inline-row input[type="date"]:focus{border-color:var(--focus);outline:none;}
   .task-status-select.offen{color:var(--amber-deep);}
   .task-status-select.in-arbeit{color:var(--focus);}
-  .task-status-select.wartet{color:#8B5CB8;}
+  .task-status-select.wartet{color:var(--violet);}
   .task-status-select.erledigt{color:var(--ink-soft);}
-  .badge.wartet{background:#EDE1F5;color:#6A3E9C;}
+  .badge.wartet{background:var(--violet-bg);color:var(--violet);}
   .wartet-auf-field{margin-top:8px;}
-  .wartet-auf-note{font-size:11.5px;color:#6A3E9C;background:#F7F1FB;border:1px solid #E4D3F2;border-radius:var(--radius);padding:6px 10px;margin-top:4px;}
+  .wartet-auf-note{font-size:11.5px;color:var(--violet);background:var(--violet-bg);border:1px solid var(--violet-border);border-radius:var(--radius);padding:6px 10px;margin-top:4px;}
   @keyframes taskHighlightFlash{
-    0%{background:#FBEFD6;} 100%{background:transparent;}
+    0%{background:#4A3419;} 100%{background:transparent;}
   }
   .list-item.task-highlight{animation:taskHighlightFlash 2.2s ease-out;}
   .task-view-row{cursor:pointer;}
   .task-view-row:hover{border-color:var(--focus);}
-  .task-edit-row{border-color:var(--focus);background:#F6FAF7;}
+  .task-edit-row{border-color:var(--focus);background:#182C20;}
 
   /* Wissensdatenbank / Second Brain */
   .kb-stale-note{
-    background:#FBF4E4;border:1px solid #E8D4A0;border-left:3px solid var(--amber);border-radius:var(--radius);
-    padding:12px 14px;margin-bottom:16px;font-size:13px;color:#6B4F1E;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    background:#382C13;border:1px solid #5C4620;border-left:3px solid var(--amber);border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--amber-deep);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
   }
   .kb-category-title{
     font-family:'Fraunces',serif;font-size:16px;font-weight:600;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);
@@ -425,7 +431,7 @@
   .kb-source-tag.manual{color:var(--sage);border-color:var(--sage);}
   .kb-source-tag.ai{color:var(--amber-deep);border-color:var(--amber-deep);}
   .kb-projects{font-size:11px;color:var(--ink-soft);margin-top:6px;}
-  .kb-search{width:100%;max-width:340px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px;}
+  .kb-search{width:100%;max-width:340px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px;background:var(--field-bg);color:var(--ink);}
   .kb-search:focus{border-color:var(--focus);outline:none;}
 
   /* AFN-Nummern (Anforderungsnummern) */
@@ -433,23 +439,23 @@
   .afn-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;}
   .afn-chips:empty{margin-bottom:0;}
   .afn-chip{
-    display:inline-flex;align-items:center;gap:4px;background:#EFE7F5;color:#5A3E82;
-    border:1px solid #D9C7EE;border-radius:20px;padding:2px 4px 2px 9px;font-size:11.5px;font-family:'IBM Plex Mono',monospace;
+    display:inline-flex;align-items:center;gap:4px;background:var(--violet-bg);color:var(--violet);
+    border:1px solid var(--violet-border);border-radius:20px;padding:2px 4px 2px 9px;font-size:11.5px;font-family:'IBM Plex Mono',monospace;
   }
   .afn-remove{
-    background:none;border:none;cursor:pointer;color:#5A3E82;font-size:13px;line-height:1;padding:0 5px;
+    background:none;border:none;cursor:pointer;color:var(--violet);font-size:13px;line-height:1;padding:0 5px;
     border-radius:50%;
   }
-  .afn-remove:hover{background:#D9C7EE;}
+  .afn-remove:hover{background:var(--violet-border);}
   .afn-add-row{display:flex;gap:6px;}
   .afn-input{
-    flex:1;max-width:220px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--radius);
+    flex:1;max-width:220px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);color:var(--ink);
     font-size:12.5px;font-family:'IBM Plex Mono',monospace;
   }
   .afn-input:focus{border-color:var(--focus);outline:none;}
   .afn-chip-view{
-    display:inline-flex;align-items:center;background:#EFE7F5;color:#5A3E82;
-    border:1px solid #D9C7EE;border-radius:20px;padding:1px 8px;font-size:10.5px;font-family:'IBM Plex Mono',monospace;
+    display:inline-flex;align-items:center;background:var(--violet-bg);color:var(--violet);
+    border:1px solid var(--violet-border);border-radius:20px;padding:1px 8px;font-size:10.5px;font-family:'IBM Plex Mono',monospace;
     margin-right:4px;
   }
 
@@ -466,13 +472,13 @@
   .an-week-cell .an-week-num{position:relative;z-index:1;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);}
   .an-week-cell .an-week-count{position:relative;z-index:1;font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-top:2px;}
   .an-week-cell.an-current{border-color:var(--amber);border-width:2px;}
-  .an-week-bar{position:absolute;left:0;bottom:0;right:0;top:auto;background:#DCEAE1;z-index:0;}
-  .an-year-select{padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;}
+  .an-week-bar{position:absolute;left:0;bottom:0;right:0;top:auto;background:#22402E;z-index:0;}
+  .an-year-select{padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;background:var(--field-bg);color:var(--ink);}
   .an-note{font-size:11.5px;color:var(--ink-soft);margin-bottom:18px;max-width:640px;}
 
   /* Update / Versionsverlauf */
   .current-version-card{
-    background:linear-gradient(180deg, #EEF4EF, var(--paper-raised) 45%);border:1px solid var(--line);border-left:3px solid var(--focus);
+    background:linear-gradient(180deg, #16261D, var(--paper-raised) 45%);border:1px solid var(--line);border-left:3px solid var(--focus);
     border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
   }
   .current-version-card .cv-label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--ink-soft);}
@@ -1208,6 +1214,8 @@
     knowledgeLink.className = "dashboard-link" + (state.view==="knowledge" ? " active" : "");
     analyticsLink.className = "dashboard-link" + (state.view==="analytics" ? " active" : "");
     aiSettingsLink.className = "dashboard-link" + (state.view==="ai-settings" ? " active" : "");
+    aiLink.style.display = hasAiKey() ? "" : "none";
+    if(!hasAiKey() && state.view==="ai"){ state.view = "dashboard"; }
 
     if(state.view==="settings" || state.view==="data" || state.view==="ai-settings") state.moreNavExpanded = true;
     const moreGroup = document.getElementById("more-nav-group");
@@ -1414,7 +1422,7 @@
         <button class="tab-btn" data-tab="ansprechpartner">Ansprechpartner</button>
         ${p.typ==="Neukunde" ? '<button class="tab-btn" data-tab="zeitplan">Echtlauf-Zeitplan</button>' : ''}
         <button class="tab-btn" data-tab="update">Update</button>
-        <button class="tab-btn" data-tab="ki-suche">KI-Suche</button>
+        ${hasAiKey() ? '<button class="tab-btn" data-tab="ki-suche">KI-Suche</button>' : ''}
       </div>
       <div id="tab-content"></div>
     `;
@@ -1424,6 +1432,7 @@
       b.addEventListener("click", ()=>{ state.activeTab=b.dataset.tab; renderProject(); });
     });
     const tabEl = document.getElementById("tab-content");
+    if(state.activeTab==="ki-suche" && !hasAiKey()) state.activeTab = "aufgaben";
     if(state.activeTab==="uebersicht") renderTabUebersicht(tabEl, p, data);
     else if(state.activeTab==="ansprechpartner") renderTabContacts(tabEl, p, data);
     else if(state.activeTab==="kommunikation") renderTabComms(tabEl, p, data);
@@ -1437,6 +1446,8 @@
   // --- Tab: Übersicht ---
   function renderAiSummaryCard(el, p, data){
     if(!el) return;
+    if(!hasAiKey()){ el.innerHTML = ""; el.style.display = "none"; return; }
+    el.style.display = "";
     if(data.aiSummaryLoading){
       el.innerHTML = `
         <div class="ai-summary-head"><h3>KI-Übersicht</h3></div>
@@ -1688,7 +1699,7 @@
                 ${!isEmptyHtml(c.notiz)?'<div class="rtf-content rtf-field-preview-compact" style="margin-top:3px;">'+c.notiz+'</div>':''}
               </div>
               <div class="actions">
-                <button class="icon-btn edit" data-extract="${c.id}" title="KI: Aufgaben für Fabian aus diesem Eintrag erkennen">🤖 Aufgaben erkennen</button>
+                ${hasAiKey() ? '<button class="icon-btn edit" data-extract="'+c.id+'" title="KI: Aufgaben für Fabian aus diesem Eintrag erkennen">🤖 Aufgaben erkennen</button>' : ''}
                 <button class="icon-btn edit" data-edit="${c.id}">Bearbeiten</button>
                 <button class="icon-btn" data-del="${c.id}">Löschen</button>
               </div>
@@ -2836,6 +2847,10 @@
     return truncateText(buildProjectContextBlock(p, data, labels), 180000);
   }
 
+  function hasAiKey(){
+    return !!localStorage.getItem("pz_anthropic_key");
+  }
+
   async function callAnthropicApi(systemPrompt, userContent, maxTokens){
     const apiKey = localStorage.getItem("pz_anthropic_key");
     if(!apiKey){
@@ -2923,6 +2938,7 @@
   }
 
   function renderDailyBriefingCard(){
+    if(!hasAiKey()) return '<div id="daily-briefing-card"></div>';
     let html = '<div class="ai-summary-card ai-advisor-card" id="daily-briefing-card">';
     if(state.dailyBriefingLoading){
       html += '<div class="ai-summary-head"><h3>🧭 Dein persönlicher Berater</h3></div><div class="ai-loading">Werte Aufgaben und Termine aus…</div>';
@@ -3188,12 +3204,16 @@
     `;
 
     const stale = kb.aiUpdatedAt===null || daysSince(kb.aiUpdatedAt) > 14;
-    html += `
-      <div class="kb-stale-note">
-        <span>${kb.aiUpdatedAt ? "KI-Wissen zuletzt aktualisiert: "+fmtDateTime(kb.aiUpdatedAt)+(stale?" — das ist eine Weile her.":"") : "Noch nie aus den Projekten aktualisiert."}</span>
-        <button class="btn small" id="kb-refresh-btn" ${state.knowledgeBaseLoading?"disabled":""}>${state.knowledgeBaseLoading?"Analysiere Projekte…":"🔄 Aus Projekten aktualisieren"}</button>
-      </div>
-    `;
+    if(hasAiKey()){
+      html += `
+        <div class="kb-stale-note">
+          <span>${kb.aiUpdatedAt ? "KI-Wissen zuletzt aktualisiert: "+fmtDateTime(kb.aiUpdatedAt)+(stale?" — das ist eine Weile her.":"") : "Noch nie aus den Projekten aktualisiert."}</span>
+          <button class="btn small" id="kb-refresh-btn" ${state.knowledgeBaseLoading?"disabled":""}>${state.knowledgeBaseLoading?"Analysiere Projekte…":"🔄 Aus Projekten aktualisieren"}</button>
+        </div>
+      `;
+    }else{
+      html += '<div class="an-note">Hinterlege einen API-Key unter „⋯ Mehr → 🔑 KI-Einstellungen", um Wissen automatisch aus den Projekten zu generieren. Eigene Einträge kannst du unabhängig davon jederzeit anlegen.</div>';
+    }
     if(state.knowledgeBaseError){
       html += '<div class="ai-error" style="margin-bottom:14px;">'+escapeHtml(state.knowledgeBaseError)+'</div>';
     }
@@ -3263,7 +3283,8 @@
 
     el.innerHTML = html;
 
-    document.getElementById("kb-refresh-btn").addEventListener("click", refreshKnowledgeBase);
+    const kbRefreshBtn = document.getElementById("kb-refresh-btn");
+    if(kbRefreshBtn) kbRefreshBtn.addEventListener("click", refreshKnowledgeBase);
     document.getElementById("kb-search").addEventListener("input", (e)=>{
       state.knowledgeSearch = e.target.value;
       renderKnowledgeView();
@@ -3531,11 +3552,13 @@
       if(!val){ showAlert("Bitte einen API-Key eingeben."); return; }
       localStorage.setItem("pz_anthropic_key", val);
       renderAiSettingsView();
+      renderSidebar();
     });
     const removeBtn = document.getElementById("ai-key-remove");
     if(removeBtn) removeBtn.addEventListener("click", ()=>{
       localStorage.removeItem("pz_anthropic_key");
       renderAiSettingsView();
+      renderSidebar();
     });
   }
 
