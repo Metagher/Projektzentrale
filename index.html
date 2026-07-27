@@ -1,0 +1,3740 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projektzentrale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#182420;
+    --ink-soft:#425048;
+    --paper:#F2F4F1;
+    --paper-raised:#FFFFFF;
+    --sidebar:#152019;
+    --sidebar-text:#D8DED8;
+    --sidebar-text-dim:#8A968E;
+    --line:#D8DDD6;
+    --line-soft:#E7EAE4;
+    --amber:#C3872E;
+    --amber-deep:#9C6A1F;
+    --rust:#B5493B;
+    --sage:#5C7A63;
+    --focus:#2F6E4F;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:'IBM Plex Sans', sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    font-size:14px;
+    line-height:1.5;
+  }
+  ::selection{background:var(--amber);color:#fff;}
+  h1,h2,h3{font-family:'Fraunces', serif;font-weight:600;margin:0;}
+  button{font-family:inherit;}
+  input,textarea,select{font-family:inherit;font-size:13px;}
+  a{color:inherit;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  #app{display:none;height:100vh;overflow:hidden;}
+  #app.ready{display:flex;}
+
+  /* ===== SIDEBAR ===== */
+  #sidebar{
+    width:300px;flex-shrink:0;background:var(--sidebar);color:var(--sidebar-text);
+    display:flex;flex-direction:column;
+  }
+  .sidebar-head{padding:22px 20px 14px;border-bottom:1px solid rgba(255,255,255,0.08);}
+  .sidebar-head h1{color:#fff;font-size:20px;letter-spacing:0.2px;}
+  .sidebar-head .tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--amber);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;display:block;}
+  .sidebar-search{padding:12px 16px 8px;}
+  .sidebar-search input{
+    width:100%;padding:8px 10px;border-radius:var(--radius);border:1px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.06);color:#fff;outline:none;
+  }
+  .sidebar-search input::placeholder{color:var(--sidebar-text-dim);}
+  .sidebar-search input:focus{border-color:var(--amber);}
+  .new-project-btn{
+    margin:6px 16px 12px;padding:9px 12px;background:var(--amber);color:#20160A;border:none;border-radius:var(--radius);
+    font-weight:600;cursor:pointer;text-align:left;font-size:13px;letter-spacing:0.2px;
+    transition:background 0.15s;
+  }
+  .new-project-btn:hover{background:#D8973B;}
+  .dashboard-link{
+    margin:0 16px 10px;padding:9px 10px;border-radius:var(--radius);cursor:pointer;font-size:13px;
+    color:var(--sidebar-text-dim);border:1px solid transparent;
+  }
+  .dashboard-link:hover{color:#fff;}
+  .dashboard-link.active{background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.1);}
+  #project-list{flex:1;overflow-y:auto;padding:4px 16px 16px;}
+  .list-section-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--sidebar-text-dim);margin:10px 0 4px 2px;}
+
+  /* Ticket-style project card (signature element, echoes label/PLU ticket stock) */
+  .ticket{
+    position:relative;background:#1C2A22;border:1px solid rgba(255,255,255,0.09);border-radius:2px;
+    margin-bottom:4px;cursor:pointer;overflow:hidden;transition:border-color 0.15s, transform 0.1s;
+  }
+  .ticket:hover{border-color:rgba(195,135,46,0.5);}
+  .ticket.active{border-color:var(--amber);background:#22301F;}
+  .ticket-perf{
+    position:absolute;left:0;top:0;bottom:0;width:6px;
+    background-image:radial-gradient(circle at 3px 0, transparent 2.2px, #152019 2.6px);
+    background-size:6px 8px;background-repeat:repeat-y;
+  }
+  .ticket-body{padding:6px 9px 6px 13px;}
+  .ticket-top-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .ticket-name{color:#fff;font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ticket-meta{color:var(--sidebar-text-dim);font-size:10px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stamp{
+    font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:0.6px;text-transform:uppercase;
+    padding:1px 5px;border-radius:2px;border:1px solid currentColor;flex-shrink:0;
+  }
+  .stamp.aktiv{color:#7FBF95;}
+  .stamp.pausiert{color:#D8973B;}
+  .stamp.abgeschlossen{color:#8A968E;}
+  .empty-hint{color:var(--sidebar-text-dim);font-size:12px;padding:10px 2px;}
+
+  /* ===== MAIN ===== */
+  #main{flex:1;overflow-y:auto;position:relative;}
+  .main-inner{max-width:920px;margin:0 auto;padding:32px 40px 80px;}
+
+  /* Dashboard */
+  .stat-row{display:flex;gap:14px;margin-bottom:28px;flex-wrap:wrap;}
+  .stat-card{
+    background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;min-width:150px;flex:1;
+  }
+  .stat-card .num{font-family:'Fraunces',serif;font-size:30px;font-weight:600;color:var(--ink);}
+  .stat-card .label{font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.6px;margin-top:2px;}
+  .stat-card.warn .num{color:var(--rust);}
+  .stat-card.upcoming .num{color:var(--amber-deep);}
+
+  .section-title{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-soft);margin:28px 0 10px;}
+  .section-title:first-child{margin-top:0;}
+
+  .agg-row{
+    display:flex;align-items:center;gap:10px;background:var(--paper-raised);border:1px solid var(--line-soft);
+    border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;
+  }
+  .agg-row .agg-project{font-size:11px;color:var(--amber-deep);font-family:'IBM Plex Mono',monospace;flex-shrink:0;cursor:pointer;}
+  .agg-row .agg-title{flex:1;font-size:13.5px;}
+  .agg-row .agg-date{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .prio-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .prio-hoch{background:var(--rust);}
+  .prio-mittel{background:var(--amber);}
+  .prio-niedrig{background:var(--sage);}
+
+  /* Dashboard calendar */
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .cal-nav .cal-title{font-family:'Fraunces',serif;font-size:18px;font-weight:600;}
+  .cal-nav-btns{display:flex;gap:6px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-weekday{font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;color:var(--ink-soft);text-align:center;padding-bottom:4px;}
+  .cal-cell{
+    background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius);
+    min-height:92px;padding:6px;display:flex;flex-direction:column;gap:3px;
+  }
+  .cal-cell.other-month{background:var(--paper);border-color:var(--line-soft);opacity:0.55;}
+  .cal-cell.today{border-color:var(--amber);border-width:1.5px;}
+  .cal-daynum{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);}
+  .cal-cell.today .cal-daynum{color:var(--amber-deep);font-weight:600;}
+  .cal-task{
+    font-size:10.5px;line-height:1.3;background:var(--paper);border-radius:2px;padding:2px 5px;cursor:pointer;
+    border-left:2px solid var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .cal-task:hover{background:#EFEAE0;}
+  .cal-task.prio-hoch{border-left-color:var(--rust);}
+  .cal-task.prio-niedrig{border-left-color:var(--sage);}
+  .cal-more{font-size:10px;color:var(--ink-soft);padding:1px 5px;}
+  @media (max-width:760px){
+    .cal-cell{min-height:60px;font-size:11px;}
+    .cal-task{display:none;}
+  }
+
+  /* Dashboard filter bar */
+  .filter-bar{
+    display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;background:var(--paper-raised);
+    border:1px solid var(--line-soft);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;
+  }
+  .filter-field{display:flex;flex-direction:column;gap:3px;}
+  .filter-field label{font-size:10px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);}
+  .filter-field select, .filter-field input{
+    padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:12.5px;background:#fff;min-width:120px;
+  }
+  .filter-field select:focus, .filter-field input:focus{border-color:var(--focus);outline:none;}
+  .filter-reset{margin-left:auto;}
+
+  /* Project header */
+  .project-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;}
+  .project-header h2{font-size:26px;}
+  .project-header .sub{color:var(--ink-soft);font-size:13px;margin-top:3px;}
+  .project-header .code{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber-deep);}
+
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:22px;flex-wrap:wrap;}
+  .tab-btn{
+    padding:9px 14px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--ink-soft);
+    border-bottom:2px solid transparent;margin-bottom:-1px;
+  }
+  .tab-btn:hover{color:var(--ink);}
+  .tab-btn.active{color:var(--ink);border-bottom-color:var(--amber);font-weight:600;}
+  .tab-sep{width:1px;background:var(--line);margin:6px 6px 6px 2px;align-self:stretch;}
+
+  /* Forms & cards */
+  .card{background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+  .field label{font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.4px;}
+  .field input, .field select, .field textarea{
+    padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:var(--ink);outline:none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--focus);}
+  .field textarea{resize:vertical;min-height:70px;}
+  .btn{
+    padding:8px 14px;border-radius:var(--radius);border:1px solid var(--ink);background:var(--ink);color:#fff;
+    cursor:pointer;font-size:13px;font-weight:500;
+  }
+  .btn:hover{background:#2A3830;}
+  .btn.secondary{background:none;color:var(--ink);border-color:var(--line);}
+  .btn.secondary:hover{border-color:var(--ink);}
+  .btn.danger{background:none;color:var(--rust);border-color:var(--rust);}
+  .btn.danger:hover{background:var(--rust);color:#fff;}
+  .btn.small{padding:5px 9px;font-size:11.5px;}
+  .btn-row{display:flex;gap:8px;margin-top:4px;}
+
+  .list-item{
+    background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:8px;position:relative;
+  }
+  .list-item .top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .list-item .meta{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
+  .list-item .actions{display:flex;gap:6px;flex-shrink:0;}
+  .icon-btn{background:none;border:none;cursor:pointer;color:var(--ink-soft);font-size:12px;padding:2px 4px;}
+  .icon-btn:hover{color:var(--rust);}
+  .icon-btn.edit:hover{color:var(--focus);}
+
+  .badge{font-size:10.5px;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:0.4px;font-weight:600;}
+  .badge.offen{background:#F4E3D0;color:var(--amber-deep);}
+  .badge.in-arbeit{background:#DCEAE1;color:var(--focus);}
+  .badge.erledigt{background:#E5E7E3;color:var(--ink-soft);}
+  .badge.geplant{background:#E9E4F2;color:#6A4E9C;}
+
+  .channel-tag{font-size:10.5px;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);border:1px solid var(--line);padding:1px 6px;border-radius:2px;}
+
+  /* Doc sections */
+  .doc-section{margin-bottom:16px;}
+  .doc-section-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .doc-section-head h3{font-size:15px;}
+  .doc-updated{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .doc-section textarea{width:100%;min-height:100px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;}
+  .doc-section textarea:focus{border-color:var(--focus);outline:none;}
+  .lvl-1{margin-left:0;}
+  .lvl-2{margin-left:26px;border-left:2px solid var(--line);padding-left:14px;}
+  .lvl-3{margin-left:52px;border-left:2px solid var(--line-soft);padding-left:14px;}
+  .lvl-2 h3{font-size:14px;}
+  .lvl-3 h3{font-size:13px;color:var(--ink-soft);}
+  .def-row.lvl-1{margin-left:0;}
+  .def-row.lvl-2{margin-left:26px;}
+  .def-row.lvl-3{margin-left:52px;}
+  .drag-handle{
+    cursor:grab;color:var(--ink-soft);font-size:16px;padding:2px 6px;flex-shrink:0;user-select:none;touch-action:none;
+  }
+  .drag-handle:active{cursor:grabbing;}
+  .def-row.dragging{opacity:0.4;}
+  .def-row.drag-over-top{box-shadow:inset 0 2px 0 0 var(--amber);}
+  .def-row.drag-over-bottom{box-shadow:inset 0 -2px 0 0 var(--amber);}
+
+  /* Storage safety banner */
+  #storage-banner{
+    display:none;position:sticky;top:0;left:0;right:0;z-index:2000;
+    background:#3D2418;color:#FCEFE2;padding:10px 20px;font-size:13px;line-height:1.5;
+    border-bottom:2px solid var(--rust);
+  }
+  #storage-banner.show{display:block;}
+  #storage-banner strong{color:#FFB088;}
+  #storage-banner .banner-close{
+    float:right;background:none;border:1px solid rgba(255,255,255,0.3);color:#FCEFE2;
+    border-radius:2px;padding:2px 8px;cursor:pointer;font-size:11px;margin-left:12px;
+  }
+
+  /* Setup screen (Supabase-Zugangsdaten) */
+  #setup-screen{
+    position:fixed;inset:0;background:var(--sidebar);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .setup-box{
+    background:var(--paper-raised);border-radius:var(--radius);padding:32px 34px;max-width:440px;width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  }
+  .setup-box h1{font-size:22px;margin-bottom:10px;}
+  .setup-box p{color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin-bottom:20px;}
+  .setup-box .field{margin-bottom:14px;}
+  .setup-box .field label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);margin-bottom:4px;}
+  .setup-box .field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;font-family:'IBM Plex Mono',monospace;}
+  .setup-box .field input:focus{border-color:var(--focus);outline:none;}
+  .setup-box .btn{width:100%;padding:11px;font-size:14px;margin-top:6px;}
+  .setup-error{background:#FBE4E0;color:#8A2E1F;border-radius:var(--radius);padding:9px 12px;font-size:12.5px;margin-bottom:14px;}
+
+  /* Timeline */
+  .timeline{position:relative;padding-left:22px;}
+  .timeline::before{content:'';position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--line);}
+  .timeline-item{position:relative;margin-bottom:14px;}
+  .timeline-item::before{
+    content:'';position:absolute;left:-22px;top:4px;width:10px;height:10px;border-radius:50%;
+    background:#fff;border:2px solid var(--amber);
+  }
+  .timeline-item.erledigt::before{background:var(--sage);border-color:var(--sage);}
+  .timeline-item .t-date{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber-deep);}
+  .timeline-item .t-title{font-size:14px;font-weight:500;margin:2px 0;}
+
+  .empty-state{
+    text-align:center;padding:50px 20px;color:var(--ink-soft);
+  }
+  .empty-state h3{color:var(--ink);margin-bottom:6px;font-size:17px;}
+
+  select.contact-select{max-width:260px;}
+  .contact-empty-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+  .loading-note{color:var(--ink-soft);font-size:12px;padding:20px;}
+
+  /* AI search */
+  .ai-box{display:flex;gap:8px;align-items:flex-start;}
+  .ai-box textarea{flex:1;min-height:64px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);resize:vertical;}
+  .ai-box textarea:focus{border-color:var(--focus);outline:none;}
+  .ai-answer{
+    background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;margin-top:14px;white-space:pre-wrap;font-size:13.5px;line-height:1.6;
+  }
+  .ai-error{color:var(--rust);font-size:13px;margin-top:10px;}
+  .ai-loading{color:var(--ink-soft);font-size:13px;margin-top:10px;}
+  .ai-scope-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+
+  .ai-summary-card{
+    background:linear-gradient(180deg, #FBF7EF, var(--paper-raised) 40%);
+    border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:var(--radius);
+    padding:16px 18px;margin-bottom:18px;
+  }
+  .ai-summary-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .ai-summary-head h3{font-size:14px;letter-spacing:0.2px;}
+  .ai-summary-list{margin:0;padding-left:0;list-style:none;}
+  .ai-summary-list li{
+    position:relative;padding-left:20px;margin-bottom:7px;font-size:13.5px;line-height:1.5;
+  }
+  .ai-summary-list li::before{
+    content:'—';position:absolute;left:0;color:var(--amber-deep);
+  }
+  .ai-summary-meta{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .ai-summary-empty{font-size:13px;color:var(--ink-soft);}
+  .ai-advisor-card{border-left-color:var(--focus);background:linear-gradient(180deg, #EEF4EF, var(--paper-raised) 45%);margin-bottom:22px;}
+  .ai-advisor-card .ai-summary-list li::before{color:var(--focus);}
+
+  /* ===== MODAL ===== */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(21,32,25,0.55);display:flex;align-items:center;justify-content:center;
+    z-index:1000;padding:20px;
+  }
+  .modal-box{
+    background:#fff;border-radius:var(--radius);max-width:420px;width:100%;padding:22px 24px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.25);
+  }
+  .modal-box h3{font-size:17px;margin-bottom:14px;}
+  .modal-box p{margin:0 0 16px;color:var(--ink-soft);font-size:13.5px;line-height:1.5;}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;}
+
+  /* RTF rich-text editor popup */
+  .modal-box.rtf-modal{max-width:660px;}
+  .rtf-toolbar{display:flex;gap:4px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+  .rtf-btn{
+    padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:var(--ink);
+    cursor:pointer;font-size:12.5px;
+  }
+  .rtf-btn:hover{border-color:var(--focus);background:#F3F6F3;}
+  .rtf-btn.rtf-heading{font-family:'Fraunces',serif;font-weight:600;}
+  .rtf-sep{width:1px;align-self:stretch;background:var(--line);margin:0 4px;}
+  .rtf-editor{
+    min-height:220px;max-height:50vh;overflow-y:auto;padding:12px 14px;border:1px solid var(--line);
+    border-radius:var(--radius);background:#fff;font-size:13.5px;line-height:1.55;
+  }
+  .rtf-editor:focus{outline:none;border-color:var(--focus);}
+  /* Shared typography for rendered rich-text content, used both in the editor and in previews */
+  .rtf-content h3, .rtf-content h4, .rtf-editor h3, .rtf-editor h4{
+    font-family:'Fraunces',serif;font-size:15px;font-weight:600;margin:0 0 6px;color:var(--ink);
+  }
+  .rtf-content p, .rtf-editor p{margin:0 0 8px;}
+  .rtf-content p:last-child, .rtf-editor p:last-child{margin-bottom:0;}
+  .rtf-content ul, .rtf-editor ul{margin:0 0 8px;padding-left:20px;}
+  .rtf-content li, .rtf-editor li{margin-bottom:2px;}
+
+  .rtf-field-preview{
+    border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;min-height:20px;
+    cursor:pointer;background:#fff;font-size:13px;
+  }
+  .rtf-field-preview:hover{border-color:var(--focus);}
+  .rtf-field-preview.empty{color:var(--ink-soft);font-style:italic;font-size:13px;}
+  .rtf-field-preview-compact{
+    font-size:12.5px;line-height:1.4;cursor:default;border:none;padding:0;background:none;
+  }
+  .rtf-field-preview-compact h3, .rtf-field-preview-compact h4{font-size:13px;margin:4px 0 3px;}
+  .rtf-field-preview-compact p{margin:0 0 4px;}
+
+  /* Inline task-row editing */
+  .task-inline-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .task-inline-row input[type="text"]{
+    flex:1;min-width:180px;border:1px solid transparent;background:none;padding:4px 6px;border-radius:var(--radius);
+    font-size:13.5px;font-weight:500;color:var(--ink);
+  }
+  .task-inline-row input[type="text"]:hover{border-color:var(--line);background:#fff;}
+  .task-inline-row input[type="text"]:focus{border-color:var(--focus);background:#fff;outline:none;}
+  .task-inline-row select, .task-inline-row input[type="date"]{
+    border:1px solid var(--line);border-radius:var(--radius);padding:4px 6px;font-size:12px;background:#fff;color:var(--ink);
+  }
+  .task-inline-row select:focus, .task-inline-row input[type="date"]:focus{border-color:var(--focus);outline:none;}
+  .task-status-select.offen{color:var(--amber-deep);}
+  .task-status-select.in-arbeit{color:var(--focus);}
+  .task-status-select.wartet{color:#8B5CB8;}
+  .task-status-select.erledigt{color:var(--ink-soft);}
+  .badge.wartet{background:#EDE1F5;color:#6A3E9C;}
+  .wartet-auf-field{margin-top:8px;}
+  .wartet-auf-note{font-size:11.5px;color:#6A3E9C;background:#F7F1FB;border:1px solid #E4D3F2;border-radius:var(--radius);padding:6px 10px;margin-top:4px;}
+  @keyframes taskHighlightFlash{
+    0%{background:#FBEFD6;} 100%{background:transparent;}
+  }
+  .list-item.task-highlight{animation:taskHighlightFlash 2.2s ease-out;}
+  .task-view-row{cursor:pointer;}
+  .task-view-row:hover{border-color:var(--focus);}
+  .task-edit-row{border-color:var(--focus);background:#F6FAF7;}
+
+  /* Wissensdatenbank / Second Brain */
+  .kb-stale-note{
+    background:#FBF4E4;border:1px solid #E8D4A0;border-left:3px solid var(--amber);border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:16px;font-size:13px;color:#6B4F1E;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  }
+  .kb-category-title{
+    font-family:'Fraunces',serif;font-size:16px;font-weight:600;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;
+  }
+  .kb-category-title:first-of-type{margin-top:8px;}
+  .kb-entry-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;}
+  .kb-entry-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
+  .kb-entry-title{font-size:14.5px;font-weight:600;}
+  .kb-source-tag{
+    font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.4px;
+    border:1px solid var(--line);border-radius:2px;padding:1px 6px;
+  }
+  .kb-source-tag.manual{color:var(--sage);border-color:var(--sage);}
+  .kb-source-tag.ai{color:var(--amber-deep);border-color:var(--amber-deep);}
+  .kb-projects{font-size:11px;color:var(--ink-soft);margin-top:6px;}
+  .kb-search{width:100%;max-width:340px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px;}
+  .kb-search:focus{border-color:var(--focus);outline:none;}
+
+  /* AFN-Nummern (Anforderungsnummern) */
+  .afn-field{margin-top:6px;}
+  .afn-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;}
+  .afn-chips:empty{margin-bottom:0;}
+  .afn-chip{
+    display:inline-flex;align-items:center;gap:4px;background:#EFE7F5;color:#5A3E82;
+    border:1px solid #D9C7EE;border-radius:20px;padding:2px 4px 2px 9px;font-size:11.5px;font-family:'IBM Plex Mono',monospace;
+  }
+  .afn-remove{
+    background:none;border:none;cursor:pointer;color:#5A3E82;font-size:13px;line-height:1;padding:0 5px;
+    border-radius:50%;
+  }
+  .afn-remove:hover{background:#D9C7EE;}
+  .afn-add-row{display:flex;gap:6px;}
+  .afn-input{
+    flex:1;max-width:220px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--radius);
+    font-size:12.5px;font-family:'IBM Plex Mono',monospace;
+  }
+  .afn-input:focus{border-color:var(--focus);outline:none;}
+  .afn-chip-view{
+    display:inline-flex;align-items:center;background:#EFE7F5;color:#5A3E82;
+    border:1px solid #D9C7EE;border-radius:20px;padding:1px 8px;font-size:10.5px;font-family:'IBM Plex Mono',monospace;
+    margin-right:4px;
+  }
+
+  /* Auswertung / Analytics */
+  .an-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;}
+  .an-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);padding:6px 10px;border-bottom:1px solid var(--line);}
+  .an-table td{padding:7px 10px;border-bottom:1px solid var(--line-soft);}
+  .an-table tr:last-child td{border-bottom:none;}
+  .an-week-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(78px,1fr));gap:6px;margin-bottom:8px;}
+  .an-week-cell{
+    background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius);
+    padding:6px 8px;text-align:center;position:relative;overflow:hidden;height:60px;box-sizing:border-box;
+  }
+  .an-week-cell .an-week-num{position:relative;z-index:1;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);}
+  .an-week-cell .an-week-count{position:relative;z-index:1;font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-top:2px;}
+  .an-week-cell.an-current{border-color:var(--amber);border-width:2px;}
+  .an-week-bar{position:absolute;left:0;bottom:0;right:0;top:auto;background:#DCEAE1;z-index:0;}
+  .an-year-select{padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;}
+  .an-note{font-size:11.5px;color:var(--ink-soft);margin-bottom:18px;max-width:640px;}
+
+  /* Update / Versionsverlauf */
+  .current-version-card{
+    background:linear-gradient(180deg, #EEF4EF, var(--paper-raised) 45%);border:1px solid var(--line);border-left:3px solid var(--focus);
+    border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  }
+  .current-version-card .cv-label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--ink-soft);}
+  .current-version-card .cv-value{font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:var(--ink);}
+  .update-step-label{
+    display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);
+    margin:0 0 6px;
+  }
+  .update-step-label .uv-old{color:var(--ink-soft);}
+  .update-step-label .uv-arrow{color:var(--amber-deep);}
+  .update-step-label .uv-new{color:var(--ink);font-weight:600;}
+  .update-entry{background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;position:relative;}
+  .update-entry.is-current{border-color:var(--focus);}
+  .update-entry-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;}
+  .update-revision-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);border:1px solid var(--line);border-radius:2px;padding:1px 7px;}
+
+  @media (max-width:760px){
+    #sidebar{width:220px;}
+    .main-inner{padding:20px;}
+    .field-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div id="storage-banner"></div>
+<div id="setup-screen" style="display:none;">
+  <div class="setup-box">
+    <h1>Projektzentrale einrichten</h1>
+    <p>Verbinde die App einmalig mit deiner Supabase-Datenbank. Die Zugangsdaten werden nur lokal in diesem Browser gespeichert (localStorage), nicht im Code.</p>
+    <div class="field"><label>Project URL</label><input id="setup-url" placeholder="https://xxxxx.supabase.co"></div>
+    <div class="field"><label>anon public key</label><input id="setup-key" placeholder="eyJhbGciOi..."></div>
+    <div id="setup-error" class="setup-error" style="display:none;"></div>
+    <button class="btn" id="setup-connect-btn">Verbinden &amp; speichern</button>
+  </div>
+</div>
+<div id="app">
+  <div id="sidebar">
+    <div class="sidebar-head">
+      <h1>Projektzentrale</h1>
+      <span class="tag">Consulting Übersicht</span>
+    </div>
+    <div class="sidebar-search">
+      <input type="text" id="search-input" placeholder="Projekt oder Kunde suchen…">
+    </div>
+    <div style="padding:0 16px;">
+      <button class="new-project-btn" id="new-project-btn">+ Neues Projekt</button>
+      <div class="dashboard-link" id="dashboard-link">Dashboard — alle offenen Aufgaben</div>
+      <div class="dashboard-link" id="knowledge-link">🧠 Wissensdatenbank</div>
+      <div class="dashboard-link" id="analytics-link">📊 Auswertung</div>
+      <div class="dashboard-link" id="ai-link">🔍 KI-Suche (alle Projekte)</div>
+      <div class="dashboard-link" id="more-nav-toggle">⋯ Mehr</div>
+      <div id="more-nav-group" style="display:none;">
+        <div class="dashboard-link" id="settings-link">⚙ Oberpunkte verwalten</div>
+        <div class="dashboard-link" id="data-link">⇅ CSV Import / Export</div>
+        <div class="dashboard-link" id="ai-settings-link">🔑 KI-Einstellungen</div>
+      </div>
+    </div>
+    <div id="project-list"></div>
+  </div>
+  <div id="main"><div class="main-inner" id="main-inner"></div></div>
+</div>
+<div id="modal-root"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  const DEFAULT_DOC_SECTIONS = [
+    {id:"ausgangslage", title:"Ausgangslage & Scope", level:1},
+    {id:"technik", title:"Technische Architektur & Schnittstellen", level:1},
+    {id:"offene_punkte", title:"Offene Punkte & Risiken", level:1},
+    {id:"entscheidungen", title:"Entscheidungen & Vereinbarungen", level:1},
+    {id:"status", title:"Status & nächste Schritte", level:1}
+  ];
+  const CHANNELS = ["Teams","Telefon","E-Mail","Vor Ort","Sonstiges"];
+  const TASK_STATUS = ["offen","in Arbeit","wartet","erledigt"];
+  const TASK_PRIO = ["hoch","mittel","niedrig"];
+  const MILESTONE_STATUS = ["geplant","in Arbeit","erledigt"];
+
+  const CSV_COLUMNS = [
+    "Typ","ProjektId","Id","Titel","Kunde","ProjektTyp","Status","Beschreibung",
+    "ErstelltAm","AusgeblendeteOberpunkte","Level","Reihenfolge","Rolle","Telefon",
+    "Email","Notiz","Datum","Kanal","KontaktId","Betreff","OberpunktId","Inhalt","AktualisiertAm","Prioritaet","AbgeschlossenAm","AFN","WartetAuf","Revision","AktuelleVersion"
+  ];
+
+  let state = {
+    projects: null,          // array or null (not yet loaded)
+    docDefs: null,           // global, freely definable Oberpunkte (array of {id, title}), shared across all projects
+    view: "dashboard",       // 'dashboard' | 'project' | 'settings' | 'data' | 'ai' | 'knowledge'
+    aiQuery: "",
+    aiAnswer: "",
+    aiError: null,
+    aiLoading: false,
+    projectAiQuery: "",
+    projectAiAnswer: "",
+    projectAiError: null,
+    projectAiLoading: false,
+    selectedId: null,
+    activeTab: "aufgaben",
+    search: "",
+    cache: {},               // per-project cache: {contacts, comms, doc, tasks, timeline}
+    dashboardData: null,     // aggregated tasks/timelines for dashboard
+    dashboardTab: "liste",   // 'liste' | 'kalender' | 'ohne-datum' | 'erledigt'
+    calendarMonth: null,     // {year, month} month is 0-indexed; set lazily to current month
+    editingContact: null,
+    editingComm: null,
+    editingTaskId: null,
+    editingMilestone: null,
+    showNewUpdateForm: false,
+    editingUpdateId: null,
+    taskFilterTab: "offen",  // 'offen' | 'erledigt' — controls which tasks show in a project's Aufgaben tab
+    showNewTaskForm: false,
+    showNewCommForm: false,
+    showTaskFilters: false,
+    showDashFilters: false,
+    moreNavExpanded: false,
+    dashFilter: { projectId:"", prioritaet:"", kontaktId:"", von:"", bis:"" },
+    projectTaskFilter: { prioritaet:"", kontaktId:"", von:"", bis:"" },
+    dailyBriefing: undefined, // undefined = not yet loaded from storage; null = loaded but empty; object = {points, generatedAt}
+    dailyBriefingLoading: false,
+    dailyBriefingError: null,
+    knowledgeBase: undefined, // undefined = not yet loaded; object = {manual:[], ai:[], aiUpdatedAt}
+    knowledgeBaseLoading: false,
+    knowledgeBaseError: null,
+    editingKnowledgeId: null,
+    knowledgeSearch: "",
+    analyticsYear: new Date().getFullYear()
+  };
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+  function fmtDate(d){
+    if(!d) return "—";
+    const parts = d.split("-");
+    if(parts.length!==3) return d;
+    return parts[2]+"."+parts[1]+"."+parts[0];
+  }
+  function fmtDateTime(iso){
+    if(!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleDateString('de-DE') + " " + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  }
+  function escapeHtml(str){
+    if(str===undefined||str===null) return "";
+    return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+  function slug(status){ return status.toLowerCase().replace(/\s+/g,"-"); }
+  function defLevel(d){ return Math.min(3, Math.max(1, d.level||1)); }
+
+  function toLetter(n){
+    // 1 -> a, 2 -> b ... 26 -> z, 27 -> aa ...
+    let s = "";
+    while(n>0){
+      const rem = (n-1) % 26;
+      s = String.fromCharCode(97+rem) + s;
+      n = Math.floor((n-1)/26);
+    }
+    return s;
+  }
+  function toRoman(n){
+    const map = [[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+    let res = "";
+    for(const [val,sym] of map){
+      while(n>=val){ res += sym; n -= val; }
+    }
+    return res || "I";
+  }
+  function computeDocLabels(defs){
+    // Hierarchical numbering: level 1 -> 1,2,3…, level 2 -> a,b,c… (within its level-1 parent), level 3 -> I,II,III… (within its level-2 parent)
+    const labels = {};
+    let c1=0, c2=0, c3=0;
+    (defs||[]).forEach(d=>{
+      const lvl = defLevel(d);
+      if(lvl===1){ c1++; c2=0; c3=0; labels[d.id] = c1+"."; }
+      else if(lvl===2){ c2++; c3=0; labels[d.id] = toLetter(c2)+"."; }
+      else{ c3++; labels[d.id] = toRoman(c3)+"."; }
+    });
+    return labels;
+  }
+
+  // ---------- OBERPUNKT-HIERARCHIE (Ebene 3 gehört zur vorausgehenden Ebene 2, diese zur vorausgehenden Ebene 1) ----------
+  // Ein "Teilbaum" ab Index i ist das Element selbst plus alle direkt folgenden Elemente
+  // mit einer tieferen Ebene (level > level(i)) — endet beim nächsten Element auf gleicher
+  // oder höherer Ebene. Damit lassen sich Verschieben/Ausblenden/Löschen konsistent auf
+  // ganze Äste statt auf einzelne Zeilen anwenden.
+  function subtreeEnd(defs, index){
+    const baseLevel = defLevel(defs[index]);
+    let end = index+1;
+    while(end<defs.length && defLevel(defs[end])>baseLevel) end++;
+    return end;
+  }
+  function getSubtreeIds(defs, defId){
+    const idx = defs.findIndex(d=>d.id===defId);
+    if(idx<0) return [defId];
+    const end = subtreeEnd(defs, idx);
+    return defs.slice(idx, end).map(d=>d.id);
+  }
+  /**
+   * Moves the whole subtree of sourceId (itself + its deeper-level followers) to sit
+   * directly before targetId (placeAfter=false) or directly after targetId's own
+   * subtree (placeAfter=true). Used by drag-and-drop reordering. Levels are never
+   * changed — only the array order — so indent/outdent stays the only way to change
+   * which parent a point belongs to. Returns false (no-op) if the drop target is the
+   * source itself or one of its own descendants.
+   */
+  function moveSubtreeTo(defs, sourceId, targetId, placeAfter){
+    const srcIdx = defs.findIndex(d=>d.id===sourceId);
+    if(srcIdx<0 || sourceId===targetId) return false;
+    const srcEnd = subtreeEnd(defs, srcIdx);
+    const block = defs.slice(srcIdx, srcEnd);
+    if(block.some(d=>d.id===targetId)) return false; // can't drop onto its own subtree
+    defs.splice(srcIdx, srcEnd-srcIdx);
+    const targetIdx = defs.findIndex(d=>d.id===targetId);
+    if(targetIdx<0){ defs.splice(srcIdx, 0, ...block); return false; }
+    const insertAt = placeAfter ? subtreeEnd(defs, targetIdx) : targetIdx;
+    defs.splice(insertAt, 0, ...block);
+    return true;
+  }
+
+  // ---------- CUSTOM MODALS (browser prompt/confirm/alert are blocked in this preview) ----------
+  function closeModal(){ document.getElementById("modal-root").innerHTML = ""; }
+
+  function showConfirm(message){
+    return new Promise(resolve=>{
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `
+        <div class="modal-overlay">
+          <div class="modal-box">
+            <h3>Bitte bestätigen</h3>
+            <p>${escapeHtml(message)}</p>
+            <div class="modal-actions">
+              <button class="btn secondary" id="modal-cancel">Abbrechen</button>
+              <button class="btn danger" id="modal-ok">Löschen</button>
+            </div>
+          </div>
+        </div>`;
+      document.getElementById("modal-ok").addEventListener("click", ()=>{ closeModal(); resolve(true); });
+      document.getElementById("modal-cancel").addEventListener("click", ()=>{ closeModal(); resolve(false); });
+    });
+  }
+
+  function showAlert(message){
+    return new Promise(resolve=>{
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `
+        <div class="modal-overlay">
+          <div class="modal-box">
+            <p style="margin-bottom:16px;">${escapeHtml(message)}</p>
+            <div class="modal-actions"><button class="btn" id="modal-ok">OK</button></div>
+          </div>
+        </div>`;
+      document.getElementById("modal-ok").addEventListener("click", ()=>{ closeModal(); resolve(); });
+    });
+  }
+
+  function showNewProjectForm(){
+    return new Promise(resolve=>{
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `
+        <div class="modal-overlay">
+          <div class="modal-box">
+            <h3>Neues Projekt</h3>
+            <div class="field"><label>Projektname</label><input id="np-name" autofocus placeholder="z.B. Musterfleisch GmbH – Einführung"></div>
+            <div class="field"><label>Kunde</label><input id="np-kunde" placeholder="Kundenname"></div>
+            <div class="field"><label>Typ</label>
+              <select id="np-typ">
+                <option value="Neukunde">Neukunde (mit Echtlauf-Zeitplan)</option>
+                <option value="Bestandskunde">Bestandskunde</option>
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button class="btn secondary" id="np-cancel">Abbrechen</button>
+              <button class="btn" id="np-ok">Projekt anlegen</button>
+            </div>
+          </div>
+        </div>`;
+      document.getElementById("np-cancel").addEventListener("click", ()=>{ closeModal(); resolve(null); });
+      document.getElementById("np-ok").addEventListener("click", ()=>{
+        const name = document.getElementById("np-name").value.trim();
+        if(!name){ document.getElementById("np-name").style.borderColor="var(--rust)"; return; }
+        const kunde = document.getElementById("np-kunde").value.trim();
+        const typ = document.getElementById("np-typ").value;
+        closeModal();
+        resolve({name, kunde, typ});
+      });
+      document.getElementById("np-name").addEventListener("keydown", (e)=>{ if(e.key==="Enter") document.getElementById("np-ok").click(); });
+    });
+  }
+
+  // ---------- RTF (RICH TEXT) EDITOR POPUP ----------
+  function isEmptyHtml(html){
+    if(!html) return true;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return !(tmp.textContent || "").trim();
+  }
+  function htmlToPlainText(html){
+    if(!html) return "";
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return (tmp.textContent || tmp.innerText || "").replace(/\n{3,}/g, "\n\n").trim();
+  }
+  function rtfPreviewMarkup(html, placeholder){
+    if(isEmptyHtml(html)){
+      return '<span style="color:var(--ink-soft);font-style:italic;">'+escapeHtml(placeholder||"Klicken zum Hinzufügen…")+'</span>';
+    }
+    return html;
+  }
+
+  function showRtfEditor(title, initialHtml){
+    return new Promise(resolve=>{
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `
+        <div class="modal-overlay">
+          <div class="modal-box rtf-modal">
+            <h3>${escapeHtml(title)}</h3>
+            <div class="rtf-toolbar">
+              <button type="button" class="rtf-btn rtf-heading" data-cmd="formatBlock" data-val="H4">Überschrift</button>
+              <button type="button" class="rtf-btn" data-cmd="formatBlock" data-val="P">Text</button>
+              <span class="rtf-sep"></span>
+              <button type="button" class="rtf-btn" data-cmd="bold"><b>F</b></button>
+              <button type="button" class="rtf-btn" data-cmd="italic"><i>K</i></button>
+              <button type="button" class="rtf-btn" data-cmd="insertUnorderedList">• Liste</button>
+            </div>
+            <div class="rtf-editor rtf-content" id="rtf-editable" contenteditable="true">${initialHtml || ""}</div>
+            <div class="modal-actions">
+              <button class="btn secondary" id="rtf-cancel">Abbrechen</button>
+              <button class="btn" id="rtf-save">Übernehmen</button>
+            </div>
+          </div>
+        </div>`;
+      const editable = document.getElementById("rtf-editable");
+      editable.focus();
+      root.querySelectorAll(".rtf-btn").forEach(btn=>{
+        btn.addEventListener("mousedown", (e)=>{
+          e.preventDefault();
+          document.execCommand(btn.dataset.cmd, false, btn.dataset.val || null);
+          editable.focus();
+        });
+      });
+      document.getElementById("rtf-cancel").addEventListener("click", ()=>{ closeModal(); resolve(null); });
+      document.getElementById("rtf-save").addEventListener("click", ()=>{
+        const html = editable.innerHTML.trim();
+        closeModal();
+        resolve(html);
+      });
+    });
+  }
+
+  /**
+   * Wires a click-to-edit RTF preview box.
+   * boxEl: the preview <div> element already in the DOM
+   * title: modal title
+   * getCurrent/setCurrent: closures to read/write the pending value held by the caller
+   * placeholder: empty-state text
+   */
+  function wireRtfPreviewBox(boxEl, title, getCurrent, setCurrent, placeholder){
+    if(!boxEl) return;
+    boxEl.addEventListener("click", async ()=>{
+      const result = await showRtfEditor(title, getCurrent());
+      if(result !== null){
+        setCurrent(result);
+        boxEl.classList.toggle("empty", isEmptyHtml(result));
+        boxEl.innerHTML = rtfPreviewMarkup(result, placeholder);
+      }
+    });
+  }
+
+  function rtfFieldBlockHtml(id, currentHtml, placeholder){
+    const empty = isEmptyHtml(currentHtml);
+    return `<div class="rtf-field-preview${empty?' empty':''}" id="${id}">${rtfPreviewMarkup(currentHtml, placeholder)}</div>`;
+  }
+
+  // ---------- AFN-NUMMERN (Anforderungsnummern) ----------
+  function afnChipsMarkup(afns){
+    return (afns||[]).map(a=>
+      '<span class="afn-chip">'+escapeHtml(a)+'<button type="button" class="afn-remove" data-afn-remove="'+escapeHtml(a)+'" title="Entfernen">×</button></span>'
+    ).join("");
+  }
+  function afnViewMarkup(afns){
+    if(!afns || !afns.length) return "";
+    return afns.map(a=>'<span class="afn-chip-view">AFN '+escapeHtml(a)+'</span>').join("");
+  }
+  function afnFieldBlockHtml(id, afns){
+    return `
+      <div class="afn-field" id="${id}">
+        <div class="afn-chips">${afnChipsMarkup(afns)}</div>
+        <div class="afn-add-row">
+          <input type="text" class="afn-input" placeholder="AFN-Nummer eingeben, Enter zum Hinzufügen…">
+          <button type="button" class="btn secondary small afn-add-btn">+ AFN</button>
+        </div>
+      </div>`;
+  }
+  /**
+   * Wires an AFN tag-input. getCurrent/setCurrent are closures over the caller's
+   * pending array of AFN strings (same pattern as wireRtfPreviewBox).
+   */
+  function wireAfnField(containerEl, getCurrent, setCurrent){
+    if(!containerEl) return;
+    function rerender(){
+      containerEl.querySelector(".afn-chips").innerHTML = afnChipsMarkup(getCurrent());
+      wireRemoves();
+    }
+    function wireRemoves(){
+      containerEl.querySelectorAll("[data-afn-remove]").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const val = btn.dataset.afnRemove;
+          setCurrent(getCurrent().filter(a=>a!==val));
+          rerender();
+        });
+      });
+    }
+    const input = containerEl.querySelector(".afn-input");
+    const addBtn = containerEl.querySelector(".afn-add-btn");
+    function addFromInput(){
+      const raw = input.value.trim();
+      if(!raw) return;
+      const parts = raw.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean);
+      const cur = getCurrent().slice();
+      parts.forEach(part=>{ if(!cur.includes(part)) cur.push(part); });
+      setCurrent(cur);
+      input.value = "";
+      rerender();
+    }
+    addBtn.addEventListener("click", addFromInput);
+    input.addEventListener("keydown", (e)=>{
+      if(e.key==="Enter"){ e.preventDefault(); addFromInput(); }
+    });
+    wireRemoves();
+  }
+
+  // ---------- STORAGE SAFETY BANNER ----------
+  function showStorageBanner(html, opts){
+    const b = document.getElementById("storage-banner");
+    if(!b) return;
+    const dismissible = !opts || opts.dismissible !== false;
+    b.innerHTML = html + (dismissible ? '<button class="banner-close" id="storage-banner-close">Ausblenden</button>' : '');
+    b.classList.add("show");
+    if(dismissible){
+      const closeBtn = document.getElementById("storage-banner-close");
+      if(closeBtn) closeBtn.addEventListener("click", ()=>{ b.classList.remove("show"); });
+    }
+  }
+  function hideStorageBanner(){
+    const b = document.getElementById("storage-banner");
+    if(b) b.classList.remove("show");
+  }
+  function checkStorageAvailability(){
+    if(!sb){
+      showStorageBanner(
+        "<strong>Achtung — keine Verbindung zu Supabase.</strong> Bitte Project URL und anon key im Einrichtungs-Bildschirm prüfen (Seite neu laden, um es erneut einzurichten).",
+        {dismissible:false}
+      );
+      return false;
+    }
+    return true;
+  }
+
+  // ---------- SUPABASE-ANBINDUNG (Key-Value-Speicher in Tabelle "projektzentrale_kv") ----------
+  // Jeder bisherige Speicher-Key (z.B. "projects", "tasks:<id>") wird 1:1 als Zeile
+  // in projektzentrale_kv abgelegt — dieselbe Schnittstelle (sGet/sSet/sDelete) wie zuvor,
+  // nur dass sie jetzt Supabase statt window.storage anspricht. Der Rest der App
+  // bleibt dadurch unverändert.
+  let sb = null; // Supabase-Client, wird in init() gesetzt
+
+  async function sGet(key){
+    if(!sb) return null;
+    try{
+      const { data, error } = await sb.from("projektzentrale_kv").select("value").eq("key", key).maybeSingle();
+      if(error || !data) return null;
+      return typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+    }catch(e){ return null; }
+  }
+  async function sSet(key, value){
+    if(!sb) return false;
+    try{
+      const { error } = await sb.from("projektzentrale_kv").upsert({ key, value: JSON.stringify(value), updated_at: new Date().toISOString() });
+      if(error) throw error;
+      hideStorageBanner();
+      return true;
+    }catch(e){
+      console.error("Speicherfehler:", e);
+      showStorageBanner(
+        "<strong>Speichern fehlgeschlagen.</strong> Deine letzte Änderung wurde möglicherweise nicht gespeichert. " +
+        "Bitte Internetverbindung prüfen und sicherheitshalber ein CSV-Backup sichern, bevor du die Seite schließt.",
+        {dismissible:true}
+      );
+      return false;
+    }
+  }
+  async function sDelete(key){
+    if(!sb) return;
+    try{ await sb.from("projektzentrale_kv").delete().eq("key", key); }catch(e){}
+  }
+
+  function projectCode(p){
+    const d = new Date(p.createdAt || Date.now());
+    return "P-" + d.getFullYear().toString().slice(2) + String(d.getMonth()+1).padStart(2,"0") + "-" + p.id.slice(-4).toUpperCase();
+  }
+
+  async function ensureProjectData(id){
+    if(!state.cache[id]) state.cache[id] = {};
+    const c = state.cache[id];
+    if(!c.contacts) c.contacts = (await sGet("contacts:"+id)) || [];
+    if(!c.comms) c.comms = (await sGet("comms:"+id)) || [];
+    if(!c.doc) c.doc = (await sGet("doc:"+id)) || {};
+    if(!c.tasks) c.tasks = (await sGet("tasks:"+id)) || [];
+    if(!c.timeline) c.timeline = (await sGet("timeline:"+id)) || [];
+    if(!c.updates) c.updates = (await sGet("updates:"+id)) || [];
+    if(c.aiSummary === undefined) c.aiSummary = (await sGet("ai-summary:"+id)) || null;
+    return c;
+  }
+
+  async function loadDocDefs(){
+    let defs = await sGet("doc-section-defs");
+    if(!defs){
+      defs = DEFAULT_DOC_SECTIONS.slice();
+      await sSet("doc-section-defs", defs);
+    }
+    state.docDefs = defs;
+    return defs;
+  }
+  async function saveDocDefs(){
+    await sSet("doc-section-defs", state.docDefs);
+  }
+
+  function buildCalendarWeeks(year, month){
+    // month is 0-indexed. Monday-first week layout.
+    const firstOfMonth = new Date(year, month, 1);
+    const startOffset = (firstOfMonth.getDay() + 6) % 7; // 0=Mon ... 6=Sun
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const cells = [];
+    for(let i=0;i<startOffset;i++){
+      const d = daysInPrevMonth - startOffset + 1 + i;
+      const dt = new Date(year, month-1, d);
+      cells.push({date: dt, inMonth:false});
+    }
+    for(let d=1; d<=daysInMonth; d++){
+      cells.push({date: new Date(year, month, d), inMonth:true});
+    }
+    while(cells.length % 7 !== 0 || cells.length < 35){
+      const last = cells[cells.length-1].date;
+      const dt = new Date(last.getFullYear(), last.getMonth(), last.getDate()+1);
+      cells.push({date: dt, inMonth:false});
+    }
+    const weeks = [];
+    for(let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
+    return weeks;
+  }
+  function dateKey(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+  function applyDashboardFilters(tasks, opts){
+    const f = state.dashFilter;
+    const dateAware = !!(opts && opts.dateAware);
+    return tasks.filter(t=>{
+      if(f.projectId && t.projectId!==f.projectId) return false;
+      if(f.prioritaet && (t.prioritaet||"mittel")!==f.prioritaet) return false;
+      if(f.kontaktId && t.kontaktId!==f.kontaktId) return false;
+      if(dateAware && (f.von || f.bis)){
+        if(!t.faelligAm) return false;
+        if(f.von && t.faelligAm < f.von) return false;
+        if(f.bis && t.faelligAm > f.bis) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderDashboardFilterBar(showDateFilter){
+    const f = state.dashFilter;
+    const projects = state.projects || [];
+    const contacts = (state.dashboardData && state.dashboardData.allContacts) || [];
+    let html = '<div class="filter-bar">';
+    html += `
+      <div class="filter-field">
+        <label>Projekt</label>
+        <select id="df-project">
+          <option value="">Alle Projekte</option>
+          ${projects.map(p=>`<option value="${p.id}" ${f.projectId===p.id?"selected":""}>${escapeHtml(p.name)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>Priorität</label>
+        <select id="df-prio">
+          <option value="">Alle</option>
+          ${TASK_PRIO.map(pr=>`<option value="${pr}" ${f.prioritaet===pr?"selected":""}>${pr}</option>`).join("")}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>Ansprechpartner</label>
+        <select id="df-kontakt">
+          <option value="">Alle</option>
+          ${contacts.map(c=>`<option value="${c.id}" ${f.kontaktId===c.id?"selected":""}>${escapeHtml(c.name)} (${escapeHtml(c.projectName)})</option>`).join("")}
+        </select>
+      </div>
+    `;
+    if(showDateFilter){
+      html += `
+        <div class="filter-field"><label>Fällig von</label><input type="date" id="df-von" value="${f.von}"></div>
+        <div class="filter-field"><label>Fällig bis</label><input type="date" id="df-bis" value="${f.bis}"></div>
+      `;
+    }
+    html += '<button class="btn secondary small filter-reset" id="df-reset">Filter zurücksetzen</button>';
+    html += '</div>';
+    return html;
+  }
+
+  function wireDashboardFilterBar(el){
+    const projSel = el.querySelector("#df-project");
+    const prioSel = el.querySelector("#df-prio");
+    const kontaktSel = el.querySelector("#df-kontakt");
+    const vonInput = el.querySelector("#df-von");
+    const bisInput = el.querySelector("#df-bis");
+    const resetBtn = el.querySelector("#df-reset");
+    if(projSel) projSel.addEventListener("change", ()=>{ state.dashFilter.projectId = projSel.value; renderDashboard(); });
+    if(prioSel) prioSel.addEventListener("change", ()=>{ state.dashFilter.prioritaet = prioSel.value; renderDashboard(); });
+    if(kontaktSel) kontaktSel.addEventListener("change", ()=>{ state.dashFilter.kontaktId = kontaktSel.value; renderDashboard(); });
+    if(vonInput) vonInput.addEventListener("change", ()=>{ state.dashFilter.von = vonInput.value; renderDashboard(); });
+    if(bisInput) bisInput.addEventListener("change", ()=>{ state.dashFilter.bis = bisInput.value; renderDashboard(); });
+    if(resetBtn) resetBtn.addEventListener("click", ()=>{
+      state.dashFilter = { projectId:"", prioritaet:"", kontaktId:"", von:"", bis:"" };
+      renderDashboard();
+    });
+  }
+
+  function renderDashboardTaskRows(tasks){
+    if(tasks.length===0) return '<div class="empty-state" style="padding:24px;"><h3>Keine Aufgaben in dieser Ansicht</h3></div>';
+    let html = "";
+    tasks.forEach(t=>{
+      html += `
+        <div class="agg-row" style="cursor:pointer;" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}">
+          <span class="prio-dot prio-${slug(t.prioritaet||'mittel')}"></span>
+          <span class="agg-project">${escapeHtml(t.projectName)}</span>
+          <span class="agg-title">${escapeHtml(t.titel)}${t.status==="wartet"?' <span class="badge wartet" style="margin-left:6px;">wartet auf '+escapeHtml(t.wartetAuf||"jemanden")+'</span>':''}</span>
+          <span class="agg-date">${fmtDate(t.faelligAm)}</span>
+        </div>`;
+    });
+    return html;
+  }
+
+  function renderDashboardCalendar(tasksWithDate){
+    if(!state.calendarMonth){
+      const now = new Date();
+      state.calendarMonth = {year: now.getFullYear(), month: now.getMonth()};
+    }
+    const {year, month} = state.calendarMonth;
+    const tasksByDate = {};
+    tasksWithDate.forEach(t=>{
+      (tasksByDate[t.faelligAm] = tasksByDate[t.faelligAm]||[]).push(t);
+    });
+    const weeks = buildCalendarWeeks(year, month);
+    const monthNames = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+    const todayKey = dateKey(new Date());
+
+    let html = `
+      <div class="cal-nav">
+        <div class="cal-title">${monthNames[month]} ${year}</div>
+        <div class="cal-nav-btns">
+          <button class="btn secondary small" id="cal-prev">‹ Vormonat</button>
+          <button class="btn secondary small" id="cal-today">Heute</button>
+          <button class="btn secondary small" id="cal-next">Folgemonat ›</button>
+        </div>
+      </div>
+      <div class="cal-grid">
+        ${["Mo","Di","Mi","Do","Fr","Sa","So"].map(d=>'<div class="cal-weekday">'+d+'</div>').join("")}
+    `;
+    weeks.forEach(week=>{
+      week.forEach(cell=>{
+        const key = dateKey(cell.date);
+        const dayTasks = tasksByDate[key] || [];
+        const isToday = key === todayKey;
+        html += `<div class="cal-cell${cell.inMonth?'':' other-month'}${isToday?' today':''}">
+          <div class="cal-daynum">${cell.date.getDate()}</div>`;
+        dayTasks.slice(0,3).forEach(t=>{
+          html += `<div class="cal-task prio-${slug(t.prioritaet||'mittel')}" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}" title="${escapeHtml(t.projectName)}: ${escapeHtml(t.titel)}">${escapeHtml(t.titel)}</div>`;
+        });
+        if(dayTasks.length>3) html += `<div class="cal-more">+${dayTasks.length-3} weitere</div>`;
+        html += `</div>`;
+      });
+    });
+    html += '</div>';
+    return html;
+  }
+
+  async function loadDashboardData(){
+    const projects = state.projects || [];
+    const allTasks = [];
+    const waitingTasks = [];
+    const completedTasks = [];
+    const allMilestones = [];
+    const allContacts = [];
+    for(const p of projects){
+      const c = await ensureProjectData(p.id);
+      c.tasks.forEach(t => {
+        const withMeta = {...t, projectId:p.id, projectName:p.name};
+        if(t.status==="erledigt") completedTasks.push(withMeta);
+        else if(t.status==="wartet") waitingTasks.push(withMeta);
+        else allTasks.push(withMeta);
+      });
+      c.contacts.forEach(ct => {
+        allContacts.push({id: ct.id, name: ct.name, projectId: p.id, projectName: p.name});
+      });
+      if(p.typ==="Neukunde"){
+        c.timeline.forEach(m => { if(m.status!=="erledigt") allMilestones.push({...m, projectId:p.id, projectName:p.name}); });
+      }
+    }
+    allTasks.sort((a,b) => (a.faelligAm||"9999").localeCompare(b.faelligAm||"9999"));
+    waitingTasks.sort((a,b) => (a.faelligAm||"9999").localeCompare(b.faelligAm||"9999"));
+    completedTasks.sort((a,b) => (b.faelligAm||"").localeCompare(a.faelligAm||""));
+    allMilestones.sort((a,b) => (a.datum||"9999").localeCompare(b.datum||"9999"));
+    allContacts.sort((a,b) => a.name.localeCompare(b.name));
+    const withDate = allTasks.filter(t=>t.faelligAm);
+    const noDate = allTasks.filter(t=>!t.faelligAm);
+    state.dashboardData = { openTasks: allTasks, tasksWithDate: withDate, tasksNoDate: noDate, waitingTasks, completedTasks, upcomingMilestones: allMilestones, allContacts };
+  }
+
+  // ---------- RENDER: SIDEBAR ----------
+  function renderSidebar(){
+    const listEl = document.getElementById("project-list");
+    const dashLink = document.getElementById("dashboard-link");
+    const settingsLink = document.getElementById("settings-link");
+    const dataLink = document.getElementById("data-link");
+    const aiLink = document.getElementById("ai-link");
+    const knowledgeLink = document.getElementById("knowledge-link");
+    const analyticsLink = document.getElementById("analytics-link");
+    const aiSettingsLink = document.getElementById("ai-settings-link");
+    dashLink.className = "dashboard-link" + (state.view==="dashboard" ? " active" : "");
+    settingsLink.className = "dashboard-link" + (state.view==="settings" ? " active" : "");
+    dataLink.className = "dashboard-link" + (state.view==="data" ? " active" : "");
+    aiLink.className = "dashboard-link" + (state.view==="ai" ? " active" : "");
+    knowledgeLink.className = "dashboard-link" + (state.view==="knowledge" ? " active" : "");
+    analyticsLink.className = "dashboard-link" + (state.view==="analytics" ? " active" : "");
+    aiSettingsLink.className = "dashboard-link" + (state.view==="ai-settings" ? " active" : "");
+
+    if(state.view==="settings" || state.view==="data" || state.view==="ai-settings") state.moreNavExpanded = true;
+    const moreGroup = document.getElementById("more-nav-group");
+    const moreToggle = document.getElementById("more-nav-toggle");
+    if(moreGroup) moreGroup.style.display = state.moreNavExpanded ? "block" : "none";
+    if(moreToggle) moreToggle.textContent = state.moreNavExpanded ? "⋯ Weniger" : "⋯ Mehr";
+
+    if(state.projects === null){
+      listEl.innerHTML = '<div class="loading-note">Projekte werden geladen…</div>';
+      return;
+    }
+    const search = state.search.trim().toLowerCase();
+    let projects = state.projects.slice().sort((a,b)=>{
+      const order = {aktiv:0, pausiert:1, abgeschlossen:2};
+      const oa = order[a.status] ?? 3, ob = order[b.status] ?? 3;
+      if(oa!==ob) return oa-ob;
+      return (b.createdAt||"").localeCompare(a.createdAt||"");
+    });
+    if(search){
+      projects = projects.filter(p =>
+        p.name.toLowerCase().includes(search) || (p.kunde||"").toLowerCase().includes(search)
+      );
+    }
+    if(projects.length===0){
+      listEl.innerHTML = '<div class="empty-hint">Keine Projekte gefunden.</div>';
+      return;
+    }
+    let html = "";
+    let lastStatus = null;
+    const labels = {aktiv:"Aktiv", pausiert:"Pausiert", abgeschlossen:"Abgeschlossen"};
+    projects.forEach(p=>{
+      if(p.status !== lastStatus){
+        html += '<div class="list-section-label">'+ (labels[p.status]||p.status) +'</div>';
+        lastStatus = p.status;
+      }
+      const active = (state.view==="project" && state.selectedId===p.id);
+      html += `
+        <div class="ticket${active?' active':''}" data-id="${p.id}" title="${escapeHtml(p.name)} — ${escapeHtml(p.kunde||'—')}">
+          <div class="ticket-perf"></div>
+          <div class="ticket-body">
+            <div class="ticket-top-row">
+              <span class="ticket-name">${escapeHtml(p.name)}</span>
+              <span class="stamp ${p.status}">${labels[p.status]||p.status}</span>
+            </div>
+            <div class="ticket-meta">${escapeHtml(p.kunde||"—")} · ${p.typ==="Neukunde" ? "Neukunde" : "Bestandskunde"}</div>
+          </div>
+        </div>`;
+    });
+    listEl.innerHTML = html;
+    listEl.querySelectorAll(".ticket").forEach(el=>{
+      el.addEventListener("click", ()=>{
+        state.view="project"; state.selectedId = el.dataset.id; state.activeTab="aufgaben";
+        renderAll();
+      });
+    });
+  }
+
+  // ---------- RENDER: DASHBOARD ----------
+  async function renderDashboard(){
+    const el = document.getElementById("main-inner");
+    el.innerHTML = '<div class="loading-note">Lade Dashboard…</div>';
+    await loadDashboardData();
+    if(state.dailyBriefing === undefined){
+      state.dailyBriefing = (await sGet("ai-daily-briefing")) || null;
+    }
+    const projects = state.projects || [];
+    const active = projects.filter(p=>p.status==="aktiv").length;
+    const openTaskCount = state.dashboardData.openTasks.length;
+    const soon = state.dashboardData.upcomingMilestones.filter(m=>{
+      if(!m.datum) return false;
+      const diff = (new Date(m.datum) - new Date(todayStr())) / 86400000;
+      return diff >= 0 && diff <= 30;
+    }).length;
+
+    let html = `
+      <h2>Dashboard</h2>
+      <div class="sub" style="color:var(--ink-soft);margin:4px 0 18px;">Projektübergreifende Übersicht über offene Aufgaben und anstehende Echtläufe.</div>
+    `;
+    html += renderDailyBriefingCard();
+    html += `
+      <div class="stat-row">
+        <div class="stat-card"><div class="num">${active}</div><div class="label">Aktive Projekte</div></div>
+        <div class="stat-card warn"><div class="num">${openTaskCount}</div><div class="label">Offene Aufgaben</div></div>
+        <div class="stat-card upcoming"><div class="num">${soon}</div><div class="label">Echtläufe in 30 Tagen</div></div>
+      </div>
+    `;
+
+    html += `
+      <div class="tabs" style="justify-content:space-between;">
+        <div style="display:flex;">
+          <button class="tab-btn" data-dtab="liste">Liste</button>
+          <button class="tab-btn" data-dtab="kalender">Kalender</button>
+          <button class="tab-btn" data-dtab="ohne-datum">Ohne Datum (${state.dashboardData.tasksNoDate.length})</button>
+          <button class="tab-btn" data-dtab="wartet">Wartet auf andere (${state.dashboardData.waitingTasks.length})</button>
+          <button class="tab-btn" data-dtab="erledigt">Erledigt (${state.dashboardData.completedTasks.length})</button>
+        </div>
+        <button class="icon-btn" id="toggle-dash-filters" style="align-self:center;">${state.showDashFilters?"Filter ausblenden":"🔍 Filter"}</button>
+      </div>
+    `;
+
+    if(state.dashboardTab==="liste"){
+      if(state.showDashFilters) html += renderDashboardFilterBar(true);
+      html += '<div class="section-title">Offene Aufgaben mit Termin</div>';
+      html += renderDashboardTaskRows(applyDashboardFilters(state.dashboardData.tasksWithDate, {dateAware:true}));
+    }else if(state.dashboardTab==="kalender"){
+      if(state.showDashFilters) html += renderDashboardFilterBar(false);
+      html += renderDashboardCalendar(applyDashboardFilters(state.dashboardData.tasksWithDate, {dateAware:false}));
+    }else if(state.dashboardTab==="ohne-datum"){
+      if(state.showDashFilters) html += renderDashboardFilterBar(true);
+      html += '<div class="section-title">Offene Aufgaben ohne Termin</div>';
+      html += renderDashboardTaskRows(applyDashboardFilters(state.dashboardData.tasksNoDate, {dateAware:true}));
+    }else if(state.dashboardTab==="wartet"){
+      if(state.showDashFilters) html += renderDashboardFilterBar(true);
+      html += '<div class="section-title">Aufgaben, bei denen du auf jemand anderen wartest</div>';
+      html += renderDashboardTaskRows(applyDashboardFilters(state.dashboardData.waitingTasks, {dateAware:true}));
+    }else{
+      if(state.showDashFilters) html += renderDashboardFilterBar(true);
+      html += '<div class="section-title">Erledigte Aufgaben</div>';
+      html += renderDashboardTaskRows(applyDashboardFilters(state.dashboardData.completedTasks, {dateAware:true}));
+    }
+
+    if(state.dashboardData.upcomingMilestones.length>0){
+      html += '<div class="section-title">Anstehende Echtlauf-Meilensteine</div>';
+      state.dashboardData.upcomingMilestones.slice(0,15).forEach(m=>{
+        html += `
+          <div class="agg-row">
+            <span class="badge ${slug(m.status)}">${escapeHtml(m.status)}</span>
+            <span class="agg-project" data-goto="${m.projectId}">${escapeHtml(m.projectName)}</span>
+            <span class="agg-title">${escapeHtml(m.titel)}</span>
+            <span class="agg-date">${fmtDate(m.datum)}</span>
+          </div>`;
+      });
+    }
+
+    el.innerHTML = html;
+    wireDailyBriefingCard();
+    const filterBarEl = el.querySelector(".filter-bar");
+    if(filterBarEl) wireDashboardFilterBar(filterBarEl);
+    const toggleDashFiltersBtn = document.getElementById("toggle-dash-filters");
+    if(toggleDashFiltersBtn) toggleDashFiltersBtn.addEventListener("click", ()=>{ state.showDashFilters = !state.showDashFilters; renderDashboard(); });
+    el.querySelectorAll(".tab-btn").forEach(b=>{
+      b.classList.toggle("active", b.dataset.dtab===state.dashboardTab);
+      b.addEventListener("click", ()=>{ state.dashboardTab=b.dataset.dtab; renderDashboard(); });
+    });
+    el.querySelectorAll("[data-goto]").forEach(x=>{
+      x.addEventListener("click", ()=>{
+        state.view="project"; state.selectedId = x.dataset.goto; state.activeTab="aufgaben";
+        renderAll();
+      });
+    });
+    el.querySelectorAll("[data-task-id]").forEach(x=>{
+      x.addEventListener("click", ()=>{
+        state.view="project"; state.selectedId = x.dataset.projectId; state.activeTab="aufgaben";
+        state.editingTaskId = x.dataset.taskId;
+        state.taskFilterTab = x.dataset.taskStatus==="erledigt" ? "erledigt" : (x.dataset.taskStatus==="wartet" ? "wartet" : "offen");
+        renderAll();
+      });
+    });
+    const calPrev = document.getElementById("cal-prev");
+    const calNext = document.getElementById("cal-next");
+    const calToday = document.getElementById("cal-today");
+    if(calPrev) calPrev.addEventListener("click", ()=>{
+      let {year, month} = state.calendarMonth;
+      month--; if(month<0){ month=11; year--; }
+      state.calendarMonth = {year, month};
+      renderDashboard();
+    });
+    if(calNext) calNext.addEventListener("click", ()=>{
+      let {year, month} = state.calendarMonth;
+      month++; if(month>11){ month=0; year++; }
+      state.calendarMonth = {year, month};
+      renderDashboard();
+    });
+    if(calToday) calToday.addEventListener("click", ()=>{
+      const now = new Date();
+      state.calendarMonth = {year: now.getFullYear(), month: now.getMonth()};
+      renderDashboard();
+    });
+  }
+
+  // ---------- RENDER: PROJECT ----------
+  async function renderProject(){
+    const el = document.getElementById("main-inner");
+    const p = (state.projects||[]).find(x=>x.id===state.selectedId);
+    if(!p){ state.view="dashboard"; return renderDashboard(); }
+    el.innerHTML = '<div class="loading-note">Lade Projekt…</div>';
+    const data = await ensureProjectData(p.id);
+
+    const labels = {aktiv:"Aktiv", pausiert:"Pausiert", abgeschlossen:"Abgeschlossen"};
+    let html = `
+      <div class="project-header">
+        <div>
+          <div class="code">${projectCode(p)}</div>
+          <h2>${escapeHtml(p.name)}</h2>
+          <div class="sub">${escapeHtml(p.kunde||"—")} · ${p.typ==="Neukunde"?"Neukunde":"Bestandskunde"} · <span class="stamp ${p.status}" style="color:inherit;">${labels[p.status]}</span></div>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn" data-tab="aufgaben">Aufgaben</button>
+        <button class="tab-btn" data-tab="dokumentation">Dokumentation</button>
+        <button class="tab-btn" data-tab="kommunikation">Kommunikation</button>
+        <span class="tab-sep"></span>
+        <button class="tab-btn" data-tab="uebersicht">Übersicht</button>
+        <button class="tab-btn" data-tab="ansprechpartner">Ansprechpartner</button>
+        ${p.typ==="Neukunde" ? '<button class="tab-btn" data-tab="zeitplan">Echtlauf-Zeitplan</button>' : ''}
+        <button class="tab-btn" data-tab="update">Update</button>
+        <button class="tab-btn" data-tab="ki-suche">KI-Suche</button>
+      </div>
+      <div id="tab-content"></div>
+    `;
+    el.innerHTML = html;
+    el.querySelectorAll(".tab-btn").forEach(b=>{
+      b.classList.toggle("active", b.dataset.tab===state.activeTab);
+      b.addEventListener("click", ()=>{ state.activeTab=b.dataset.tab; renderProject(); });
+    });
+    const tabEl = document.getElementById("tab-content");
+    if(state.activeTab==="uebersicht") renderTabUebersicht(tabEl, p, data);
+    else if(state.activeTab==="ansprechpartner") renderTabContacts(tabEl, p, data);
+    else if(state.activeTab==="kommunikation") renderTabComms(tabEl, p, data);
+    else if(state.activeTab==="dokumentation") renderTabDoc(tabEl, p, data);
+    else if(state.activeTab==="aufgaben") renderTabTasks(tabEl, p, data);
+    else if(state.activeTab==="zeitplan") renderTabTimeline(tabEl, p, data);
+    else if(state.activeTab==="update") renderTabUpdates(tabEl, p, data);
+    else if(state.activeTab==="ki-suche") renderTabAiSearch(tabEl, p, data);
+  }
+
+  // --- Tab: Übersicht ---
+  function renderAiSummaryCard(el, p, data){
+    if(!el) return;
+    if(data.aiSummaryLoading){
+      el.innerHTML = `
+        <div class="ai-summary-head"><h3>KI-Übersicht</h3></div>
+        <div class="ai-loading">Erstelle Übersicht…</div>`;
+      return;
+    }
+    if(data.aiSummaryError){
+      el.innerHTML = `
+        <div class="ai-summary-head">
+          <h3>KI-Übersicht</h3>
+          <button class="btn secondary small" id="ai-summary-refresh">Erneut versuchen</button>
+        </div>
+        <div class="ai-error">${escapeHtml(data.aiSummaryError)}</div>`;
+      document.getElementById("ai-summary-refresh").addEventListener("click", ()=>refreshAiSummary(p, data));
+      return;
+    }
+    if(data.aiSummary && data.aiSummary.points && data.aiSummary.points.length){
+      el.innerHTML = `
+        <div class="ai-summary-head">
+          <h3>KI-Übersicht</h3>
+          <button class="btn secondary small" id="ai-summary-refresh">↻ Aktualisieren</button>
+        </div>
+        <ul class="ai-summary-list">
+          ${data.aiSummary.points.map(pt=>'<li>'+escapeHtml(pt)+'</li>').join("")}
+        </ul>
+        <div class="ai-summary-meta">Erstellt: ${fmtDateTime(data.aiSummary.generatedAt)}</div>`;
+      document.getElementById("ai-summary-refresh").addEventListener("click", ()=>refreshAiSummary(p, data));
+      return;
+    }
+    el.innerHTML = `
+      <div class="ai-summary-head">
+        <h3>KI-Übersicht</h3>
+        <button class="btn secondary small" id="ai-summary-refresh">KI-Übersicht erstellen</button>
+      </div>
+      <div class="ai-summary-empty">Noch keine KI-Übersicht für dieses Projekt erstellt.</div>`;
+    document.getElementById("ai-summary-refresh").addEventListener("click", ()=>refreshAiSummary(p, data));
+  }
+
+  async function refreshAiSummary(p, data){
+    data.aiSummaryLoading = true;
+    data.aiSummaryError = null;
+    renderAiSummaryCard(document.getElementById("ai-summary-card"), p, data);
+    try{
+      const points = await generateProjectAiSummary(p, data);
+      const summary = { points, generatedAt: new Date().toISOString() };
+      data.aiSummary = summary;
+      await sSet("ai-summary:"+p.id, summary);
+    }catch(err){
+      data.aiSummaryError = "KI-Übersicht konnte nicht erstellt werden. ("+err.message+")";
+    }
+    data.aiSummaryLoading = false;
+    renderAiSummaryCard(document.getElementById("ai-summary-card"), p, data);
+  }
+
+  function renderTabUebersicht(el, p, data){
+    el.innerHTML = `
+      <div class="card">
+        <div class="field-grid">
+          <div class="field"><label>Projektname</label><input id="f-name" value="${escapeHtml(p.name)}"></div>
+          <div class="field"><label>Kunde</label><input id="f-kunde" value="${escapeHtml(p.kunde||'')}"></div>
+          <div class="field"><label>Typ</label>
+            <select id="f-typ">
+              <option value="Neukunde" ${p.typ==="Neukunde"?"selected":""}>Neukunde</option>
+              <option value="Bestandskunde" ${p.typ==="Bestandskunde"?"selected":""}>Bestandskunde</option>
+            </select>
+          </div>
+          <div class="field"><label>Status</label>
+            <select id="f-status">
+              <option value="aktiv" ${p.status==="aktiv"?"selected":""}>Aktiv</option>
+              <option value="pausiert" ${p.status==="pausiert"?"selected":""}>Pausiert</option>
+              <option value="abgeschlossen" ${p.status==="abgeschlossen"?"selected":""}>Abgeschlossen</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Kurzbeschreibung</label>${rtfFieldBlockHtml("f-desc-preview", p.beschreibung||"", "Klicken, um eine Kurzbeschreibung zu erfassen…")}</div>
+        <div class="btn-row">
+          <button class="btn" id="save-overview">Speichern</button>
+          <button class="btn danger" id="delete-project">Projekt löschen</button>
+        </div>
+      </div>
+    `;
+    let pendingBeschreibung = p.beschreibung || "";
+    wireRtfPreviewBox(
+      document.getElementById("f-desc-preview"), "Kurzbeschreibung",
+      ()=>pendingBeschreibung, (v)=>{ pendingBeschreibung = v; },
+      "Klicken, um eine Kurzbeschreibung zu erfassen…"
+    );
+    document.getElementById("save-overview").addEventListener("click", async ()=>{
+      p.name = document.getElementById("f-name").value.trim() || p.name;
+      p.kunde = document.getElementById("f-kunde").value.trim();
+      p.typ = document.getElementById("f-typ").value;
+      p.status = document.getElementById("f-status").value;
+      p.beschreibung = pendingBeschreibung;
+      await sSet("projects", state.projects);
+      renderAll();
+    });
+    document.getElementById("delete-project").addEventListener("click", async ()=>{
+      const sure = await showConfirm("Projekt \""+p.name+"\" wirklich unwiderruflich löschen? Alle zugehörigen Daten (Ansprechpartner, Kommunikation, Dokumentation, Aufgaben) gehen verloren.");
+      if(!sure) return;
+      state.projects = state.projects.filter(x=>x.id!==p.id);
+      await sSet("projects", state.projects);
+      await sDelete("contacts:"+p.id); await sDelete("comms:"+p.id);
+      await sDelete("doc:"+p.id); await sDelete("tasks:"+p.id); await sDelete("timeline:"+p.id); await sDelete("ai-summary:"+p.id); await sDelete("updates:"+p.id);
+      delete state.cache[p.id];
+      state.view="dashboard"; state.selectedId=null;
+      renderAll();
+    });
+  }
+
+  // --- Tab: Ansprechpartner ---
+  function renderTabContacts(el, p, data){
+    const editing = state.editingContact;
+    const editObj = editing ? data.contacts.find(c=>c.id===editing) : null;
+    let html = `
+      <div class="card">
+        <h3 style="margin-bottom:10px;font-size:15px;">${editObj ? "Ansprechpartner bearbeiten" : "Neuer Ansprechpartner"}</h3>
+        <div class="field-grid">
+          <div class="field"><label>Name</label><input id="c-name" value="${editObj?escapeHtml(editObj.name):''}"></div>
+          <div class="field"><label>Rolle</label><input id="c-rolle" value="${editObj?escapeHtml(editObj.rolle):''}" placeholder="z.B. IT-Leiter"></div>
+          <div class="field"><label>Telefon</label><input id="c-telefon" value="${editObj?escapeHtml(editObj.telefon):''}"></div>
+          <div class="field"><label>E-Mail</label><input id="c-email" value="${editObj?escapeHtml(editObj.email):''}"></div>
+        </div>
+        <div class="field"><label>Notiz</label>${rtfFieldBlockHtml("c-notiz-preview", editObj?editObj.notiz:"", "Klicken, um eine Notiz zu erfassen…")}</div>
+        <div class="btn-row">
+          <button class="btn" id="save-contact">${editObj?"Speichern":"Hinzufügen"}</button>
+          ${editObj ? '<button class="btn secondary" id="cancel-contact">Abbrechen</button>' : ''}
+        </div>
+      </div>
+      <div class="section-title">Alle Ansprechpartner (${data.contacts.length})</div>
+    `;
+    if(data.contacts.length===0){
+      html += '<div class="empty-state"><h3>Noch keine Ansprechpartner</h3><div>Lege oben den ersten Ansprechpartner an.</div></div>';
+    }else{
+      data.contacts.forEach(c=>{
+        html += `
+          <div class="list-item">
+            <div class="top-row">
+              <div>
+                <strong>${escapeHtml(c.name)}</strong> ${c.rolle?('<span class="meta">· '+escapeHtml(c.rolle)+'</span>'):''}
+                <div class="meta">${escapeHtml(c.telefon||'')} ${c.telefon&&c.email?'· ':''}${escapeHtml(c.email||'')}</div>
+                ${!isEmptyHtml(c.notiz) ? '<div class="rtf-content rtf-field-preview-compact" style="margin-top:5px;">'+c.notiz+'</div>' : ''}
+              </div>
+              <div class="actions">
+                <button class="icon-btn edit" data-edit="${c.id}">Bearbeiten</button>
+                <button class="icon-btn" data-del="${c.id}">Löschen</button>
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+    el.innerHTML = html;
+    let pendingNotiz = editObj ? (editObj.notiz||"") : "";
+    wireRtfPreviewBox(
+      document.getElementById("c-notiz-preview"), "Notiz",
+      ()=>pendingNotiz, (v)=>{ pendingNotiz = v; },
+      "Klicken, um eine Notiz zu erfassen…"
+    );
+    document.getElementById("save-contact").addEventListener("click", async ()=>{
+      const name = document.getElementById("c-name").value.trim();
+      if(!name){ await showAlert("Bitte einen Namen angeben."); return; }
+      const obj = {
+        id: editObj ? editObj.id : uid(),
+        name, rolle: document.getElementById("c-rolle").value.trim(),
+        telefon: document.getElementById("c-telefon").value.trim(),
+        email: document.getElementById("c-email").value.trim(),
+        notiz: pendingNotiz
+      };
+      if(editObj){
+        const idx = data.contacts.findIndex(c=>c.id===editObj.id);
+        data.contacts[idx] = obj;
+      }else{
+        data.contacts.push(obj);
+      }
+      await sSet("contacts:"+p.id, data.contacts);
+      state.editingContact = null;
+      renderProject();
+    });
+    const cancelBtn = document.getElementById("cancel-contact");
+    if(cancelBtn) cancelBtn.addEventListener("click", ()=>{ state.editingContact=null; renderProject(); });
+    el.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click", ()=>{ state.editingContact=b.dataset.edit; renderProject(); }));
+    el.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click", async ()=>{
+      const sure = await showConfirm("Diesen Ansprechpartner löschen?");
+      if(!sure) return;
+      data.contacts = data.contacts.filter(c=>c.id!==b.dataset.del);
+      await sSet("contacts:"+p.id, data.contacts);
+      renderProject();
+    }));
+  }
+
+  function contactOptions(data, selectedId){
+    let opts = '<option value="">— kein Ansprechpartner —</option>';
+    data.contacts.forEach(c=>{
+      opts += `<option value="${c.id}" ${selectedId===c.id?"selected":""}>${escapeHtml(c.name)}${c.rolle?(" ("+escapeHtml(c.rolle)+")"):""}</option>`;
+    });
+    return opts;
+  }
+
+  // --- Tab: Kommunikation ---
+  function renderTabComms(el, p, data){
+    const editing = state.editingComm;
+    const editObj = editing ? data.comms.find(c=>c.id===editing) : null;
+    const showForm = editObj || state.showNewCommForm;
+    let html = "";
+    if(showForm){
+      html += `
+        <div class="card">
+          <div class="top-row" style="margin-bottom:10px;">
+            <h3 style="font-size:15px;">${editObj?"Eintrag bearbeiten":"Neuer Kommunikationseintrag"}</h3>
+            ${!editObj ? '<button class="icon-btn" id="hide-new-comm">Einklappen</button>' : ''}
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>Datum</label><input type="date" id="k-datum" value="${editObj?editObj.datum:todayStr()}"></div>
+            <div class="field"><label>Kanal</label>
+              <select id="k-kanal">${CHANNELS.map(c=>`<option value="${c}" ${editObj&&editObj.kanal===c?"selected":""}>${c}</option>`).join("")}</select>
+            </div>
+            <div class="field"><label>Ansprechpartner</label>
+              <select id="k-kontakt" class="contact-select">${contactOptions(data, editObj?editObj.kontaktId:"")}</select>
+            </div>
+            <div class="field"><label>Betreff</label><input id="k-betreff" value="${editObj?escapeHtml(editObj.betreff):''}"></div>
+          </div>
+          <div class="field"><label>Notiz / Zusammenfassung</label>${rtfFieldBlockHtml("k-notiz-preview", editObj?editObj.notiz:"", "Klicken, um eine Notiz zu erfassen…")}</div>
+          <div class="field"><label>AFN-Nummer(n)</label>${afnFieldBlockHtml("k-afn-field", editObj?(editObj.afns||[]):[])}</div>
+          ${data.contacts.length===0?'<div class="contact-empty-note">Tipp: Lege zuerst Ansprechpartner an, um sie hier auszuwählen.</div>':''}
+          <div class="btn-row">
+            <button class="btn" id="save-comm">${editObj?"Speichern":"Hinzufügen"}</button>
+            ${editObj ? '<button class="btn secondary" id="cancel-comm">Abbrechen</button>' : ''}
+          </div>
+        </div>
+      `;
+    }else{
+      html += '<button class="btn secondary" id="show-new-comm" style="margin-bottom:14px;">+ Neuer Kommunikationseintrag</button>';
+    }
+    html += `<div class="section-title">Verlauf (${data.comms.length})</div>`;
+    const sorted = data.comms.slice().sort((a,b)=>(b.datum||"").localeCompare(a.datum||""));
+    if(sorted.length===0){
+      html += '<div class="empty-state"><h3>Noch keine Einträge</h3><div>Dokumentiere hier Teams-Chats, Anrufe, Mails und mehr.</div></div>';
+    }else{
+      sorted.forEach(c=>{
+        const contact = data.contacts.find(x=>x.id===c.kontaktId);
+        html += `
+          <div class="list-item">
+            <div class="top-row">
+              <div>
+                <span class="channel-tag">${escapeHtml(c.kanal)}</span>
+                <span class="meta mono">${fmtDate(c.datum)}</span>
+                ${contact?('<span class="meta">· '+escapeHtml(contact.name)+'</span>'):''}
+                ${c.afns&&c.afns.length?' '+afnViewMarkup(c.afns):''}
+                <div style="margin-top:5px;"><strong>${escapeHtml(c.betreff||'(kein Betreff)')}</strong></div>
+                ${!isEmptyHtml(c.notiz)?'<div class="rtf-content rtf-field-preview-compact" style="margin-top:3px;">'+c.notiz+'</div>':''}
+              </div>
+              <div class="actions">
+                <button class="icon-btn edit" data-extract="${c.id}" title="KI: Aufgaben für Fabian aus diesem Eintrag erkennen">🤖 Aufgaben erkennen</button>
+                <button class="icon-btn edit" data-edit="${c.id}">Bearbeiten</button>
+                <button class="icon-btn" data-del="${c.id}">Löschen</button>
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+    el.innerHTML = html;
+    let pendingCommNotiz = editObj ? (editObj.notiz||"") : "";
+    let pendingCommAfns = editObj ? (editObj.afns||[]).slice() : [];
+    const commNotizBox = document.getElementById("k-notiz-preview");
+    if(commNotizBox){
+      wireRtfPreviewBox(
+        commNotizBox, "Notiz / Zusammenfassung",
+        ()=>pendingCommNotiz, (v)=>{ pendingCommNotiz = v; },
+        "Klicken, um eine Notiz zu erfassen…"
+      );
+    }
+    const commAfnField = document.getElementById("k-afn-field");
+    if(commAfnField) wireAfnField(commAfnField, ()=>pendingCommAfns, (v)=>{ pendingCommAfns = v; });
+    const showNewCommBtn = document.getElementById("show-new-comm");
+    if(showNewCommBtn) showNewCommBtn.addEventListener("click", ()=>{ state.showNewCommForm = true; renderProject(); });
+    const hideNewCommBtn = document.getElementById("hide-new-comm");
+    if(hideNewCommBtn) hideNewCommBtn.addEventListener("click", ()=>{ state.showNewCommForm = false; renderProject(); });
+    el.querySelectorAll("[data-extract]").forEach(b=>b.addEventListener("click", ()=>{
+      const comm = data.comms.find(c=>c.id===b.dataset.extract);
+      if(comm) handleExtractTasksFromComm(comm, p, data, b);
+    }));
+    const saveCommBtn = document.getElementById("save-comm");
+    if(saveCommBtn) saveCommBtn.addEventListener("click", async ()=>{
+      const obj = {
+        id: editObj ? editObj.id : uid(),
+        datum: document.getElementById("k-datum").value || todayStr(),
+        kanal: document.getElementById("k-kanal").value,
+        kontaktId: document.getElementById("k-kontakt").value,
+        betreff: document.getElementById("k-betreff").value.trim(),
+        notiz: pendingCommNotiz,
+        afns: pendingCommAfns
+      };
+      if(editObj){
+        const idx = data.comms.findIndex(c=>c.id===editObj.id);
+        data.comms[idx] = obj;
+      }else{
+        data.comms.push(obj);
+      }
+      await sSet("comms:"+p.id, data.comms);
+      state.editingComm = null;
+      state.showNewCommForm = false;
+      renderProject();
+    });
+    const cancelBtn = document.getElementById("cancel-comm");
+    if(cancelBtn) cancelBtn.addEventListener("click", ()=>{ state.editingComm=null; renderProject(); });
+    el.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click", ()=>{ state.editingComm=b.dataset.edit; renderProject(); }));
+    el.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click", async ()=>{
+      const sure = await showConfirm("Diesen Eintrag löschen?");
+      if(!sure) return;
+      data.comms = data.comms.filter(c=>c.id!==b.dataset.del);
+      await sSet("comms:"+p.id, data.comms);
+      renderProject();
+    }));
+  }
+
+  // --- Tab: Dokumentation ---
+  function renderTabDoc(el, p, data){
+    const defs = state.docDefs || [];
+    const labels = computeDocLabels(defs);
+    const hidden = data.doc._hidden || [];
+    const visibleDefs = defs.filter(d => !hidden.includes(d.id));
+    const hiddenDefs = defs.filter(d => hidden.includes(d.id));
+
+    let html = "";
+    if(defs.length===0){
+      html += '<div class="empty-state"><h3>Noch keine Oberpunkte definiert</h3><div>Lege sie unter „⚙ Oberpunkte verwalten" in der Seitenleiste an — sie gelten dann für alle Projekte.</div></div>';
+    }
+
+    visibleDefs.forEach(s=>{
+      const entry = data.doc[s.id] || {content:"", updatedAt:null, afns:[]};
+      html += `
+        <div class="doc-section lvl-${defLevel(s)}">
+          <div class="doc-section-head">
+            <h3>${labels[s.id]} ${escapeHtml(s.title)}</h3>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="doc-updated">${entry.updatedAt ? "zuletzt aktualisiert: "+fmtDateTime(entry.updatedAt) : "noch nicht bearbeitet"}</span>
+              <button class="icon-btn" data-hide="${s.id}" title="Für dieses Projekt ausblenden (inkl. Unterpunkte)">Ausblenden</button>
+            </div>
+          </div>
+          ${rtfFieldBlockHtml("docfield-"+s.id, entry.content, "Klicken, um Text einzugeben…")}
+          ${afnFieldBlockHtml("docafn-"+s.id, entry.afns||[])}
+        </div>`;
+    });
+    if(visibleDefs.length>0){
+      html += '<div class="btn-row"><button class="btn" id="save-doc">Dokumentation speichern</button></div>';
+    }
+    if(hiddenDefs.length>0){
+      html += '<div class="section-title">Ausgeblendete Punkte für dieses Projekt (' + hiddenDefs.length + ')</div>';
+      hiddenDefs.forEach(s=>{
+        html += `
+          <div class="list-item def-row lvl-${defLevel(s)}" style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="meta">${labels[s.id]} ${escapeHtml(s.title)}</span>
+            <button class="icon-btn edit" data-show="${s.id}">Einblenden</button>
+          </div>`;
+      });
+    }
+    el.innerHTML = html;
+
+    const pendingDocContent = {};
+    const pendingDocAfns = {};
+    visibleDefs.forEach(s=>{
+      const entry = data.doc[s.id] || {content:"", updatedAt:null, afns:[]};
+      pendingDocContent[s.id] = entry.content || "";
+      pendingDocAfns[s.id] = (entry.afns||[]).slice();
+      wireRtfPreviewBox(
+        document.getElementById("docfield-"+s.id), s.title,
+        ()=>pendingDocContent[s.id], (v)=>{ pendingDocContent[s.id] = v; },
+        "Klicken, um Text einzugeben…"
+      );
+      wireAfnField(
+        document.getElementById("docafn-"+s.id),
+        ()=>pendingDocAfns[s.id], (v)=>{ pendingDocAfns[s.id] = v; }
+      );
+    });
+
+    const saveBtn = document.getElementById("save-doc");
+    if(saveBtn) saveBtn.addEventListener("click", async ()=>{
+      const now = new Date().toISOString();
+      Object.keys(pendingDocContent).forEach(key=>{
+        const prevEntry = data.doc[key] || {content:"", updatedAt:null, afns:[]};
+        const contentChanged = pendingDocContent[key] !== (prevEntry.content||"");
+        data.doc[key] = {
+          content: pendingDocContent[key],
+          updatedAt: contentChanged ? now : (prevEntry.updatedAt||null),
+          afns: pendingDocAfns[key]
+        };
+      });
+      await sSet("doc:"+p.id, data.doc);
+      renderProject();
+    });
+    el.querySelectorAll("[data-hide]").forEach(b=>b.addEventListener("click", async ()=>{
+      const ids = getSubtreeIds(state.docDefs||[], b.dataset.hide);
+      data.doc._hidden = Array.from(new Set([...(data.doc._hidden||[]), ...ids]));
+      await sSet("doc:"+p.id, data.doc);
+      renderProject();
+    }));
+    el.querySelectorAll("[data-show]").forEach(b=>b.addEventListener("click", async ()=>{
+      const ids = getSubtreeIds(state.docDefs||[], b.dataset.show);
+      data.doc._hidden = (data.doc._hidden||[]).filter(id=>!ids.includes(id));
+      await sSet("doc:"+p.id, data.doc);
+      renderProject();
+    }));
+  }
+
+  function renderProjectTaskFilterBar(data){
+    const f = state.projectTaskFilter;
+    let html = '<div class="filter-bar">';
+    html += `
+      <div class="filter-field">
+        <label>Priorität</label>
+        <select id="pt-prio">
+          <option value="">Alle</option>
+          ${TASK_PRIO.map(pr=>`<option value="${pr}" ${f.prioritaet===pr?"selected":""}>${pr}</option>`).join("")}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>Ansprechpartner</label>
+        <select id="pt-kontakt">
+          <option value="">Alle</option>
+          ${data.contacts.map(c=>`<option value="${c.id}" ${f.kontaktId===c.id?"selected":""}>${escapeHtml(c.name)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="filter-field"><label>Fällig von</label><input type="date" id="pt-von" value="${f.von}"></div>
+      <div class="filter-field"><label>Fällig bis</label><input type="date" id="pt-bis" value="${f.bis}"></div>
+      <button class="btn secondary small filter-reset" id="pt-reset">Filter zurücksetzen</button>
+    `;
+    html += '</div>';
+    return html;
+  }
+
+  function wireProjectTaskFilterBar(el){
+    const prioSel = el.querySelector("#pt-prio");
+    const kontaktSel = el.querySelector("#pt-kontakt");
+    const vonInput = el.querySelector("#pt-von");
+    const bisInput = el.querySelector("#pt-bis");
+    const resetBtn = el.querySelector("#pt-reset");
+    if(prioSel) prioSel.addEventListener("change", ()=>{ state.projectTaskFilter.prioritaet = prioSel.value; renderProject(); });
+    if(kontaktSel) kontaktSel.addEventListener("change", ()=>{ state.projectTaskFilter.kontaktId = kontaktSel.value; renderProject(); });
+    if(vonInput) vonInput.addEventListener("change", ()=>{ state.projectTaskFilter.von = vonInput.value; renderProject(); });
+    if(bisInput) bisInput.addEventListener("change", ()=>{ state.projectTaskFilter.bis = bisInput.value; renderProject(); });
+    if(resetBtn) resetBtn.addEventListener("click", ()=>{
+      state.projectTaskFilter = { prioritaet:"", kontaktId:"", von:"", bis:"" };
+      renderProject();
+    });
+  }
+
+  function applyProjectTaskFilters(tasks){
+    const f = state.projectTaskFilter;
+    return tasks.filter(t=>{
+      if(f.prioritaet && (t.prioritaet||"mittel")!==f.prioritaet) return false;
+      if(f.kontaktId && t.kontaktId!==f.kontaktId) return false;
+      if(f.von || f.bis){
+        if(!t.faelligAm) return false;
+        if(f.von && t.faelligAm < f.von) return false;
+        if(f.bis && t.faelligAm > f.bis) return false;
+      }
+      return true;
+    });
+  }
+
+  // --- Tab: Aufgaben ---
+  function renderTabTasks(el, p, data){
+    let html = '<div class="ai-summary-card" id="ai-summary-card"></div>';
+    if(state.showNewTaskForm){
+      html += `
+        <div class="card">
+          <div class="top-row" style="margin-bottom:10px;">
+            <h3 style="font-size:15px;">Neue Aufgabe</h3>
+            <button class="icon-btn" id="hide-new-task">Einklappen</button>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>Titel</label><input id="t-titel"></div>
+            <div class="field"><label>Fällig am</label><input type="date" id="t-faellig"></div>
+            <div class="field"><label>Priorität</label>
+              <select id="t-prio">${TASK_PRIO.map(pr=>`<option value="${pr}" ${pr==="mittel"?"selected":""}>${pr}</option>`).join("")}</select>
+            </div>
+            <div class="field"><label>Status</label>
+              <select id="t-status">${TASK_STATUS.map(st=>`<option value="${st}" ${st==="offen"?"selected":""}>${st}</option>`).join("")}</select>
+            </div>
+            <div class="field"><label>Ansprechpartner</label>
+              <select id="t-kontakt" class="contact-select">${contactOptions(data, "")}</select>
+            </div>
+          </div>
+          <div class="field wartet-auf-field" id="t-wartet-field" style="display:none;">
+            <label>Wartet auf (Person)</label>
+            <input id="t-wartet-auf" placeholder="z.B. Kollege Müller, Chef, IT-Abteilung…">
+          </div>
+          <div class="field"><label>Beschreibung</label>${rtfFieldBlockHtml("t-beschreibung-preview", "", "Klicken, um eine Beschreibung zu erfassen…")}</div>
+          <div class="field"><label>AFN-Nummer(n)</label>${afnFieldBlockHtml("t-afn-field", [])}</div>
+          <div class="btn-row">
+            <button class="btn" id="save-task">Hinzufügen</button>
+          </div>
+        </div>
+      `;
+    }else{
+      html += '<button class="btn secondary" id="show-new-task" style="margin-bottom:14px;">+ Neue Aufgabe</button>';
+    }
+    const openTasks = data.tasks.filter(t=>t.status==="offen" || t.status==="in Arbeit");
+    const waitingTasks = data.tasks.filter(t=>t.status==="wartet");
+    const doneTasks = data.tasks.filter(t=>t.status==="erledigt");
+    html += `
+      <div class="tabs" style="justify-content:space-between;">
+        <div style="display:flex;">
+          <button class="tab-btn" data-ttab="offen">Offen (${openTasks.length})</button>
+          <button class="tab-btn" data-ttab="wartet">Wartet auf andere (${waitingTasks.length})</button>
+          <button class="tab-btn" data-ttab="erledigt">Erledigt (${doneTasks.length})</button>
+        </div>
+        <button class="icon-btn" id="toggle-task-filters" style="align-self:center;">${state.showTaskFilters?"Filter ausblenden":"🔍 Filter"}</button>
+      </div>
+    `;
+    if(state.showTaskFilters) html += renderProjectTaskFilterBar(data);
+    const statusOrder = {"offen":0,"in Arbeit":1,"wartet":2,"erledigt":3};
+    const listSource = state.taskFilterTab==="erledigt" ? doneTasks : (state.taskFilterTab==="wartet" ? waitingTasks : openTasks);
+    const listForTab = applyProjectTaskFilters(listSource);
+    const sorted = listForTab.slice().sort((a,b)=>{
+      const so = (statusOrder[a.status]??3) - (statusOrder[b.status]??3);
+      if(so!==0) return so;
+      return (a.faelligAm||"9999").localeCompare(b.faelligAm||"9999");
+    });
+    if(sorted.length===0){
+      const f = state.projectTaskFilter;
+      const filterActive = f.prioritaet || f.kontaktId || f.von || f.bis;
+      const baseEmptyMap = {erledigt:"Noch keine erledigten Aufgaben", wartet:"Keine Aufgaben, bei denen du auf jemanden wartest", offen:"Keine offenen Aufgaben"};
+      const baseEmpty = baseEmptyMap[state.taskFilterTab] || baseEmptyMap.offen;
+      html += '<div class="empty-state"><h3>'+baseEmpty+(filterActive?" (mit aktuellem Filter)":"")+'</h3></div>';
+    }else{
+      sorted.forEach(t=>{
+        if(t.id === state.editingTaskId){
+          html += `
+            <div class="list-item task-edit-row" data-task-row="${t.id}">
+              <div class="task-inline-row">
+                <span class="prio-dot prio-${slug(t.prioritaet||'mittel')}"></span>
+                <input type="text" id="te-titel-${t.id}" value="${escapeHtml(t.titel)}">
+                <select id="te-prio-${t.id}">
+                  ${TASK_PRIO.map(pr=>`<option value="${pr}" ${t.prioritaet===pr?"selected":""}>${pr}</option>`).join("")}
+                </select>
+                <select id="te-status-${t.id}" class="task-status-select ${slug(t.status)}">
+                  ${TASK_STATUS.map(st=>`<option value="${st}" ${t.status===st?"selected":""}>${st}</option>`).join("")}
+                </select>
+                <input type="date" id="te-faellig-${t.id}" value="${t.faelligAm||''}">
+                <select id="te-kontakt-${t.id}">${contactOptions(data, t.kontaktId)}</select>
+              </div>
+              <div class="field wartet-auf-field" id="te-wartet-field-${t.id}" style="display:${t.status==='wartet'?'block':'none'};">
+                <label>Wartet auf (Person)</label>
+                <input id="te-wartet-auf-${t.id}" value="${escapeHtml(t.wartetAuf||'')}" placeholder="z.B. Kollege Müller, Chef, IT-Abteilung…">
+              </div>
+              ${rtfFieldBlockHtml("te-desc-preview-"+t.id, t.beschreibung||"", "Klicken, um eine Beschreibung zu erfassen…")}
+              ${afnFieldBlockHtml("te-afn-field-"+t.id, t.afns||[])}
+              <div class="btn-row" style="margin-top:8px;">
+                <button class="btn small" id="te-save-${t.id}">Speichern</button>
+                <button class="btn secondary small" id="te-cancel-${t.id}">Abbrechen</button>
+                <button class="btn danger small" id="te-del-${t.id}" style="margin-left:auto;">Löschen</button>
+              </div>
+            </div>`;
+        }else{
+          const contact = data.contacts.find(x=>x.id===t.kontaktId);
+          html += `
+            <div class="list-item task-view-row" data-task-row="${t.id}" data-open-task="${t.id}">
+              <div class="top-row">
+                <div>
+                  <span class="prio-dot prio-${slug(t.prioritaet||'mittel')}" style="display:inline-block;margin-right:4px;"></span>
+                  <strong>${escapeHtml(t.titel)}</strong>
+                  <span class="badge ${slug(t.status)}" style="margin-left:6px;">${t.status}</span>
+                  ${t.afns&&t.afns.length?' '+afnViewMarkup(t.afns):''}
+                  <div class="meta">Fällig: ${fmtDate(t.faelligAm)} ${contact?('· '+escapeHtml(contact.name)):''}${t.erstelltAm?(' · Erstellt: '+fmtDate(t.erstelltAm.slice(0,10))):''}${t.abgeschlossenAm?(' · Erledigt: '+fmtDate(t.abgeschlossenAm.slice(0,10))):''}</div>
+                  ${t.status==="wartet"?'<div class="wartet-auf-note">⏳ Wartet auf: '+escapeHtml(t.wartetAuf||"—")+'</div>':''}
+                  ${!isEmptyHtml(t.beschreibung)?'<div class="rtf-content rtf-field-preview-compact" style="margin-top:4px;">'+t.beschreibung+'</div>':''}
+                </div>
+                <div class="actions">
+                  <button class="icon-btn" data-del="${t.id}">Löschen</button>
+                </div>
+              </div>
+            </div>`;
+        }
+      });
+    }
+    el.innerHTML = html;
+    renderAiSummaryCard(document.getElementById("ai-summary-card"), p, data);
+    let pendingNewTaskBeschreibung = "";
+    let pendingNewTaskAfns = [];
+    const newTaskDescBox = document.getElementById("t-beschreibung-preview");
+    if(newTaskDescBox){
+      wireRtfPreviewBox(
+        newTaskDescBox, "Beschreibung",
+        ()=>pendingNewTaskBeschreibung, (v)=>{ pendingNewTaskBeschreibung = v; },
+        "Klicken, um eine Beschreibung zu erfassen…"
+      );
+    }
+    wireAfnField(document.getElementById("t-afn-field"), ()=>pendingNewTaskAfns, (v)=>{ pendingNewTaskAfns = v; });
+    const newTaskStatusSel = document.getElementById("t-status");
+    const newTaskWartetField = document.getElementById("t-wartet-field");
+    if(newTaskStatusSel && newTaskWartetField){
+      newTaskStatusSel.addEventListener("change", ()=>{
+        newTaskWartetField.style.display = newTaskStatusSel.value==="wartet" ? "block" : "none";
+      });
+    }
+    const showNewTaskBtn = document.getElementById("show-new-task");
+    if(showNewTaskBtn) showNewTaskBtn.addEventListener("click", ()=>{ state.showNewTaskForm = true; renderProject(); });
+    const hideNewTaskBtn = document.getElementById("hide-new-task");
+    if(hideNewTaskBtn) hideNewTaskBtn.addEventListener("click", ()=>{ state.showNewTaskForm = false; renderProject(); });
+    const toggleTaskFiltersBtn = document.getElementById("toggle-task-filters");
+    if(toggleTaskFiltersBtn) toggleTaskFiltersBtn.addEventListener("click", ()=>{ state.showTaskFilters = !state.showTaskFilters; renderProject(); });
+    el.querySelectorAll("[data-ttab]").forEach(b=>{
+      b.classList.toggle("active", b.dataset.ttab===state.taskFilterTab);
+      b.addEventListener("click", ()=>{ state.taskFilterTab=b.dataset.ttab; renderProject(); });
+    });
+    const ptFilterBarEl = el.querySelector(".filter-bar");
+    if(ptFilterBarEl) wireProjectTaskFilterBar(ptFilterBarEl);
+
+    const saveTaskBtn = document.getElementById("save-task");
+    if(saveTaskBtn) saveTaskBtn.addEventListener("click", async ()=>{
+      const titel = document.getElementById("t-titel").value.trim();
+      if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
+      const newStatus = document.getElementById("t-status").value;
+      data.tasks.push({
+        id: uid(),
+        titel,
+        faelligAm: document.getElementById("t-faellig").value,
+        prioritaet: document.getElementById("t-prio").value,
+        status: newStatus,
+        wartetAuf: newStatus==="wartet" ? document.getElementById("t-wartet-auf").value.trim() : "",
+        kontaktId: document.getElementById("t-kontakt").value,
+        beschreibung: pendingNewTaskBeschreibung,
+        afns: pendingNewTaskAfns,
+        erstelltAm: new Date().toISOString(),
+        abgeschlossenAm: null
+      });
+      await sSet("tasks:"+p.id, data.tasks);
+      state.showNewTaskForm = false;
+      renderProject();
+    });
+
+    // Click a task row (view mode) to open it for editing
+    el.querySelectorAll("[data-open-task]").forEach(row=>{
+      row.addEventListener("click", (e)=>{
+        if(e.target.closest("[data-del]")) return;
+        state.editingTaskId = row.dataset.openTask;
+        renderProject();
+      });
+    });
+
+    // Edit-mode row: pending Beschreibung + Speichern/Abbrechen/Löschen
+    const editingTask = sorted.find(t=>t.id===state.editingTaskId);
+    if(editingTask){
+      let pendingEditBeschreibung = editingTask.beschreibung || "";
+      let pendingEditAfns = (editingTask.afns||[]).slice();
+      wireRtfPreviewBox(
+        document.getElementById("te-desc-preview-"+editingTask.id), "Beschreibung",
+        ()=>pendingEditBeschreibung, (v)=>{ pendingEditBeschreibung = v; },
+        "Klicken, um eine Beschreibung zu erfassen…"
+      );
+      wireAfnField(document.getElementById("te-afn-field-"+editingTask.id), ()=>pendingEditAfns, (v)=>{ pendingEditAfns = v; });
+      const editStatusSel = document.getElementById("te-status-"+editingTask.id);
+      const editWartetField = document.getElementById("te-wartet-field-"+editingTask.id);
+      if(editStatusSel && editWartetField){
+        editStatusSel.addEventListener("change", ()=>{
+          editWartetField.style.display = editStatusSel.value==="wartet" ? "block" : "none";
+        });
+      }
+      document.getElementById("te-save-"+editingTask.id).addEventListener("click", async ()=>{
+        const titel = document.getElementById("te-titel-"+editingTask.id).value.trim();
+        if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
+        const idx = data.tasks.findIndex(x=>x.id===editingTask.id);
+        if(idx>=0){
+          const prevStatus = data.tasks[idx].status;
+          const newStatus = document.getElementById("te-status-"+editingTask.id).value;
+          let abgeschlossenAm = data.tasks[idx].abgeschlossenAm || null;
+          if(newStatus==="erledigt" && prevStatus!=="erledigt"){
+            abgeschlossenAm = new Date().toISOString();
+          }else if(newStatus!=="erledigt" && prevStatus==="erledigt"){
+            abgeschlossenAm = null;
+          }
+          const wartetAufInput = document.getElementById("te-wartet-auf-"+editingTask.id);
+          data.tasks[idx] = {
+            ...data.tasks[idx],
+            titel,
+            prioritaet: document.getElementById("te-prio-"+editingTask.id).value,
+            status: newStatus,
+            wartetAuf: newStatus==="wartet" ? (wartetAufInput?wartetAufInput.value.trim():"") : "",
+            faelligAm: document.getElementById("te-faellig-"+editingTask.id).value,
+            kontaktId: document.getElementById("te-kontakt-"+editingTask.id).value,
+            beschreibung: pendingEditBeschreibung,
+            afns: pendingEditAfns,
+            abgeschlossenAm
+          };
+          await sSet("tasks:"+p.id, data.tasks);
+        }
+        state.editingTaskId = null;
+        renderProject();
+      });
+      document.getElementById("te-cancel-"+editingTask.id).addEventListener("click", ()=>{
+        state.editingTaskId = null;
+        renderProject();
+      });
+      document.getElementById("te-del-"+editingTask.id).addEventListener("click", async ()=>{
+        const sure = await showConfirm("Diese Aufgabe löschen?");
+        if(!sure) return;
+        data.tasks = data.tasks.filter(x=>x.id!==editingTask.id);
+        await sSet("tasks:"+p.id, data.tasks);
+        state.editingTaskId = null;
+        renderProject();
+      });
+      // scroll the edit row into view (e.g. when opened from the dashboard)
+      const rowEl = el.querySelector('[data-task-row="'+editingTask.id+'"]');
+      if(rowEl && typeof rowEl.scrollIntoView === "function") rowEl.scrollIntoView({block:"center", behavior:"smooth"});
+    }
+
+    el.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      const sure911 = await showConfirm("Diese Aufgabe löschen?");
+      if(!sure911) return;
+      data.tasks = data.tasks.filter(t=>t.id!==b.dataset.del);
+      await sSet("tasks:"+p.id, data.tasks);
+      renderProject();
+    }));
+  }
+
+  // --- Tab: Echtlauf-Zeitplan ---
+  function renderTabTimeline(el, p, data){
+    const editing = state.editingMilestone;
+    const editObj = editing ? data.timeline.find(m=>m.id===editing) : null;
+    let html = `
+      <div class="card">
+        <h3 style="margin-bottom:10px;font-size:15px;">${editObj?"Meilenstein bearbeiten":"Neuer Meilenstein"}</h3>
+        <div class="field-grid">
+          <div class="field"><label>Titel</label><input id="m-titel" value="${editObj?escapeHtml(editObj.titel):''}" placeholder="z.B. Echtlauf-Start"></div>
+          <div class="field"><label>Datum</label><input type="date" id="m-datum" value="${editObj?(editObj.datum||''):''}"></div>
+          <div class="field"><label>Status</label>
+            <select id="m-status">${MILESTONE_STATUS.map(s=>`<option value="${s}" ${editObj&&editObj.status===s?"selected":""}>${s}</option>`).join("")}</select>
+          </div>
+        </div>
+        <div class="field"><label>Notiz</label>${rtfFieldBlockHtml("m-notiz-preview", editObj?editObj.notiz:"", "Klicken, um eine Notiz zu erfassen…")}</div>
+        <div class="btn-row">
+          <button class="btn" id="save-milestone">${editObj?"Speichern":"Hinzufügen"}</button>
+          ${editObj ? '<button class="btn secondary" id="cancel-milestone">Abbrechen</button>' : ''}
+        </div>
+      </div>
+      <div class="section-title">Zeitplan</div>
+    `;
+    const sorted = data.timeline.slice().sort((a,b)=>(a.datum||"9999").localeCompare(b.datum||"9999"));
+    if(sorted.length===0){
+      html += '<div class="empty-state"><h3>Noch kein Zeitplan</h3><div>Lege Meilensteine für den Echtlauf an, z.B. Testphase, Schulung, Echtlauf-Start.</div></div>';
+    }else{
+      html += '<div class="timeline">';
+      sorted.forEach(m=>{
+        html += `
+          <div class="timeline-item ${slug(m.status)}">
+            <div class="t-date">${fmtDate(m.datum)}</div>
+            <div class="t-title">${escapeHtml(m.titel)} <span class="badge ${slug(m.status)}">${m.status}</span></div>
+            ${!isEmptyHtml(m.notiz)?'<div class="rtf-content rtf-field-preview-compact">'+m.notiz+'</div>':''}
+            <div class="btn-row" style="margin-top:6px;">
+              <button class="icon-btn edit" data-edit="${m.id}">Bearbeiten</button>
+              <button class="icon-btn" data-del="${m.id}">Löschen</button>
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+    }
+    el.innerHTML = html;
+    let pendingMilestoneNotiz = editObj ? (editObj.notiz||"") : "";
+    wireRtfPreviewBox(
+      document.getElementById("m-notiz-preview"), "Notiz",
+      ()=>pendingMilestoneNotiz, (v)=>{ pendingMilestoneNotiz = v; },
+      "Klicken, um eine Notiz zu erfassen…"
+    );
+    document.getElementById("save-milestone").addEventListener("click", async ()=>{
+      const titel = document.getElementById("m-titel").value.trim();
+      if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
+      const obj = {
+        id: editObj ? editObj.id : uid(),
+        titel,
+        datum: document.getElementById("m-datum").value,
+        status: document.getElementById("m-status").value,
+        notiz: pendingMilestoneNotiz
+      };
+      if(editObj){
+        const idx = data.timeline.findIndex(m=>m.id===editObj.id);
+        data.timeline[idx] = obj;
+      }else{
+        data.timeline.push(obj);
+      }
+      await sSet("timeline:"+p.id, data.timeline);
+      state.editingMilestone = null;
+      renderProject();
+    });
+    const cancelBtn = document.getElementById("cancel-milestone");
+    if(cancelBtn) cancelBtn.addEventListener("click", ()=>{ state.editingMilestone=null; renderProject(); });
+    el.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click", ()=>{ state.editingMilestone=b.dataset.edit; renderProject(); }));
+    el.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click", async ()=>{
+      const sure984 = await showConfirm("Diesen Meilenstein löschen?");
+      if(!sure984) return;
+      data.timeline = data.timeline.filter(m=>m.id!==b.dataset.del);
+      await sSet("timeline:"+p.id, data.timeline);
+      renderProject();
+    }));
+  }
+
+  // --- Tab: Update (Programmversion & Versionsverlauf) ---
+  function renderTabUpdates(el, p, data){
+    let html = `
+      <div class="current-version-card">
+        <div>
+          <div class="cv-label">Aktuelle Programmversion</div>
+          <div class="cv-value" id="cv-display">${escapeHtml(p.aktuelleVersion || "— nicht gesetzt —")}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="cv-input" placeholder="z.B. 4.12.3" value="${escapeHtml(p.aktuelleVersion||'')}" style="width:160px;">
+          <button class="btn small" id="cv-save">Speichern</button>
+        </div>
+      </div>
+    `;
+
+    if(state.showNewUpdateForm){
+      html += `
+        <div class="card">
+          <div class="top-row" style="margin-bottom:10px;">
+            <h3 style="font-size:15px;">Neuer Punkt fürs nächste Update</h3>
+            <button class="icon-btn" id="hide-new-update">Einklappen</button>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>Titel</label><input id="u-titel" placeholder="z.B. Neues Feld Ballaststoffe in PAZ-Übergabe"></div>
+            <div class="field"><label>Datum</label><input type="date" id="u-datum" value="${todayStr()}"></div>
+            <div class="field"><label>Revision</label><input id="u-revision" placeholder="z.B. Rev. 3"></div>
+          </div>
+          <div class="field"><label>Beschreibung</label>${rtfFieldBlockHtml("u-beschreibung-preview", "", "Klicken, um zu beschreiben, worum es geht…")}</div>
+          <div class="field"><label>AFN-Nummer(n)</label>${afnFieldBlockHtml("u-afn-field", [])}</div>
+          <div class="btn-row">
+            <button class="btn" id="save-update">Hinzufügen</button>
+          </div>
+        </div>
+      `;
+    }else{
+      html += '<button class="btn secondary" id="show-new-update" style="margin-bottom:14px;">+ Neuer Punkt</button>';
+    }
+
+    html += `
+      <div class="section-title">Punkte für das nächste Update (${data.updates.length})</div>
+      <div class="an-note">Sammlung aller Punkte, für die ein Update notwendig wird — so siehst du auf einen Blick, was mit dem nächsten Update an Funktionen/Änderungen dazukommt.</div>
+    `;
+    const sortedDesc = data.updates.slice().sort((a,b)=>(b.datum||"").localeCompare(a.datum||"") || (b.id||"").localeCompare(a.id||""));
+
+    if(sortedDesc.length===0){
+      html += '<div class="empty-state"><h3>Noch keine Punkte erfasst</h3><div>Trage hier Punkte ein, für die ein Update notwendig wird — z.B. neue Felder, Anpassungen oder Fixes.</div></div>';
+    }else{
+      sortedDesc.forEach(u=>{
+        if(u.id === state.editingUpdateId){
+          html += `
+            <div class="update-entry" data-update-row="${u.id}">
+              <div class="field-grid">
+                <div class="field"><label>Titel</label><input id="ue-titel-${u.id}" value="${escapeHtml(u.titel)}"></div>
+                <div class="field"><label>Datum</label><input type="date" id="ue-datum-${u.id}" value="${u.datum||''}"></div>
+                <div class="field"><label>Revision</label><input id="ue-revision-${u.id}" value="${escapeHtml(u.revision||'')}"></div>
+              </div>
+              ${rtfFieldBlockHtml("ue-beschreibung-preview-"+u.id, u.beschreibung||"", "Klicken, um zu beschreiben, worum es geht…")}
+              ${afnFieldBlockHtml("ue-afn-field-"+u.id, u.afns||[])}
+              <div class="btn-row" style="margin-top:8px;">
+                <button class="btn small" id="ue-save-${u.id}">Speichern</button>
+                <button class="btn secondary small" id="ue-cancel-${u.id}">Abbrechen</button>
+                <button class="btn danger small" id="ue-del-${u.id}" style="margin-left:auto;">Löschen</button>
+              </div>
+            </div>`;
+        }else{
+          html += `
+            <div class="update-entry" data-update-row="${u.id}" data-open-update="${u.id}" style="cursor:pointer;">
+              <div class="update-entry-head">
+                <div class="update-step-label">
+                  <span class="uv-new">${escapeHtml(u.titel)}</span>
+                  ${u.revision?'<span class="update-revision-tag">'+escapeHtml(u.revision)+'</span>':''}
+                </div>
+                <span class="meta mono">${fmtDate(u.datum)}</span>
+              </div>
+              ${u.afns&&u.afns.length?afnViewMarkup(u.afns)+'<br>':''}
+              ${!isEmptyHtml(u.beschreibung)?'<div class="rtf-content" style="margin-top:6px;">'+u.beschreibung+'</div>':''}
+              <div class="btn-row" style="margin-top:8px;">
+                <button class="icon-btn" data-del-update="${u.id}">Löschen</button>
+              </div>
+            </div>`;
+        }
+      });
+    }
+
+    el.innerHTML = html;
+
+    document.getElementById("cv-save").addEventListener("click", async ()=>{
+      p.aktuelleVersion = document.getElementById("cv-input").value.trim();
+      await sSet("projects", state.projects);
+      renderProject();
+    });
+
+    let pendingNewUpdateBeschreibung = "";
+    let pendingNewUpdateAfns = [];
+    const showNewUpdateBtn = document.getElementById("show-new-update");
+    if(showNewUpdateBtn) showNewUpdateBtn.addEventListener("click", ()=>{ state.showNewUpdateForm = true; renderProject(); });
+    const hideNewUpdateBtn = document.getElementById("hide-new-update");
+    if(hideNewUpdateBtn) hideNewUpdateBtn.addEventListener("click", ()=>{ state.showNewUpdateForm = false; renderProject(); });
+    const newUpdateDescBox = document.getElementById("u-beschreibung-preview");
+    if(newUpdateDescBox){
+      wireRtfPreviewBox(
+        newUpdateDescBox, "Beschreibung",
+        ()=>pendingNewUpdateBeschreibung, (v)=>{ pendingNewUpdateBeschreibung = v; },
+        "Klicken, um zu beschreiben, worum es geht…"
+      );
+    }
+    const newUpdateAfnField = document.getElementById("u-afn-field");
+    if(newUpdateAfnField) wireAfnField(newUpdateAfnField, ()=>pendingNewUpdateAfns, (v)=>{ pendingNewUpdateAfns = v; });
+    const saveUpdateBtn = document.getElementById("save-update");
+    if(saveUpdateBtn) saveUpdateBtn.addEventListener("click", async ()=>{
+      const titel = document.getElementById("u-titel").value.trim();
+      if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
+      data.updates.push({
+        id: uid(),
+        titel,
+        datum: document.getElementById("u-datum").value || todayStr(),
+        revision: document.getElementById("u-revision").value.trim(),
+        beschreibung: pendingNewUpdateBeschreibung,
+        afns: pendingNewUpdateAfns
+      });
+      await sSet("updates:"+p.id, data.updates);
+      state.showNewUpdateForm = false;
+      renderProject();
+    });
+
+    el.querySelectorAll("[data-open-update]").forEach(row=>{
+      row.addEventListener("click", (e)=>{
+        if(e.target.closest("[data-del-update]")) return;
+        state.editingUpdateId = row.dataset.openUpdate;
+        renderProject();
+      });
+    });
+    el.querySelectorAll("[data-del-update]").forEach(b=>b.addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      const sure = await showConfirm("Diesen Punkt löschen?");
+      if(!sure) return;
+      data.updates = data.updates.filter(u=>u.id!==b.dataset.delUpdate);
+      await sSet("updates:"+p.id, data.updates);
+      renderProject();
+    }));
+
+    const editingUpdate = data.updates.find(u=>u.id===state.editingUpdateId);
+    if(editingUpdate){
+      let pendingEditBeschreibung = editingUpdate.beschreibung || "";
+      let pendingEditAfns = (editingUpdate.afns||[]).slice();
+      wireRtfPreviewBox(
+        document.getElementById("ue-beschreibung-preview-"+editingUpdate.id), "Beschreibung",
+        ()=>pendingEditBeschreibung, (v)=>{ pendingEditBeschreibung = v; },
+        "Klicken, um zu beschreiben, worum es geht…"
+      );
+      wireAfnField(document.getElementById("ue-afn-field-"+editingUpdate.id), ()=>pendingEditAfns, (v)=>{ pendingEditAfns = v; });
+      document.getElementById("ue-save-"+editingUpdate.id).addEventListener("click", async ()=>{
+        const titel = document.getElementById("ue-titel-"+editingUpdate.id).value.trim();
+        if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
+        const idx = data.updates.findIndex(u=>u.id===editingUpdate.id);
+        if(idx>=0){
+          data.updates[idx] = {
+            ...data.updates[idx],
+            titel,
+            datum: document.getElementById("ue-datum-"+editingUpdate.id).value || editingUpdate.datum,
+            revision: document.getElementById("ue-revision-"+editingUpdate.id).value.trim(),
+            beschreibung: pendingEditBeschreibung,
+            afns: pendingEditAfns
+          };
+          await sSet("updates:"+p.id, data.updates);
+        }
+        state.editingUpdateId = null;
+        renderProject();
+      });
+      document.getElementById("ue-cancel-"+editingUpdate.id).addEventListener("click", ()=>{
+        state.editingUpdateId = null;
+        renderProject();
+      });
+      document.getElementById("ue-del-"+editingUpdate.id).addEventListener("click", async ()=>{
+        const sure = await showConfirm("Diesen Punkt löschen?");
+        if(!sure) return;
+        data.updates = data.updates.filter(u=>u.id!==editingUpdate.id);
+        await sSet("updates:"+p.id, data.updates);
+        state.editingUpdateId = null;
+        renderProject();
+      });
+    }
+  }
+
+  // ---------- RENDER: SETTINGS (global Oberpunkte-Verwaltung) ----------
+  function renderSettings(){
+    const el = document.getElementById("main-inner");
+    const defs = state.docDefs || [];
+    let html = `
+      <h2>Oberpunkte verwalten</h2>
+      <div class="sub" style="color:var(--ink-soft);margin:4px 0 22px;max-width:620px;">
+        Diese Oberpunkte gelten für die Projektdokumentation aller Projekte. Mit ⬅/➡ legst du bis zu 3 Hierarchie-Ebenen fest (jede Ebene wird eingerückt dargestellt).
+        Zum Umsortieren am Griff <span class="mono">⠿</span> ziehen und an der gewünschten Stelle ablegen — Unterpunkte werden dabei automatisch mitgenommen.
+        Ebene 2 gehört immer zum vorausgehenden Ebene-1-Punkt, Ebene 3 zum vorausgehenden Ebene-2-Punkt.
+        Einzelne Punkte können pro Projekt im Reiter „Dokumentation" ausgeblendet werden, ohne sie hier zu löschen.
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:10px;font-size:15px;">Neuen Oberpunkt hinzufügen</h3>
+        <div style="display:flex;gap:8px;">
+          <input id="new-def-title" placeholder="z.B. Kundenspezifische Anpassungen" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);">
+          <button class="btn" id="add-def-btn">Hinzufügen</button>
+        </div>
+      </div>
+      <div class="section-title">Aktuelle Oberpunkte (${defs.length})</div>
+    `;
+    if(defs.length===0){
+      html += '<div class="empty-state"><h3>Noch keine Oberpunkte</h3><div>Lege oben den ersten an.</div></div>';
+    }else{
+      const labels = computeDocLabels(defs);
+      html += '<button class="btn secondary small" id="insert-at-start-btn" style="margin-bottom:8px;">+ Am Anfang einfügen</button>';
+      defs.forEach((d,i)=>{
+        const lvl = defLevel(d);
+        html += `
+          <div class="list-item def-row lvl-${lvl}" data-def-row="${d.id}">
+            <div class="top-row" style="align-items:center;">
+              <span class="drag-handle" draggable="true" data-drag-handle="${d.id}" title="Ziehen zum Verschieben (mit Unterpunkten)">⠿</span>
+              <span class="mono" style="color:var(--ink-soft);width:34px;flex-shrink:0;">${labels[d.id]}</span>
+              <input data-title="${d.id}" value="${escapeHtml(d.title)}" style="flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:var(--radius);font-size:13.5px;">
+              <div class="actions">
+                <button class="icon-btn" data-insert-after="${d.id}" title="Danach neuen Punkt einfügen">+ Einfügen</button>
+                <button class="icon-btn" data-outdent="${d.id}" ${lvl<=1?"disabled":""} title="Ausrücken (Ebene ${lvl>1?lvl-1:1})">⬅</button>
+                <button class="icon-btn" data-indent="${d.id}" ${lvl>=3?"disabled":""} title="Einrücken (Ebene ${lvl<3?lvl+1:3})">➡</button>
+                <button class="icon-btn" data-del-def="${d.id}" title="Löschen">Löschen</button>
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+    el.innerHTML = html;
+
+    async function insertDefAt(index, level){
+      const newDef = {id: uid(), title: "Neuer Punkt", level: level||1};
+      state.docDefs.splice(index, 0, newDef);
+      await saveDocDefs();
+      renderSettings();
+      const inp = document.querySelector('[data-title="'+newDef.id+'"]');
+      if(inp){ inp.focus(); inp.select(); }
+    }
+    const insertAtStartBtn = document.getElementById("insert-at-start-btn");
+    if(insertAtStartBtn) insertAtStartBtn.addEventListener("click", ()=>{
+      insertDefAt(0, defLevel(state.docDefs[0]||{level:1}));
+    });
+    el.querySelectorAll("[data-insert-after]").forEach(b=>b.addEventListener("click", ()=>{
+      const idx = state.docDefs.findIndex(d=>d.id===b.dataset.insertAfter);
+      if(idx<0) return;
+      insertDefAt(idx+1, defLevel(state.docDefs[idx]));
+    }));
+
+    document.getElementById("add-def-btn").addEventListener("click", async ()=>{
+      const input = document.getElementById("new-def-title");
+      const title = input.value.trim();
+      if(!title){ await showAlert("Bitte einen Titel für den Oberpunkt angeben."); return; }
+      state.docDefs.push({id: uid(), title, level:1});
+      await saveDocDefs();
+      renderSettings();
+    });
+    el.querySelectorAll("[data-title]").forEach(inp=>{
+      inp.addEventListener("change", async ()=>{
+        const def = state.docDefs.find(d=>d.id===inp.dataset.title);
+        if(def){
+          const v = inp.value.trim();
+          def.title = v || def.title;
+          await saveDocDefs();
+          renderSettings();
+        }
+      });
+    });
+    el.querySelectorAll("[data-indent]").forEach(b=>b.addEventListener("click", async ()=>{
+      const def = state.docDefs.find(d=>d.id===b.dataset.indent);
+      if(def){
+        def.level = Math.min(3, defLevel(def)+1);
+        await saveDocDefs();
+        renderSettings();
+      }
+    }));
+    el.querySelectorAll("[data-outdent]").forEach(b=>b.addEventListener("click", async ()=>{
+      const def = state.docDefs.find(d=>d.id===b.dataset.outdent);
+      if(def){
+        def.level = Math.max(1, defLevel(def)-1);
+        await saveDocDefs();
+        renderSettings();
+      }
+    }));
+    let draggingId = null;
+    el.querySelectorAll("[data-drag-handle]").forEach(handle=>{
+      handle.addEventListener("dragstart", (e)=>{
+        draggingId = handle.dataset.dragHandle;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", draggingId);
+        const row = handle.closest("[data-def-row]");
+        if(row) row.classList.add("dragging");
+      });
+      handle.addEventListener("dragend", ()=>{
+        el.querySelectorAll(".def-row").forEach(r=>r.classList.remove("dragging","drag-over-top","drag-over-bottom"));
+        draggingId = null;
+      });
+    });
+    el.querySelectorAll("[data-def-row]").forEach(row=>{
+      row.addEventListener("dragover", (e)=>{
+        if(!draggingId || row.dataset.defRow===draggingId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const rect = row.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > rect.height/2;
+        row.classList.toggle("drag-over-top", !after);
+        row.classList.toggle("drag-over-bottom", after);
+      });
+      row.addEventListener("dragleave", ()=>{
+        row.classList.remove("drag-over-top","drag-over-bottom");
+      });
+      row.addEventListener("drop", async (e)=>{
+        e.preventDefault();
+        const targetId = row.dataset.defRow;
+        const placeAfter = row.classList.contains("drag-over-bottom");
+        row.classList.remove("drag-over-top","drag-over-bottom");
+        if(!draggingId || draggingId===targetId) return;
+        const moved = moveSubtreeTo(state.docDefs, draggingId, targetId, placeAfter);
+        if(moved){
+          await saveDocDefs();
+          renderSettings();
+        }
+      });
+    });
+    el.querySelectorAll("[data-del-def]").forEach(b=>b.addEventListener("click", async ()=>{
+      const def = state.docDefs.find(d=>d.id===b.dataset.delDef);
+      const subtreeIds = getSubtreeIds(state.docDefs, b.dataset.delDef);
+      const extra = subtreeIds.length>1 ? " Alle "+(subtreeIds.length-1)+" zugehörigen Unterpunkte werden ebenfalls gelöscht." : "";
+      const sure = await showConfirm("Oberpunkt \""+(def?def.title:"")+"\" wirklich für alle Projekte löschen?"+extra+" Bereits erfasste Texte zu diesen Punkten bleiben gespeichert, sind aber über die Oberfläche nicht mehr erreichbar.");
+      if(!sure) return;
+      state.docDefs = state.docDefs.filter(d=>!subtreeIds.includes(d.id));
+      await saveDocDefs();
+      renderSettings();
+    }));
+  }
+
+  // ---------- CSV EXPORT / IMPORT ----------
+  function downloadTextFile(content, filename, mime){
+    const blob = new Blob([content], {type: mime+";charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportAllDataToCsv(){
+    const rows = [];
+    (state.docDefs||[]).forEach((d,i)=>{
+      rows.push({Typ:"oberpunkt", Id:d.id, Titel:d.title, Level:defLevel(d), Reihenfolge:i+1});
+    });
+    for(const p of (state.projects||[])){
+      const data = await ensureProjectData(p.id);
+      rows.push({
+        Typ:"projekt", ProjektId:p.id, Id:p.id, Titel:p.name, Kunde:p.kunde||"",
+        ProjektTyp:p.typ||"", Status:p.status||"", Beschreibung:p.beschreibung||"",
+        ErstelltAm:p.createdAt||"", AusgeblendeteOberpunkte:(data.doc._hidden||[]).join(";"), AktuelleVersion:p.aktuelleVersion||""
+      });
+      data.contacts.forEach(c=>{
+        rows.push({Typ:"kontakt", ProjektId:p.id, Id:c.id, Titel:c.name, Rolle:c.rolle||"", Telefon:c.telefon||"", Email:c.email||"", Notiz:c.notiz||""});
+      });
+      data.comms.forEach(c=>{
+        rows.push({Typ:"kommunikation", ProjektId:p.id, Id:c.id, Datum:c.datum||"", Kanal:c.kanal||"", KontaktId:c.kontaktId||"", Betreff:c.betreff||"", Notiz:c.notiz||"", AFN:(c.afns||[]).join(";")});
+      });
+      (state.docDefs||[]).forEach(def=>{
+        const entry = data.doc[def.id];
+        if(entry && (entry.content || entry.updatedAt || (entry.afns && entry.afns.length))){
+          rows.push({Typ:"dokuinhalt", ProjektId:p.id, OberpunktId:def.id, Inhalt:entry.content||"", AktualisiertAm:entry.updatedAt||"", AFN:(entry.afns||[]).join(";")});
+        }
+      });
+      data.tasks.forEach(t=>{
+        rows.push({Typ:"aufgabe", ProjektId:p.id, Id:t.id, Titel:t.titel, Datum:t.faelligAm||"", Prioritaet:t.prioritaet||"", Status:t.status||"", KontaktId:t.kontaktId||"", Beschreibung:t.beschreibung||"", ErstelltAm:t.erstelltAm||"", AbgeschlossenAm:t.abgeschlossenAm||"", AFN:(t.afns||[]).join(";"), WartetAuf:t.wartetAuf||""});
+      });
+      data.timeline.forEach(m=>{
+        rows.push({Typ:"meilenstein", ProjektId:p.id, Id:m.id, Titel:m.titel, Datum:m.datum||"", Status:m.status||"", Notiz:m.notiz||""});
+      });
+      (data.updates||[]).forEach(u=>{
+        rows.push({Typ:"update", ProjektId:p.id, Id:u.id, Titel:u.titel||"", Datum:u.datum||"", Revision:u.revision||"", Beschreibung:u.beschreibung||"", AFN:(u.afns||[]).join(";")});
+      });
+    }
+    const csv = Papa.unparse({fields: CSV_COLUMNS, data: rows});
+    const stamp = todayStr();
+    downloadTextFile(csv, "projektzentrale-export-"+stamp+".csv", "text/csv");
+  }
+
+  async function importAllDataFromCsv(file){
+    const text = await file.text();
+    const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+    if(parsed.errors && parsed.errors.length){
+      await showAlert("Die CSV-Datei konnte nicht gelesen werden. Bitte prüfe das Format (am besten eine zuvor exportierte Datei verwenden).");
+      return;
+    }
+    const rows = parsed.data;
+    if(!rows.length){
+      await showAlert("Die Datei enthält keine Daten.");
+      return;
+    }
+
+    const newDocDefs = [];
+    const newProjects = [];
+    const hiddenByProject = {};
+    const contactsByProject = {};
+    const commsByProject = {};
+    const docByProject = {};
+    const tasksByProject = {};
+    const timelineByProject = {};
+    const updatesByProject = {};
+
+    const oberpunktRows = rows.filter(r=>r.Typ==="oberpunkt").sort((a,b)=> (parseInt(a.Reihenfolge)||0) - (parseInt(b.Reihenfolge)||0));
+    oberpunktRows.forEach(r=>{
+      newDocDefs.push({id:r.Id, title:r.Titel||"", level: Math.min(3, Math.max(1, parseInt(r.Level)||1))});
+    });
+
+    rows.filter(r=>r.Typ==="projekt").forEach(r=>{
+      newProjects.push({
+        id:r.Id, name:r.Titel||"(ohne Namen)", kunde:r.Kunde||"", typ:r.ProjektTyp||"Bestandskunde",
+        status:r.Status||"aktiv", beschreibung:r.Beschreibung||"", createdAt:r.ErstelltAm||new Date().toISOString(),
+        aktuelleVersion:r.AktuelleVersion||""
+      });
+      hiddenByProject[r.Id] = (r.AusgeblendeteOberpunkte||"").split(";").map(s=>s.trim()).filter(Boolean);
+    });
+
+    rows.filter(r=>r.Typ==="kontakt").forEach(r=>{
+      (contactsByProject[r.ProjektId] = contactsByProject[r.ProjektId]||[]).push({
+        id:r.Id, name:r.Titel||"", rolle:r.Rolle||"", telefon:r.Telefon||"", email:r.Email||"", notiz:r.Notiz||""
+      });
+    });
+    rows.filter(r=>r.Typ==="kommunikation").forEach(r=>{
+      (commsByProject[r.ProjektId] = commsByProject[r.ProjektId]||[]).push({
+        id:r.Id, datum:r.Datum||"", kanal:r.Kanal||"", kontaktId:r.KontaktId||"", betreff:r.Betreff||"", notiz:r.Notiz||"",
+        afns: (r.AFN||"").split(";").map(s=>s.trim()).filter(Boolean)
+      });
+    });
+    rows.filter(r=>r.Typ==="dokuinhalt").forEach(r=>{
+      const doc = (docByProject[r.ProjektId] = docByProject[r.ProjektId]||{});
+      doc[r.OberpunktId] = {content:r.Inhalt||"", updatedAt:r.AktualisiertAm||null, afns:(r.AFN||"").split(";").map(s=>s.trim()).filter(Boolean)};
+    });
+    rows.filter(r=>r.Typ==="aufgabe").forEach(r=>{
+      (tasksByProject[r.ProjektId] = tasksByProject[r.ProjektId]||[]).push({
+        id:r.Id, titel:r.Titel||"", faelligAm:r.Datum||"", prioritaet:r.Prioritaet||"mittel",
+        status:r.Status||"offen", kontaktId:r.KontaktId||"", beschreibung:r.Beschreibung||"",
+        erstelltAm:r.ErstelltAm||null, abgeschlossenAm:r.AbgeschlossenAm||null,
+        afns: (r.AFN||"").split(";").map(s=>s.trim()).filter(Boolean),
+        wartetAuf: r.WartetAuf||""
+      });
+    });
+    rows.filter(r=>r.Typ==="meilenstein").forEach(r=>{
+      (timelineByProject[r.ProjektId] = timelineByProject[r.ProjektId]||[]).push({
+        id:r.Id, titel:r.Titel||"", datum:r.Datum||"", status:r.Status||"geplant", notiz:r.Notiz||""
+      });
+    });
+    rows.filter(r=>r.Typ==="update").forEach(r=>{
+      (updatesByProject[r.ProjektId] = updatesByProject[r.ProjektId]||[]).push({
+        id:r.Id, titel:r.Titel||"", datum:r.Datum||"", revision:r.Revision||"", beschreibung:r.Beschreibung||"",
+        afns: (r.AFN||"").split(";").map(s=>s.trim()).filter(Boolean)
+      });
+    });
+
+    const sure = await showConfirm("Der Import ersetzt ALLE aktuellen Daten (Projekte, Ansprechpartner, Kommunikation, Dokumentation, Aufgaben, Zeitpläne, Updates, Oberpunkte) durch den Inhalt dieser Datei. Dieser Schritt kann nicht rückgängig gemacht werden. Fortfahren?");
+    if(!sure) return;
+
+    // Clean up storage keys of previously existing projects
+    for(const p of (state.projects||[])){
+      await sDelete("contacts:"+p.id); await sDelete("comms:"+p.id);
+      await sDelete("doc:"+p.id); await sDelete("tasks:"+p.id); await sDelete("timeline:"+p.id); await sDelete("ai-summary:"+p.id); await sDelete("updates:"+p.id);
+    }
+
+    for(const p of newProjects){
+      const docObj = docByProject[p.id] || {};
+      docObj._hidden = hiddenByProject[p.id] || [];
+      await sSet("contacts:"+p.id, contactsByProject[p.id] || []);
+      await sSet("comms:"+p.id, commsByProject[p.id] || []);
+      await sSet("doc:"+p.id, docObj);
+      await sSet("tasks:"+p.id, tasksByProject[p.id] || []);
+      await sSet("timeline:"+p.id, timelineByProject[p.id] || []);
+      await sSet("updates:"+p.id, updatesByProject[p.id] || []);
+    }
+    await sSet("projects", newProjects);
+    await sSet("doc-section-defs", newDocDefs);
+
+    state.projects = newProjects;
+    state.docDefs = newDocDefs;
+    state.cache = {};
+    state.view = "dashboard"; state.selectedId = null;
+    await showAlert("Import abgeschlossen: "+newProjects.length+" Projekt(e) und "+newDocDefs.length+" Oberpunkt(e) geladen.");
+    renderAll();
+  }
+
+  function renderDataView(){
+    const el = document.getElementById("main-inner");
+    el.innerHTML = `
+      <h2>CSV Import / Export</h2>
+      <div class="sub" style="color:var(--ink-soft);margin:4px 0 22px;max-width:640px;">
+        Sichere alle Daten (Projekte, Ansprechpartner, Kommunikation, Dokumentation, Aufgaben, Echtlauf-Zeitpläne und Oberpunkte) in einer einzigen CSV-Datei,
+        oder lade eine zuvor exportierte Datei wieder hoch.
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:8px;font-size:15px;">Export</h3>
+        <p style="color:var(--ink-soft);font-size:13px;margin:0 0 12px;">Lädt eine CSV-Datei mit dem gesamten aktuellen Datenbestand herunter.</p>
+        <button class="btn" id="export-csv-btn">CSV exportieren</button>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:8px;font-size:15px;">Import</h3>
+        <p style="color:var(--ink-soft);font-size:13px;margin:0 0 12px;">
+          Achtung: Der Import ersetzt alle aktuell gespeicherten Daten durch den Inhalt der Datei. Am besten vorher einen aktuellen Export als Sicherung herunterladen.
+        </p>
+        <input type="file" id="import-csv-input" accept=".csv,text/csv">
+      </div>
+    `;
+    document.getElementById("export-csv-btn").addEventListener("click", exportAllDataToCsv);
+    document.getElementById("import-csv-input").addEventListener("change", async (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      await importAllDataFromCsv(file);
+      e.target.value = "";
+    });
+  }
+
+  // ---------- KI-SUCHE ----------
+  function truncateText(str, max){
+    return str.length > max ? str.slice(0, max) + "\n…[gekürzt]…" : str;
+  }
+
+  function buildProjectContextBlock(p, data, labels){
+    const lines = [];
+    lines.push("=== Projekt: "+p.name+" (Kunde: "+(p.kunde||"—")+", Typ: "+p.typ+", Status: "+p.status+") ===");
+    if(p.beschreibung) lines.push("Beschreibung: "+htmlToPlainText(p.beschreibung));
+    if(p.aktuelleVersion) lines.push("Aktuelle Programmversion: "+p.aktuelleVersion);
+
+    if(data.updates && data.updates.length){
+      lines.push("Punkte für das nächste Update (noch nicht ausgerollt, angesammelt seit Version "+(p.aktuelleVersion||"—")+"):");
+      data.updates.slice().sort((a,b)=>(a.datum||"").localeCompare(b.datum||"")).forEach(u=>{
+        const afnText = (u.afns&&u.afns.length) ? " [AFN: "+u.afns.join(", ")+"]" : "";
+        const beschreibungText = htmlToPlainText(u.beschreibung);
+        lines.push("- "+fmtDate(u.datum)+" | "+u.titel+(u.revision?" ("+u.revision+")":"")+afnText+(beschreibungText?": "+beschreibungText:""));
+      });
+    }
+
+    if(data.contacts.length){
+      lines.push("Ansprechpartner:");
+      data.contacts.forEach(c=>{
+        const notizText = htmlToPlainText(c.notiz);
+        lines.push("- "+c.name+(c.rolle?" ("+c.rolle+")":"")+(c.telefon?", Tel: "+c.telefon:"")+(c.email?", Mail: "+c.email:"")+(notizText?" — Notiz: "+notizText:""));
+      });
+    }
+    if(data.comms.length){
+      lines.push("Kommunikationsverlauf:");
+      data.comms.slice().sort((a,b)=>(a.datum||"").localeCompare(b.datum||"")).forEach(c=>{
+        const contact = data.contacts.find(x=>x.id===c.kontaktId);
+        const notizText = htmlToPlainText(c.notiz);
+        const afnText = (c.afns&&c.afns.length) ? " [AFN: "+c.afns.join(", ")+"]" : "";
+        lines.push("- "+fmtDate(c.datum)+" | "+c.kanal+(contact?" | "+contact.name:"")+" | "+(c.betreff||"(kein Betreff)")+afnText+(notizText?": "+notizText:""));
+      });
+    }
+    const hidden = data.doc._hidden || [];
+    const visibleDefs = (state.docDefs||[]).filter(d=>!hidden.includes(d.id));
+    const docLines = [];
+    visibleDefs.forEach(d=>{
+      const entry = data.doc[d.id];
+      const contentText = entry ? htmlToPlainText(entry.content) : "";
+      const afnText = (entry && entry.afns && entry.afns.length) ? " [AFN: "+entry.afns.join(", ")+"]" : "";
+      if(contentText){
+        docLines.push((labels[d.id]||"")+" "+d.title+afnText+": "+contentText);
+      }
+    });
+    if(docLines.length){
+      lines.push("Projektdokumentation:");
+      lines.push(...docLines.map(l=>"- "+l));
+    }
+    if(data.tasks.length){
+      lines.push("Aufgaben:");
+      data.tasks.forEach(t=>{
+        const contact = data.contacts.find(x=>x.id===t.kontaktId);
+        const beschreibungText = htmlToPlainText(t.beschreibung);
+        const afnText = (t.afns&&t.afns.length) ? " [AFN: "+t.afns.join(", ")+"]" : "";
+        const wartetText = (t.status==="wartet" && t.wartetAuf) ? ", wartet auf: "+t.wartetAuf : "";
+        lines.push("- ["+t.status+"] "+t.titel+afnText+(t.faelligAm?" (Fällig: "+fmtDate(t.faelligAm)+")":"")+", Priorität: "+t.prioritaet+wartetText+(contact?", Ansprechpartner: "+contact.name:"")+(beschreibungText?" — "+beschreibungText:""));
+      });
+    }
+    if(p.typ==="Neukunde" && data.timeline.length){
+      lines.push("Echtlauf-Zeitplan:");
+      data.timeline.forEach(m=>{
+        const notizText = htmlToPlainText(m.notiz);
+        lines.push("- "+fmtDate(m.datum)+" | "+m.status+" | "+m.titel+(notizText?": "+notizText:""));
+      });
+    }
+    return lines.join("\n");
+  }
+
+  async function buildAllProjectsContext(){
+    const labels = computeDocLabels(state.docDefs||[]);
+    const blocks = [];
+    for(const p of (state.projects||[])){
+      const data = await ensureProjectData(p.id);
+      blocks.push(buildProjectContextBlock(p, data, labels));
+    }
+    return truncateText(blocks.join("\n\n"), 180000);
+  }
+
+  async function buildSingleProjectContext(p, data){
+    const labels = computeDocLabels(state.docDefs||[]);
+    return truncateText(buildProjectContextBlock(p, data, labels), 180000);
+  }
+
+  async function callAnthropicApi(systemPrompt, userContent, maxTokens){
+    const apiKey = localStorage.getItem("pz_anthropic_key");
+    if(!apiKey){
+      throw new Error("Kein Anthropic API-Key hinterlegt. Trage ihn unter „⋯ Mehr → KI-Einstellungen” ein, um KI-Funktionen zu nutzen.");
+    }
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: maxTokens || 1500,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userContent }]
+      })
+    });
+    if(!response.ok){
+      let detail = "";
+      try{ const errBody = await response.json(); detail = errBody?.error?.message ? " — "+errBody.error.message : ""; }catch(e){}
+      throw new Error("API-Fehler ("+response.status+")"+detail);
+    }
+    const data = await response.json();
+    const textBlocks = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text);
+    return textBlocks.join("\n").trim();
+  }
+
+  async function callAiSearch(contextText, question){
+    const systemPrompt = "Du bist ein Assistent für einen ERP-Consultant im Bereich Lebensmittel-/Fleischverarbeitung. "+
+      "Du beantwortest Fragen ausschließlich auf Basis der bereitgestellten Projektdaten (Kommunikationsverlauf, Dokumentation, Ansprechpartner, Aufgaben, Echtlauf-Zeitpläne). "+
+      "Antworte auf Deutsch, präzise und konkret. Nenne bei Aussagen zu einzelnen Projekten immer den Projektnamen. "+
+      "Wenn die Information in den Daten nicht enthalten ist, sag das ehrlich, statt zu spekulieren. Erfinde keine Fakten.";
+    const userContent = "PROJEKTDATEN:\n"+contextText+"\n\nFRAGE: "+question;
+    const text = await callAnthropicApi(systemPrompt, userContent, 1500);
+    return text || "Keine Antwort erhalten.";
+  }
+
+  function buildDailyBriefingContext(){
+    const lines = [];
+    lines.push("Heutiges Datum: "+fmtDate(todayStr())+" ("+todayStr()+")");
+    const tasks = (state.dashboardData && state.dashboardData.openTasks) || [];
+    if(tasks.length){
+      lines.push("Offene Aufgaben (alle Projekte, aktiv zu bearbeiten):");
+      tasks.forEach(t=>{
+        const overdue = t.faelligAm && t.faelligAm < todayStr();
+        lines.push("- ["+t.projectName+"] "+t.titel+" | Priorität: "+(t.prioritaet||"mittel")+" | Fällig: "+(t.faelligAm?fmtDate(t.faelligAm):"kein Datum")+(overdue?" (ÜBERFÄLLIG)":"")+(htmlToPlainText(t.beschreibung)?" — "+htmlToPlainText(t.beschreibung):""));
+      });
+    }else{
+      lines.push("Keine offenen Aufgaben.");
+    }
+    const waiting = (state.dashboardData && state.dashboardData.waitingTasks) || [];
+    if(waiting.length){
+      lines.push("Aufgaben, die BLOCKIERT sind (der Nutzer wartet auf jemand anderen, kann selbst gerade nichts tun):");
+      waiting.forEach(t=>{
+        lines.push("- ["+t.projectName+"] "+t.titel+" | wartet auf: "+(t.wartetAuf||"unbekannt")+(t.faelligAm?" | Fällig: "+fmtDate(t.faelligAm):""));
+      });
+    }
+    const milestones = (state.dashboardData && state.dashboardData.upcomingMilestones) || [];
+    if(milestones.length){
+      lines.push("Anstehende Echtlauf-Meilensteine:");
+      milestones.forEach(m=>{
+        lines.push("- ["+m.projectName+"] "+m.titel+" | Status: "+m.status+" | Termin: "+fmtDate(m.datum));
+      });
+    }
+    return truncateText(lines.join("\n"), 60000);
+  }
+
+  async function generateDailyBriefing(){
+    const ctx = buildDailyBriefingContext();
+    const systemPrompt = "Du bist der persönliche Berater eines ERP-Consultants, der viele Projekte parallel betreut (Lebensmittel-/Fleischverarbeitungsbranche). "+
+      "Erstelle auf Basis der offenen Aufgaben und anstehenden Meilenstein-Termine eine kurze, handlungsorientierte Tages-Einschätzung: was heute Priorität haben sollte, was überfällig ist, worauf besonders zu achten ist. "+
+      "Aufgaben, die als BLOCKIERT/'wartet auf' markiert sind, kann der Nutzer gerade nicht selbst vorantreiben — erwähne sie höchstens kurz als Erinnerung (z.B. ggf. nachhaken), aber fordere nicht dazu auf, sie 'heute zu erledigen'. "+
+      "Sei konkret und direkt, wie ein guter Berater, der Prioritäten setzt statt nur aufzuzählen. Maximal 6 kurze Punkte, je maximal ein Satz. "+
+      "Nutze ausschließlich die bereitgestellten Daten, erfinde nichts. Antworte NUR mit den Punkten, jeder auf einer eigenen Zeile, ohne Einleitung, ohne Nummerierung, ohne Aufzählungszeichen.";
+    const userContent = "DATEN:\n"+ctx+"\n\nErstelle jetzt deine Einschätzung für heute.";
+    const text = await callAnthropicApi(systemPrompt, userContent, 700);
+    const lines = text.split("\n")
+      .map(l=>l.replace(/^[\s\-•*\d.]+/, "").trim())
+      .filter(Boolean)
+      .slice(0,6);
+    return lines.length ? lines : ["Keine Einschätzung erhalten."];
+  }
+
+  function renderDailyBriefingCard(){
+    let html = '<div class="ai-summary-card ai-advisor-card" id="daily-briefing-card">';
+    if(state.dailyBriefingLoading){
+      html += '<div class="ai-summary-head"><h3>🧭 Dein persönlicher Berater</h3></div><div class="ai-loading">Werte Aufgaben und Termine aus…</div>';
+    }else if(state.dailyBriefingError){
+      html += '<div class="ai-summary-head"><h3>🧭 Dein persönlicher Berater</h3><button class="btn secondary small" id="daily-briefing-refresh">Erneut versuchen</button></div>';
+      html += '<div class="ai-error">'+escapeHtml(state.dailyBriefingError)+'</div>';
+    }else if(state.dailyBriefing && state.dailyBriefing.points && state.dailyBriefing.points.length){
+      html += '<div class="ai-summary-head"><h3>🧭 Dein persönlicher Berater</h3><button class="btn secondary small" id="daily-briefing-refresh">↻ Aktualisieren</button></div>';
+      html += '<ul class="ai-summary-list">'+state.dailyBriefing.points.map(pt=>'<li>'+escapeHtml(pt)+'</li>').join("")+'</ul>';
+      html += '<div class="ai-summary-meta">Erstellt: '+fmtDateTime(state.dailyBriefing.generatedAt)+'</div>';
+    }else{
+      html += '<div class="ai-summary-head"><h3>🧭 Dein persönlicher Berater</h3><button class="btn secondary small" id="daily-briefing-refresh">Einschätzung erstellen</button></div>';
+      html += '<div class="ai-summary-empty">Noch keine Tages-Einschätzung erstellt. Lässt sich auf Basis deiner offenen Aufgaben und Termine erzeugen.</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function wireDailyBriefingCard(){
+    const btn = document.getElementById("daily-briefing-refresh");
+    if(btn) btn.addEventListener("click", refreshDailyBriefing);
+  }
+
+  async function refreshDailyBriefing(){
+    state.dailyBriefingLoading = true;
+    state.dailyBriefingError = null;
+    const cardEl = document.getElementById("daily-briefing-card");
+    if(cardEl){ cardEl.outerHTML = renderDailyBriefingCard(); wireDailyBriefingCard(); }
+    try{
+      const points = await generateDailyBriefing();
+      state.dailyBriefing = { points, generatedAt: new Date().toISOString() };
+      await sSet("ai-daily-briefing", state.dailyBriefing);
+    }catch(err){
+      state.dailyBriefingError = "Die Einschätzung konnte nicht erstellt werden. ("+err.message+")";
+    }
+    state.dailyBriefingLoading = false;
+    const cardEl2 = document.getElementById("daily-briefing-card");
+    if(cardEl2){ cardEl2.outerHTML = renderDailyBriefingCard(); wireDailyBriefingCard(); }
+  }
+
+  // ---------- KI: AUFGABEN AUS KOMMUNIKATIONSEINTRAG ERKENNEN ----------
+  async function extractTasksFromComm(c, p, data){
+    const contact = data.contacts.find(x=>x.id===c.kontaktId);
+    const notizText = htmlToPlainText(c.notiz);
+    const systemPrompt = "Du analysierst einen einzelnen Kommunikationseintrag (Teams/Telefon/Mail/Vor-Ort-Notiz) eines ERP-Consultants namens Fabian, der Kundenprojekte im Bereich Lebensmittel-/Fleischverarbeitung betreut. "+
+      "Extrahiere ausschließlich konkrete Aufgaben, die FABIAN SELBST noch erledigen muss (z.B. eigene Zusagen, offene To-dos von ihm). "+
+      "Ignoriere Aufgaben oder Zusagen, die andere Personen (Kunde, Kollegen, Dritte) zu erledigen haben. "+
+      "Antworte AUSSCHLIESSLICH mit einem validen JSON-Array, ohne Erklärung, ohne Markdown-Codeblock, ohne führenden oder folgenden Text. "+
+      "Format je Element: {\"titel\": string (kurz, max. ca. 80 Zeichen), \"beschreibung\": string (kurzer Kontext, oder leerer String), "+
+      "\"faelligAm\": string im Format JJJJ-MM-TT falls im Text ein konkretes oder eindeutig relatives Datum genannt wird, sonst leerer String, "+
+      "\"prioritaet\": \"hoch\" oder \"mittel\" oder \"niedrig\"}. "+
+      "Wenn keine Aufgaben für Fabian erkennbar sind, antworte mit [].";
+    const userContent = "Heutiges Datum: "+todayStr()+"\n"+
+      "Datum des Eintrags: "+(c.datum||"unbekannt")+"\n"+
+      "Kanal: "+c.kanal+"\n"+
+      "Ansprechpartner: "+(contact?contact.name:"unbekannt")+"\n"+
+      "Betreff: "+(c.betreff||"(kein Betreff)")+"\n"+
+      "Notiz:\n"+(notizText||"(keine Notiz erfasst)");
+    const text = await callAnthropicApi(systemPrompt, userContent, 800);
+    const cleaned = text.trim().replace(/^```json\s*/i,"").replace(/^```\s*/,"").replace(/```$/,"").trim();
+    let parsed;
+    try{ parsed = JSON.parse(cleaned); }catch(e){ throw new Error("Antwort der KI konnte nicht gelesen werden"); }
+    if(!Array.isArray(parsed)) throw new Error("Unerwartetes Antwortformat");
+    return parsed
+      .filter(t=>t && t.titel)
+      .map(t=>({
+        titel: String(t.titel).slice(0,200),
+        beschreibung: t.beschreibung ? String(t.beschreibung) : "",
+        faelligAm: /^\d{4}-\d{2}-\d{2}$/.test(t.faelligAm) ? t.faelligAm : "",
+        prioritaet: ["hoch","mittel","niedrig"].includes(t.prioritaet) ? t.prioritaet : "mittel"
+      }));
+  }
+
+  function showTaskExtractionReview(tasks){
+    return new Promise(resolve=>{
+      const root = document.getElementById("modal-root");
+      if(tasks.length===0){
+        root.innerHTML = `
+          <div class="modal-overlay">
+            <div class="modal-box">
+              <h3>Keine Aufgaben erkannt</h3>
+              <p>Die KI hat in diesem Eintrag keine konkreten Aufgaben für dich gefunden.</p>
+              <div class="modal-actions"><button class="btn" id="tex-ok">OK</button></div>
+            </div>
+          </div>`;
+        document.getElementById("tex-ok").addEventListener("click", ()=>{ closeModal(); resolve(null); });
+        return;
+      }
+      const itemsHtml = tasks.map((t,i)=>`
+        <div class="list-item" style="display:flex;gap:10px;align-items:flex-start;">
+          <input type="checkbox" id="tex-check-${i}" checked style="margin-top:4px;">
+          <div style="flex:1;">
+            <div><strong>${escapeHtml(t.titel)}</strong> <span class="badge ${slug(t.prioritaet)}">${t.prioritaet}</span></div>
+            <div class="meta">${t.faelligAm ? ("Fällig: "+fmtDate(t.faelligAm)) : "Kein Datum erkannt"}</div>
+            ${t.beschreibung ? '<div class="meta" style="margin-top:3px;">'+escapeHtml(t.beschreibung)+'</div>' : ''}
+          </div>
+        </div>`).join("");
+      root.innerHTML = `
+        <div class="modal-overlay">
+          <div class="modal-box rtf-modal">
+            <h3>Erkannte Aufgaben für Fabian</h3>
+            <p>Wähle aus, welche Aufgaben angelegt werden sollen.</p>
+            <div style="max-height:50vh;overflow-y:auto;">${itemsHtml}</div>
+            <div class="modal-actions">
+              <button class="btn secondary" id="tex-cancel">Abbrechen</button>
+              <button class="btn" id="tex-add">Ausgewählte anlegen</button>
+            </div>
+          </div>
+        </div>`;
+      document.getElementById("tex-cancel").addEventListener("click", ()=>{ closeModal(); resolve(null); });
+      document.getElementById("tex-add").addEventListener("click", ()=>{
+        const selected = tasks.filter((t,i)=>document.getElementById("tex-check-"+i).checked);
+        closeModal();
+        resolve(selected);
+      });
+    });
+  }
+
+  async function handleExtractTasksFromComm(c, p, data, btnEl){
+    const originalLabel = btnEl ? btnEl.textContent : "";
+    if(btnEl){ btnEl.textContent = "Analysiere…"; btnEl.style.pointerEvents = "none"; btnEl.style.opacity = "0.6"; }
+    try{
+      const extracted = await extractTasksFromComm(c, p, data);
+      const selected = await showTaskExtractionReview(extracted);
+      if(selected && selected.length){
+        selected.forEach(t=>{
+          data.tasks.push({
+            id: uid(),
+            titel: t.titel,
+            faelligAm: t.faelligAm,
+            prioritaet: t.prioritaet,
+            status: "offen",
+            kontaktId: c.kontaktId || "",
+            beschreibung: t.beschreibung ? "<p>"+escapeHtml(t.beschreibung)+"</p>" : "",
+            afns: (c.afns||[]).slice(),
+            erstelltAm: new Date().toISOString(),
+            abgeschlossenAm: null
+          });
+        });
+        await sSet("tasks:"+p.id, data.tasks);
+        renderProject();
+        return;
+      }
+    }catch(err){
+      await showAlert("Aufgaben konnten nicht erkannt werden. ("+err.message+")");
+    }
+    if(btnEl){ btnEl.textContent = originalLabel; btnEl.style.pointerEvents = ""; btnEl.style.opacity = ""; }
+  }
+
+  // ---------- WISSENSDATENBANK (SECOND BRAIN) ----------
+  async function ensureKnowledgeBaseLoaded(){
+    if(state.knowledgeBase === undefined){
+      state.knowledgeBase = (await sGet("knowledge-base")) || {manual:[], ai:[], aiUpdatedAt:null};
+      if(!state.knowledgeBase.manual) state.knowledgeBase.manual = [];
+      if(!state.knowledgeBase.ai) state.knowledgeBase.ai = [];
+    }
+  }
+  async function saveKnowledgeBase(){
+    await sSet("knowledge-base", state.knowledgeBase);
+  }
+
+  async function refreshKnowledgeBase(){
+    state.knowledgeBaseLoading = true;
+    state.knowledgeBaseError = null;
+    renderAll();
+    try{
+      const projects = state.projects || [];
+      const labels = computeDocLabels(state.docDefs||[]);
+      const docBlocks = [];
+      for(const p of projects){
+        const data = await ensureProjectData(p.id);
+        const hidden = data.doc._hidden || [];
+        const visibleDefs = (state.docDefs||[]).filter(d=>!hidden.includes(d.id));
+        const lines = [];
+        visibleDefs.forEach(d=>{
+          const entry = data.doc[d.id];
+          const text = entry ? htmlToPlainText(entry.content) : "";
+          if(text) lines.push((labels[d.id]||"")+" "+d.title+": "+text);
+        });
+        if(lines.length){
+          docBlocks.push("=== Projekt: "+p.name+" ===\n"+lines.join("\n"));
+        }
+      }
+      if(docBlocks.length===0){
+        throw new Error("Keine Projektdokumentation vorhanden, aus der Wissen abgeleitet werden könnte.");
+      }
+      const docContext = truncateText(docBlocks.join("\n\n"), 150000);
+      const existingAi = state.knowledgeBase.ai || [];
+      const existingAiContext = existingAi.map(e=>"- ["+e.kategorie+"] "+e.titel+": "+htmlToPlainText(e.inhalt)).join("\n");
+
+      const systemPrompt = "Du pflegst ein projektübergreifendes 'Second Brain' / Wissensdatenbank für einen ERP-Consultant (winweb, Lebensmittel-/Fleischverarbeitungsbranche, EDI/EDIFACT, Bizerba/DIGI-Etikettierung). "+
+        "Analysiere die Dokumentationen mehrerer Kundenprojekte und leite daraus wiederverwendbares, projektübergreifendes Wissen ab: technische Muster, wiederkehrende Konfigurationen, Erkenntnisse, Best Practices, typische Fallstricke. "+
+        "Fasse Wissen zum selben Thema aus mehreren Projekten zu EINEM Eintrag zusammen und nenne die relevanten Projektnamen. "+
+        "Erstelle KEINE Einträge zu rein projektspezifischen Details ohne übergreifenden Wert. "+
+        "Antworte AUSSCHLIESSLICH mit einem validen JSON-Array, ohne Erklärung, ohne Markdown-Codeblock, ohne führenden oder folgenden Text. "+
+        "Format je Element: {\"titel\": string, \"kategorie\": string (kurzes Schlagwort, z.B. \"Bizerba/DIGI\", \"EDI/EDIFACT\", \"Etiketten\", \"Preisauszeichnung\", \"Sonstiges\"), "+
+        "\"inhalt\": string (prägnanter Fließtext oder Stichpunkte, durch \\n getrennt), \"projekte\": Array von Projektnamen (string) die zu diesem Wissen beigetragen haben}.";
+      const userContent = "PROJEKTDOKUMENTATIONEN:\n"+docContext+
+        (existingAiContext ? "\n\nBISHERIGE WISSENSEINTRÄGE (zur Orientierung — aktualisiere, verbessere oder ergänze basierend auf dem aktuellen Stand):\n"+existingAiContext : "")+
+        "\n\nErstelle jetzt die vollständige, aktuelle Liste der projektübergreifenden Wissenseinträge.";
+      const text = await callAnthropicApi(systemPrompt, userContent, 3000);
+      const cleaned = text.trim().replace(/^```json\s*/i,"").replace(/^```\s*/,"").replace(/```$/,"").trim();
+      let parsed;
+      try{ parsed = JSON.parse(cleaned); }catch(e){ throw new Error("Antwort der KI konnte nicht gelesen werden"); }
+      if(!Array.isArray(parsed)) throw new Error("Unerwartetes Antwortformat");
+
+      state.knowledgeBase.ai = parsed.filter(e=>e && e.titel).map(e=>({
+        id: uid(),
+        titel: String(e.titel).slice(0,150),
+        kategorie: e.kategorie ? String(e.kategorie).slice(0,60) : "Allgemein",
+        inhalt: "<p>"+escapeHtml(String(e.inhalt||"")).replace(/\n+/g,"</p><p>")+"</p>",
+        projekte: Array.isArray(e.projekte) ? e.projekte.map(String).slice(0,20) : [],
+        typ: "ai"
+      }));
+      state.knowledgeBase.aiUpdatedAt = new Date().toISOString();
+      await saveKnowledgeBase();
+    }catch(err){
+      state.knowledgeBaseError = "Wissensdatenbank konnte nicht aktualisiert werden. ("+err.message+")";
+    }
+    state.knowledgeBaseLoading = false;
+    renderAll();
+  }
+
+  async function generateProjectAiSummary(p, data){
+    const ctx = await buildSingleProjectContext(p, data);
+    const systemPrompt = "Du bist ein Assistent für einen ERP-Consultant im Bereich Lebensmittel-/Fleischverarbeitung. "+
+      "Fasse den aktuellen Stand eines Projekts in genau 5 kurzen, prägnanten Punkten zusammen — je Punkt maximal ein Satz. "+
+      "Berücksichtige besonders: offene Punkte/Risiken, letzte wichtige Kommunikation, anstehende oder überfällige Aufgaben, aktuellen Gesamtstatus. "+
+      "Nutze ausschließlich die bereitgestellten Projektdaten, erfinde nichts. Antworte NUR mit den 5 Punkten, jeder auf einer eigenen Zeile, ohne Einleitung, ohne Nummerierung, ohne Aufzählungszeichen.";
+    const userContent = "PROJEKTDATEN:\n"+ctx+"\n\nErstelle jetzt die 5 Punkte.";
+    const text = await callAnthropicApi(systemPrompt, userContent, 600);
+    const lines = text.split("\n")
+      .map(l=>l.replace(/^[\s\-•*\d.]+/, "").trim())
+      .filter(Boolean)
+      .slice(0,5);
+    return lines.length ? lines : ["Keine Zusammenfassung erhalten."];
+  }
+
+  // ---------- RENDER: GLOBAL AI SEARCH ----------
+  // ---------- RENDER: WISSENSDATENBANK ----------
+  function daysSince(iso){
+    if(!iso) return Infinity;
+    return (new Date() - new Date(iso)) / 86400000;
+  }
+
+  function kbMatchesSearch(entry, q){
+    if(!q) return true;
+    const hay = (entry.titel+" "+entry.kategorie+" "+htmlToPlainText(entry.inhalt)+" "+(entry.projekte||[]).join(" ")).toLowerCase();
+    return hay.includes(q.toLowerCase());
+  }
+
+  async function renderKnowledgeView(){
+    const el = document.getElementById("main-inner");
+    el.innerHTML = '<div class="loading-note">Lade Wissensdatenbank…</div>';
+    await ensureKnowledgeBaseLoaded();
+    const kb = state.knowledgeBase;
+
+    let html = `
+      <h2>🧠 Wissensdatenbank</h2>
+      <div class="sub" style="color:var(--ink-soft);margin:4px 0 16px;max-width:640px;">
+        Projektübergreifendes Second Brain — automatisch aus der Dokumentation aller Projekte abgeleitet, ergänzt um eigene Einträge.
+      </div>
+    `;
+
+    const stale = kb.aiUpdatedAt===null || daysSince(kb.aiUpdatedAt) > 14;
+    html += `
+      <div class="kb-stale-note">
+        <span>${kb.aiUpdatedAt ? "KI-Wissen zuletzt aktualisiert: "+fmtDateTime(kb.aiUpdatedAt)+(stale?" — das ist eine Weile her.":"") : "Noch nie aus den Projekten aktualisiert."}</span>
+        <button class="btn small" id="kb-refresh-btn" ${state.knowledgeBaseLoading?"disabled":""}>${state.knowledgeBaseLoading?"Analysiere Projekte…":"🔄 Aus Projekten aktualisieren"}</button>
+      </div>
+    `;
+    if(state.knowledgeBaseError){
+      html += '<div class="ai-error" style="margin-bottom:14px;">'+escapeHtml(state.knowledgeBaseError)+'</div>';
+    }
+
+    html += `<input type="text" class="kb-search" id="kb-search" placeholder="Wissensdatenbank durchsuchen…" value="${escapeHtml(state.knowledgeSearch)}">`;
+
+    // Add manual entry form
+    html += `
+      <div class="card">
+        <h3 style="margin-bottom:10px;font-size:15px;">Eigenen Eintrag hinzufügen</h3>
+        <div class="field-grid">
+          <div class="field"><label>Titel</label><input id="kb-new-titel"></div>
+          <div class="field"><label>Kategorie</label><input id="kb-new-kategorie" placeholder="z.B. Bizerba/DIGI, EDI, Sonstiges"></div>
+        </div>
+        <div class="field"><label>Inhalt</label>${rtfFieldBlockHtml("kb-new-inhalt-preview", "", "Klicken, um Wissen zu erfassen…")}</div>
+        <div class="btn-row"><button class="btn" id="kb-add-btn">Hinzufügen</button></div>
+      </div>
+    `;
+
+    const q = state.knowledgeSearch.trim();
+    const manualFiltered = kb.manual.filter(e=>kbMatchesSearch(e,q));
+    const aiFiltered = kb.ai.filter(e=>kbMatchesSearch(e,q));
+    const all = [...manualFiltered.map(e=>({...e})), ...aiFiltered.map(e=>({...e}))];
+
+    if(all.length===0){
+      html += '<div class="empty-state"><h3>'+(q?"Keine Treffer":"Noch keine Wissenseinträge")+'</h3><div>'+(q?"Versuch einen anderen Suchbegriff.":"Klicke oben auf „Aus Projekten aktualisieren“ oder lege einen eigenen Eintrag an.")+'</div></div>';
+    }else{
+      const byCategory = {};
+      all.forEach(e=>{
+        const cat = e.kategorie || "Allgemein";
+        (byCategory[cat] = byCategory[cat]||[]).push(e);
+      });
+      Object.keys(byCategory).sort((a,b)=>a.localeCompare(b)).forEach(cat=>{
+        html += '<div class="kb-category-title">'+escapeHtml(cat)+'</div>';
+        byCategory[cat].forEach(e=>{
+          if(e.id === state.editingKnowledgeId && e.typ==="manual"){
+            html += `
+              <div class="kb-entry-card" data-kb-row="${e.id}">
+                <div class="field-grid">
+                  <div class="field"><label>Titel</label><input id="ke-titel-${e.id}" value="${escapeHtml(e.titel)}"></div>
+                  <div class="field"><label>Kategorie</label><input id="ke-kategorie-${e.id}" value="${escapeHtml(e.kategorie||'')}"></div>
+                </div>
+                ${rtfFieldBlockHtml("ke-inhalt-preview-"+e.id, e.inhalt||"", "Klicken, um Wissen zu erfassen…")}
+                <div class="btn-row" style="margin-top:8px;">
+                  <button class="btn small" id="ke-save-${e.id}">Speichern</button>
+                  <button class="btn secondary small" id="ke-cancel-${e.id}">Abbrechen</button>
+                  <button class="btn danger small" id="ke-del-${e.id}" style="margin-left:auto;">Löschen</button>
+                </div>
+              </div>`;
+          }else{
+            html += `
+              <div class="kb-entry-card" ${e.typ==="manual"?('data-kb-open="'+e.id+'"'):''} style="${e.typ==='manual'?'cursor:pointer;':''}">
+                <div class="kb-entry-head">
+                  <span class="kb-entry-title">${escapeHtml(e.titel)}</span>
+                  <span class="kb-source-tag ${e.typ}">${e.typ==="manual"?"Eigener Eintrag":"KI"}</span>
+                </div>
+                <div class="rtf-content">${e.inhalt||""}</div>
+                ${(e.projekte&&e.projekte.length)?'<div class="kb-projects">Quelle: '+e.projekte.map(escapeHtml).join(", ")+'</div>':''}
+                <div class="btn-row" style="margin-top:8px;">
+                  <button class="icon-btn" data-kb-del="${e.id}" data-kb-typ="${e.typ}">Löschen</button>
+                </div>
+              </div>`;
+          }
+        });
+      });
+    }
+
+    el.innerHTML = html;
+
+    document.getElementById("kb-refresh-btn").addEventListener("click", refreshKnowledgeBase);
+    document.getElementById("kb-search").addEventListener("input", (e)=>{
+      state.knowledgeSearch = e.target.value;
+      renderKnowledgeView();
+    });
+
+    let pendingNewKbInhalt = "";
+    wireRtfPreviewBox(
+      document.getElementById("kb-new-inhalt-preview"), "Inhalt",
+      ()=>pendingNewKbInhalt, (v)=>{ pendingNewKbInhalt = v; },
+      "Klicken, um Wissen zu erfassen…"
+    );
+    document.getElementById("kb-add-btn").addEventListener("click", async ()=>{
+      const titel = document.getElementById("kb-new-titel").value.trim();
+      if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
+      const kategorie = document.getElementById("kb-new-kategorie").value.trim() || "Allgemein";
+      kb.manual.push({ id: uid(), titel, kategorie, inhalt: pendingNewKbInhalt, typ:"manual" });
+      await saveKnowledgeBase();
+      renderKnowledgeView();
+    });
+
+    el.querySelectorAll("[data-kb-open]").forEach(card=>{
+      card.addEventListener("click", (e)=>{
+        if(e.target.closest("[data-kb-del]")) return;
+        state.editingKnowledgeId = card.dataset.kbOpen;
+        renderKnowledgeView();
+      });
+    });
+    el.querySelectorAll("[data-kb-del]").forEach(b=>b.addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      const sure = await showConfirm("Diesen Wissenseintrag löschen?");
+      if(!sure) return;
+      if(b.dataset.kbTyp==="manual"){
+        kb.manual = kb.manual.filter(x=>x.id!==b.dataset.kbDel);
+      }else{
+        kb.ai = kb.ai.filter(x=>x.id!==b.dataset.kbDel);
+      }
+      await saveKnowledgeBase();
+      renderKnowledgeView();
+    }));
+
+    const editingEntry = kb.manual.find(e=>e.id===state.editingKnowledgeId);
+    if(editingEntry){
+      let pendingEditInhalt = editingEntry.inhalt || "";
+      wireRtfPreviewBox(
+        document.getElementById("ke-inhalt-preview-"+editingEntry.id), "Inhalt",
+        ()=>pendingEditInhalt, (v)=>{ pendingEditInhalt = v; },
+        "Klicken, um Wissen zu erfassen…"
+      );
+      document.getElementById("ke-save-"+editingEntry.id).addEventListener("click", async ()=>{
+        const titel = document.getElementById("ke-titel-"+editingEntry.id).value.trim();
+        if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
+        const idx = kb.manual.findIndex(x=>x.id===editingEntry.id);
+        if(idx>=0){
+          kb.manual[idx] = {
+            ...kb.manual[idx],
+            titel,
+            kategorie: document.getElementById("ke-kategorie-"+editingEntry.id).value.trim() || "Allgemein",
+            inhalt: pendingEditInhalt
+          };
+          await saveKnowledgeBase();
+        }
+        state.editingKnowledgeId = null;
+        renderKnowledgeView();
+      });
+      document.getElementById("ke-cancel-"+editingEntry.id).addEventListener("click", ()=>{
+        state.editingKnowledgeId = null;
+        renderKnowledgeView();
+      });
+      document.getElementById("ke-del-"+editingEntry.id).addEventListener("click", async ()=>{
+        const sure = await showConfirm("Diesen Wissenseintrag löschen?");
+        if(!sure) return;
+        kb.manual = kb.manual.filter(x=>x.id!==editingEntry.id);
+        await saveKnowledgeBase();
+        state.editingKnowledgeId = null;
+        renderKnowledgeView();
+      });
+    }
+  }
+
+  // ---------- AUSWERTUNG (TASK ANALYTICS) ----------
+  function isoWeekInfo(dateStr){
+    const date = new Date(dateStr);
+    const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNr = (target.getUTCDay() + 6) % 7;
+    target.setUTCDate(target.getUTCDate() - dayNr + 3);
+    const firstThursday = target.getTime();
+    target.setUTCMonth(0, 1);
+    if(target.getUTCDay() !== 4){
+      target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
+    }
+    const week = 1 + Math.round((firstThursday - target.getTime()) / 604800000);
+    return { year: new Date(firstThursday).getUTCFullYear(), week };
+  }
+  function median(arr){
+    if(!arr.length) return null;
+    const s = arr.slice().sort((a,b)=>a-b);
+    const mid = Math.floor(s.length/2);
+    return s.length % 2 ? s[mid] : (s[mid-1]+s[mid])/2;
+  }
+  function avg(arr){
+    if(!arr.length) return null;
+    return arr.reduce((a,b)=>a+b,0) / arr.length;
+  }
+  function fmtDays(n){
+    if(n===null || n===undefined) return "—";
+    return (Math.round(n*10)/10).toString().replace(".",",") + " Tag(e)";
+  }
+
+  async function collectAllTasksForAnalytics(){
+    const projects = state.projects || [];
+    const all = [];
+    for(const p of projects){
+      const data = await ensureProjectData(p.id);
+      data.tasks.forEach(t=> all.push({...t, projectId:p.id, projectName:p.name}));
+    }
+    return all;
+  }
+
+  async function renderAnalyticsView(){
+    const el = document.getElementById("main-inner");
+    el.innerHTML = '<div class="loading-note">Werte Aufgaben aus…</div>';
+    const allTasks = await collectAllTasksForAnalytics();
+
+    const completed = allTasks.filter(t=>t.status==="erledigt" && t.abgeschlossenAm);
+    const withDuration = completed
+      .filter(t=>t.erstelltAm)
+      .map(t=>({...t, duration: (new Date(t.abgeschlossenAm) - new Date(t.erstelltAm)) / 86400000}))
+      .filter(t=>t.duration >= 0);
+
+    // By project
+    const byProject = {};
+    withDuration.forEach(t=>{
+      (byProject[t.projectName] = byProject[t.projectName] || []).push(t.duration);
+    });
+    // By priority
+    const byPrio = {};
+    withDuration.forEach(t=>{
+      const key = t.prioritaet || "mittel";
+      (byPrio[key] = byPrio[key] || []).push(t.duration);
+    });
+
+    // Weekly completed counts
+    const weeklyCounts = {}; // "year-week" -> count
+    const years = new Set([state.analyticsYear]);
+    completed.forEach(t=>{
+      const {year, week} = isoWeekInfo(t.abgeschlossenAm);
+      years.add(year);
+      const key = year+"-"+week;
+      weeklyCounts[key] = (weeklyCounts[key]||0) + 1;
+    });
+    const sortedYears = Array.from(years).sort((a,b)=>b-a);
+    const year = state.analyticsYear;
+    const nowInfo = isoWeekInfo(new Date().toISOString());
+    // number of ISO weeks in the selected year
+    const weeksInYear = isoWeekInfo(new Date(Date.UTC(year,11,28)).toISOString()).week;
+    let maxCount = 1;
+    for(let w=1; w<=weeksInYear; w++){ maxCount = Math.max(maxCount, weeklyCounts[year+"-"+w] || 0); }
+
+    let html = `
+      <h2>📊 Auswertung — Aufgaben</h2>
+      <div class="sub" style="color:var(--ink-soft);margin:4px 0 6px;">
+        Durchlaufzeit von Erstellung bis Abschluss, projektübergreifend, nach Projekt und Priorität — sowie deine Produktivität pro Kalenderwoche.
+      </div>
+      <div class="an-note">Basiert nur auf Aufgaben, die seit Einführung dieser Auswertung angelegt bzw. abgeschlossen wurden — ältere Aufgaben ohne Erstelldatum fließen in die Durchlaufzeit nicht ein, zählen aber bei der Wochenübersicht mit, sobald sie ein Abschlussdatum haben.</div>
+    `;
+
+    html += `
+      <div class="stat-row">
+        <div class="stat-card"><div class="num">${withDuration.length}</div><div class="label">Ausgewertete Aufgaben</div></div>
+        <div class="stat-card"><div class="num">${fmtDays(avg(withDuration.map(t=>t.duration)))}</div><div class="label">Ø Durchlaufzeit</div></div>
+        <div class="stat-card"><div class="num">${fmtDays(median(withDuration.map(t=>t.duration)))}</div><div class="label">Median Durchlaufzeit</div></div>
+      </div>
+    `;
+
+    html += '<div class="section-title">Durchlaufzeit nach Projekt</div>';
+    if(Object.keys(byProject).length===0){
+      html += '<div class="empty-state"><h3>Noch keine Daten</h3><div>Sobald Aufgaben mit Erstell- und Abschlussdatum vorliegen, erscheinen hier Auswertungen.</div></div>';
+    }else{
+      html += '<table class="an-table"><tr><th>Projekt</th><th>Anzahl</th><th>Ø Tage</th><th>Median Tage</th></tr>';
+      Object.keys(byProject).sort((a,b)=>a.localeCompare(b)).forEach(name=>{
+        const durations = byProject[name];
+        html += `<tr><td>${escapeHtml(name)}</td><td>${durations.length}</td><td>${fmtDays(avg(durations))}</td><td>${fmtDays(median(durations))}</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    html += '<div class="section-title">Durchlaufzeit nach Priorität</div>';
+    if(Object.keys(byPrio).length===0){
+      html += '<div class="empty-state"><h3>Noch keine Daten</h3></div>';
+    }else{
+      html += '<table class="an-table"><tr><th>Priorität</th><th>Anzahl</th><th>Ø Tage</th><th>Median Tage</th></tr>';
+      ["hoch","mittel","niedrig"].forEach(key=>{
+        if(!byPrio[key]) return;
+        const durations = byPrio[key];
+        html += `<tr><td><span class="prio-dot prio-${slug(key)}" style="display:inline-block;margin-right:6px;"></span>${key}</td><td>${durations.length}</td><td>${fmtDays(avg(durations))}</td><td>${fmtDays(median(durations))}</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    html += `
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Jahresübersicht — abgeschlossene Aufgaben pro Kalenderwoche</span>
+        <select class="an-year-select" id="an-year-select">
+          ${sortedYears.map(y=>`<option value="${y}" ${y===year?"selected":""}>${y}</option>`).join("")}
+        </select>
+      </div>
+    `;
+    if(completed.length===0){
+      html += '<div class="empty-state"><h3>Noch keine abgeschlossenen Aufgaben</h3></div>';
+    }else{
+      html += '<div class="an-week-grid">';
+      for(let w=1; w<=weeksInYear; w++){
+        const count = weeklyCounts[year+"-"+w] || 0;
+        const barPct = maxCount>0 ? Math.round((count/maxCount)*100) : 0;
+        const isCurrent = (year===nowInfo.year && w===nowInfo.week);
+        html += `
+          <div class="an-week-cell${isCurrent?' an-current':''}">
+            <div class="an-week-bar" style="height:${barPct}%;"></div>
+            <div class="an-week-num">KW ${w}</div>
+            <div class="an-week-count">${count}</div>
+          </div>`;
+      }
+      html += '</div>';
+    }
+
+    el.innerHTML = html;
+    const yearSelect = document.getElementById("an-year-select");
+    if(yearSelect) yearSelect.addEventListener("change", ()=>{
+      state.analyticsYear = parseInt(yearSelect.value);
+      renderAnalyticsView();
+    });
+  }
+
+  // ---------- RENDER: KI-EINSTELLUNGEN (Anthropic API-Key) ----------
+  function renderAiSettingsView(){
+    const el = document.getElementById("main-inner");
+    const currentKey = localStorage.getItem("pz_anthropic_key") || "";
+    const masked = currentKey ? currentKey.slice(0,10)+"…"+currentKey.slice(-4) : "";
+    el.innerHTML = `
+      <h2>🔑 KI-Einstellungen</h2>
+      <div class="sub" style="color:var(--ink-soft);margin:4px 0 18px;max-width:640px;">
+        Für alle KI-Funktionen (KI-Suche, KI-Übersicht, Wissensdatenbank, Aufgaben-Erkennung, persönlicher Berater) wird ein
+        eigener Anthropic API-Key benötigt, sobald die App außerhalb von Claude läuft. Den Key bekommst du unter
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+      </div>
+      <div class="card">
+        <div class="field">
+          <label>Anthropic API-Key${currentKey ? " (aktuell: "+escapeHtml(masked)+")" : ""}</label>
+          <input id="ai-key-input" placeholder="sk-ant-..." style="font-family:'IBM Plex Mono',monospace;">
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="ai-key-save">Speichern</button>
+          ${currentKey ? '<button class="btn secondary" id="ai-key-remove">Key entfernen</button>' : ''}
+        </div>
+      </div>
+      <div class="an-note" style="max-width:640px;">
+        Wichtig: Der Key wird nur lokal in diesem Browser gespeichert (localStorage) und bei KI-Anfragen direkt aus dem
+        Browser an Anthropic gesendet — er ist damit über die Netzwerk-Ansicht der Browser-Entwicklertools einsehbar.
+        Das ist für die persönliche Nutzung auf deinen eigenen Geräten unkritisch, teile den Key oder dieses Gerät aber nicht
+        mit anderen. Achte außerdem darauf, dass das GitHub-Repository privat bleibt.
+      </div>
+    `;
+    document.getElementById("ai-key-save").addEventListener("click", ()=>{
+      const val = document.getElementById("ai-key-input").value.trim();
+      if(!val){ showAlert("Bitte einen API-Key eingeben."); return; }
+      localStorage.setItem("pz_anthropic_key", val);
+      renderAiSettingsView();
+    });
+    const removeBtn = document.getElementById("ai-key-remove");
+    if(removeBtn) removeBtn.addEventListener("click", ()=>{
+      localStorage.removeItem("pz_anthropic_key");
+      renderAiSettingsView();
+    });
+  }
+
+  function renderAiSearch(){
+    const el = document.getElementById("main-inner");
+    el.innerHTML = `
+      <h2>KI-Suche — alle Projekte</h2>
+      <div class="sub" style="color:var(--ink-soft);margin:4px 0 18px;max-width:640px;">
+        Stelle eine Frage in normaler Sprache — die KI durchsucht Ansprechpartner, Kommunikation, Dokumentation, Aufgaben und Echtlauf-Zeitpläne aller Projekte.
+      </div>
+      <div class="ai-box">
+        <textarea id="ai-input" placeholder="z.B. Welche Projekte haben offene Punkte zur Bizerba-Anbindung? Wer ist bei Biofino der IT-Ansprechpartner?">${escapeHtml(state.aiQuery)}</textarea>
+        <button class="btn" id="ai-ask-btn">Fragen</button>
+      </div>
+      <div class="ai-scope-note">Durchsucht ${ (state.projects||[]).length } Projekte.</div>
+      <div id="ai-result"></div>
+    `;
+    renderAiResultBlock(document.getElementById("ai-result"), state.aiLoading, state.aiError, state.aiAnswer);
+    document.getElementById("ai-ask-btn").addEventListener("click", async ()=>{
+      const q = document.getElementById("ai-input").value.trim();
+      if(!q){ return; }
+      state.aiQuery = q;
+      state.aiLoading = true; state.aiError = null; state.aiAnswer = "";
+      renderAiResultBlock(document.getElementById("ai-result"), true, null, "");
+      try{
+        const ctx = await buildAllProjectsContext();
+        const answer = await callAiSearch(ctx, q);
+        state.aiAnswer = answer;
+      }catch(err){
+        state.aiError = "Die KI-Suche ist fehlgeschlagen. Bitte erneut versuchen. ("+err.message+")";
+      }
+      state.aiLoading = false;
+      renderAiResultBlock(document.getElementById("ai-result"), state.aiLoading, state.aiError, state.aiAnswer);
+    });
+  }
+
+  function renderAiResultBlock(el, loading, error, answer){
+    if(!el) return;
+    if(loading){ el.innerHTML = '<div class="ai-loading">Durchsuche Projektdaten…</div>'; return; }
+    if(error){ el.innerHTML = '<div class="ai-error">'+escapeHtml(error)+'</div>'; return; }
+    if(answer){ el.innerHTML = '<div class="ai-answer">'+escapeHtml(answer)+'</div>'; return; }
+    el.innerHTML = "";
+  }
+
+  // --- Tab: KI-Suche (pro Projekt) ---
+  function renderTabAiSearch(el, p, data){
+    el.innerHTML = `
+      <div class="sub" style="color:var(--ink-soft);margin:0 0 14px;max-width:600px;">
+        Stelle eine Frage zu diesem Projekt — die KI durchsucht nur die Daten von „${escapeHtml(p.name)}" (Ansprechpartner, Kommunikation, Dokumentation, Aufgaben, Zeitplan).
+      </div>
+      <div class="ai-box">
+        <textarea id="pai-input" placeholder="z.B. Was wurde zuletzt mit dem Kunden zur DIGI-Anbindung besprochen?">${escapeHtml(state.projectAiQuery)}</textarea>
+        <button class="btn" id="pai-ask-btn">Fragen</button>
+      </div>
+      <div id="pai-result"></div>
+    `;
+    renderAiResultBlock(document.getElementById("pai-result"), state.projectAiLoading, state.projectAiError, state.projectAiAnswer);
+    document.getElementById("pai-ask-btn").addEventListener("click", async ()=>{
+      const q = document.getElementById("pai-input").value.trim();
+      if(!q) return;
+      state.projectAiQuery = q;
+      state.projectAiLoading = true; state.projectAiError = null; state.projectAiAnswer = "";
+      renderAiResultBlock(document.getElementById("pai-result"), true, null, "");
+      try{
+        const ctx = await buildSingleProjectContext(p, data);
+        const answer = await callAiSearch(ctx, q);
+        state.projectAiAnswer = answer;
+      }catch(err){
+        state.projectAiError = "Die KI-Suche ist fehlgeschlagen. Bitte erneut versuchen. ("+err.message+")";
+      }
+      state.projectAiLoading = false;
+      renderAiResultBlock(document.getElementById("pai-result"), state.projectAiLoading, state.projectAiError, state.projectAiAnswer);
+    });
+  }
+
+  // ---------- NEW PROJECT ----------
+  async function createProject(){
+    const result = await showNewProjectForm();
+    if(!result) return;
+    const newP = {
+      id: uid(), name: result.name, kunde: result.kunde, typ: result.typ,
+      status:"aktiv", beschreibung:"", createdAt: new Date().toISOString()
+    };
+    state.projects.push(newP);
+    const ok = await sSet("projects", state.projects);
+    if(!ok){ await showAlert("Das Projekt konnte nicht gespeichert werden. Bitte versuche es erneut."); return; }
+    state.view="project"; state.selectedId=newP.id; state.activeTab="uebersicht";
+    renderAll();
+  }
+
+  // ---------- MAIN RENDER DISPATCH ----------
+  async function renderAll(){
+    renderSidebar();
+    if(state.view==="dashboard") await renderDashboard();
+    else if(state.view==="settings") renderSettings();
+    else if(state.view==="data") renderDataView();
+    else if(state.view==="ai") renderAiSearch();
+    else if(state.view==="knowledge") await renderKnowledgeView();
+    else if(state.view==="analytics") await renderAnalyticsView();
+    else if(state.view==="ai-settings") renderAiSettingsView();
+    else await renderProject();
+    renderSidebar(); // refresh active highlight after possible data load
+  }
+
+  // ---------- INIT ----------
+  async function init(){
+    checkStorageAvailability();
+    document.getElementById("dashboard-link").addEventListener("click", ()=>{
+      state.view="dashboard"; state.selectedId=null; renderAll();
+    });
+    document.getElementById("settings-link").addEventListener("click", ()=>{
+      state.view="settings"; state.selectedId=null; renderAll();
+    });
+    document.getElementById("data-link").addEventListener("click", ()=>{
+      state.view="data"; state.selectedId=null; renderAll();
+    });
+    document.getElementById("ai-link").addEventListener("click", ()=>{
+      state.view="ai"; state.selectedId=null; renderAll();
+    });
+    document.getElementById("knowledge-link").addEventListener("click", ()=>{
+      state.view="knowledge"; state.selectedId=null; renderAll();
+    });
+    document.getElementById("analytics-link").addEventListener("click", ()=>{
+      state.view="analytics"; state.selectedId=null; renderAll();
+    });
+    document.getElementById("ai-settings-link").addEventListener("click", ()=>{
+      state.view="ai-settings"; state.selectedId=null; renderAll();
+    });
+    document.getElementById("more-nav-toggle").addEventListener("click", ()=>{
+      state.moreNavExpanded = !state.moreNavExpanded;
+      renderSidebar();
+    });
+    document.getElementById("new-project-btn").addEventListener("click", createProject);
+    document.getElementById("search-input").addEventListener("input", (e)=>{
+      state.search = e.target.value; renderSidebar();
+    });
+
+    state.projects = (await sGet("projects")) || [];
+    await loadDocDefs();
+    renderAll();
+  }
+
+  // ---------- BOOT: Supabase-Zugangsdaten aus localStorage laden oder Einrichtung anzeigen ----------
+  async function verifySupabaseConnection(url, key){
+    const client = window.supabase.createClient(url, key);
+    const { error } = await client.from("projektzentrale_kv").select("key").limit(1);
+    if(error) throw error;
+    return client;
+  }
+  function showSetupScreen(prefillUrl, prefillKey, errorMsg){
+    document.getElementById("app").classList.remove("ready");
+    document.getElementById("setup-screen").style.display = "flex";
+    if(prefillUrl) document.getElementById("setup-url").value = prefillUrl;
+    if(prefillKey) document.getElementById("setup-key").value = prefillKey;
+    const errEl = document.getElementById("setup-error");
+    if(errorMsg){ errEl.textContent = errorMsg; errEl.style.display = "block"; }
+    else{ errEl.style.display = "none"; }
+  }
+  function hideSetupScreen(){
+    document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("app").classList.add("ready");
+  }
+
+  async function boot(){
+    document.getElementById("setup-connect-btn").addEventListener("click", async ()=>{
+      const url = document.getElementById("setup-url").value.trim().replace(/\/+$/,"");
+      const key = document.getElementById("setup-key").value.trim();
+      if(!url || !key){ showSetupScreen(url, key, "Bitte Project URL und anon key eintragen."); return; }
+      const btn = document.getElementById("setup-connect-btn");
+      btn.disabled = true; btn.textContent = "Verbinde…";
+      try{
+        sb = await verifySupabaseConnection(url, key);
+        localStorage.setItem("pz_supabase_url", url);
+        localStorage.setItem("pz_supabase_key", key);
+        hideSetupScreen();
+        await init();
+      }catch(e){
+        showSetupScreen(url, key, "Verbindung fehlgeschlagen. Bitte Project URL und anon key prüfen — und ob schema.sql im Supabase SQL-Editor ausgeführt wurde. ("+(e.message||"")+")");
+      }
+      btn.disabled = false; btn.textContent = "Verbinden & speichern";
+    });
+
+    const storedUrl = localStorage.getItem("pz_supabase_url");
+    const storedKey = localStorage.getItem("pz_supabase_key");
+    if(storedUrl && storedKey){
+      try{
+        sb = await verifySupabaseConnection(storedUrl, storedKey);
+        hideSetupScreen();
+        await init();
+      }catch(e){
+        showSetupScreen(storedUrl, storedKey, "Verbindung fehlgeschlagen. Bitte prüfen. ("+(e.message||"")+")");
+      }
+    }else{
+      showSetupScreen();
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
