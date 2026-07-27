@@ -134,9 +134,10 @@
   .agg-row .agg-title{flex:1;font-size:13.5px;}
   .agg-row .agg-date{font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
   .prio-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-  .prio-hoch{background:var(--rust);}
-  .prio-mittel{background:var(--amber);}
-  .prio-niedrig{background:var(--sage);}
+  .prio-must{background:var(--rust);}
+  .prio-should{background:var(--amber);}
+  .prio-could{background:var(--sage);}
+  .prio-wont{background:var(--ink-soft);}
 
   /* Dashboard calendar */
   .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
@@ -157,8 +158,9 @@
     border-left:2px solid var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
   .cal-task:hover{background:#2C362E;}
-  .cal-task.prio-hoch{border-left-color:var(--rust);}
-  .cal-task.prio-niedrig{border-left-color:var(--sage);}
+  .cal-task.prio-must{border-left-color:var(--rust);}
+  .cal-task.prio-could{border-left-color:var(--sage);}
+  .cal-task.prio-wont{border-left-color:var(--ink-soft);}
   .cal-more{font-size:10px;color:var(--ink-soft);padding:1px 5px;}
   @media (max-width:760px){
     .cal-cell{min-height:60px;font-size:11px;}
@@ -374,6 +376,15 @@
     border-radius:var(--radius);background:var(--field-bg);color:var(--ink);font-size:13.5px;line-height:1.55;
   }
   .rtf-editor:focus{outline:none;border-color:var(--focus);}
+  /* Force theme text color everywhere inside RTF areas — browsers sometimes apply their
+     own inline color (e.g. via execCommand) which would otherwise stay black regardless
+     of the dark theme, killing contrast. */
+  .rtf-editor, .rtf-editor *, .rtf-content, .rtf-content *, .rtf-field-preview, .rtf-field-preview *{
+    color:var(--ink) !important;
+  }
+  .rtf-field-preview.empty, .rtf-field-preview.empty *{
+    color:var(--ink-soft) !important;
+  }
   /* Shared typography for rendered rich-text content, used both in the editor and in previews */
   .rtf-content h3, .rtf-content h4, .rtf-editor h3, .rtf-editor h4{
     font-family:'Fraunces',serif;font-size:15px;font-weight:600;margin:0 0 6px;color:var(--ink);
@@ -568,7 +579,13 @@
   ];
   const CHANNELS = ["Teams","Telefon","E-Mail","Vor Ort","Sonstiges"];
   const TASK_STATUS = ["offen","in Arbeit","wartet","erledigt"];
-  const TASK_PRIO = ["hoch","mittel","niedrig"];
+  const TASK_PRIO = ["must","should","could","wont"];
+  const PRIO_LABELS = {must:"Must have", should:"Should have", could:"Could have", wont:"Won't have"};
+  function prioLabel(key){ return PRIO_LABELS[key] || key; }
+  function migratePrio(val){
+    const legacy = {hoch:"must", mittel:"should", niedrig:"could"};
+    return legacy[val] || val || "should";
+  }
   const MILESTONE_STATUS = ["geplant","in Arbeit","erledigt"];
 
   const CSV_COLUMNS = [
@@ -603,6 +620,7 @@
     showNewUpdateForm: false,
     editingUpdateId: null,
     editingDocSectionId: null,
+    dashboardEditingTaskId: null,
     taskFilterTab: "offen",  // 'offen' | 'erledigt' — controls which tasks show in a project's Aufgaben tab
     showNewTaskForm: false,
     showNewCommForm: false,
@@ -641,6 +659,7 @@
   }
   function slug(status){ return status.toLowerCase().replace(/\s+/g,"-"); }
   function defLevel(d){ return Math.min(3, Math.max(1, d.level||1)); }
+  function hasEchtlauf(p){ return p.typ==="Neukunde" || p.typ==="Bestandskunde mit Echtläufen"; }
 
   function toLetter(n){
     // 1 -> a, 2 -> b ... 26 -> z, 27 -> aa ...
@@ -715,7 +734,9 @@
   // ---------- CUSTOM MODALS (browser prompt/confirm/alert are blocked in this preview) ----------
   function closeModal(){ document.getElementById("modal-root").innerHTML = ""; }
 
-  function showConfirm(message){
+  function showConfirm(message, opts){
+    const label = (opts && opts.confirmLabel) || "Löschen";
+    const btnClass = (opts && opts.danger===false) ? "btn" : "btn danger";
     return new Promise(resolve=>{
       const root = document.getElementById("modal-root");
       root.innerHTML = `
@@ -725,7 +746,7 @@
             <p>${escapeHtml(message)}</p>
             <div class="modal-actions">
               <button class="btn secondary" id="modal-cancel">Abbrechen</button>
-              <button class="btn danger" id="modal-ok">Löschen</button>
+              <button class="${btnClass}" id="modal-ok">${escapeHtml(label)}</button>
             </div>
           </div>
         </div>`;
@@ -761,6 +782,7 @@
               <select id="np-typ">
                 <option value="Neukunde">Neukunde (mit Echtlauf-Zeitplan)</option>
                 <option value="Bestandskunde">Bestandskunde</option>
+                <option value="Bestandskunde mit Echtläufen">Bestandskunde mit Echtläufen</option>
               </select>
             </div>
             <div class="modal-actions">
@@ -999,7 +1021,15 @@
     if(!c.contacts) c.contacts = (await sGet("contacts:"+id)) || [];
     if(!c.comms) c.comms = (await sGet("comms:"+id)) || [];
     if(!c.doc) c.doc = (await sGet("doc:"+id)) || {};
-    if(!c.tasks) c.tasks = (await sGet("tasks:"+id)) || [];
+    if(!c.tasks){
+      c.tasks = (await sGet("tasks:"+id)) || [];
+      let migrated = false;
+      c.tasks.forEach(t=>{
+        const fixed = migratePrio(t.prioritaet);
+        if(fixed !== t.prioritaet){ t.prioritaet = fixed; migrated = true; }
+      });
+      if(migrated) await sSet("tasks:"+id, c.tasks);
+    }
     if(!c.timeline) c.timeline = (await sGet("timeline:"+id)) || [];
     if(!c.updates) c.updates = (await sGet("updates:"+id)) || [];
     if(c.aiSummary === undefined) c.aiSummary = (await sGet("ai-summary:"+id)) || null;
@@ -1050,7 +1080,7 @@
     const dateAware = !!(opts && opts.dateAware);
     return tasks.filter(t=>{
       if(f.projectId && t.projectId!==f.projectId) return false;
-      if(f.prioritaet && (t.prioritaet||"mittel")!==f.prioritaet) return false;
+      if(f.prioritaet && (t.prioritaet||"should")!==f.prioritaet) return false;
       if(f.kontaktId && t.kontaktId!==f.kontaktId) return false;
       if(dateAware && (f.von || f.bis)){
         if(!t.faelligAm) return false;
@@ -1078,7 +1108,7 @@
         <label>Priorität</label>
         <select id="df-prio">
           <option value="">Alle</option>
-          ${TASK_PRIO.map(pr=>`<option value="${pr}" ${f.prioritaet===pr?"selected":""}>${pr}</option>`).join("")}
+          ${TASK_PRIO.map(pr=>`<option value="${pr}" ${f.prioritaet===pr?"selected":""}>${prioLabel(pr)}</option>`).join("")}
         </select>
       </div>
       <div class="filter-field">
@@ -1123,16 +1153,110 @@
     let html = "";
     const today = todayStr();
     tasks.forEach(t=>{
-      const overdue = t.faelligAm && t.faelligAm < today;
-      html += `
-        <div class="agg-row" style="cursor:pointer;" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}">
-          <span class="prio-dot prio-${slug(t.prioritaet||'mittel')}"></span>
-          <span class="agg-project">${escapeHtml(t.projectName)}</span>
-          <span class="agg-title">${escapeHtml(t.titel)}${t.status==="wartet"?' <span class="badge wartet" style="margin-left:6px;">wartet auf '+escapeHtml(t.wartetAuf||"jemanden")+'</span>':''}</span>
-          <span class="agg-date"${overdue?' style="color:var(--rust);font-weight:600;"':''}>${overdue?'⚠ ':''}${fmtDate(t.faelligAm)}</span>
-        </div>`;
+      if(t.id === state.dashboardEditingTaskId){
+        const contacts = (state.cache[t.projectId] && state.cache[t.projectId].contacts) || [];
+        html += `
+          <div class="list-item task-edit-row" data-task-row="${t.id}">
+            <div class="meta mono" style="margin-bottom:6px;">${escapeHtml(t.projectName)}</div>
+            <div class="task-inline-row">
+              <span class="prio-dot prio-${slug(t.prioritaet||'should')}"></span>
+              <input type="text" id="de-titel-${t.id}" value="${escapeHtml(t.titel)}">
+              <select id="de-prio-${t.id}">
+                ${TASK_PRIO.map(pr=>`<option value="${pr}" ${t.prioritaet===pr?"selected":""}>${prioLabel(pr)}</option>`).join("")}
+              </select>
+              <select id="de-status-${t.id}" class="task-status-select ${slug(t.status)}">
+                ${TASK_STATUS.map(st=>`<option value="${st}" ${t.status===st?"selected":""}>${st}</option>`).join("")}
+              </select>
+              <input type="date" id="de-faellig-${t.id}" value="${t.faelligAm||''}">
+              <select id="de-kontakt-${t.id}">${contactOptions({contacts}, t.kontaktId)}</select>
+            </div>
+            <div class="field wartet-auf-field" id="de-wartet-field-${t.id}" style="display:${t.status==='wartet'?'block':'none'};">
+              <label>Wartet auf (Person)</label>
+              <input id="de-wartet-auf-${t.id}" value="${escapeHtml(t.wartetAuf||'')}" placeholder="z.B. Kollege Müller, Chef, IT-Abteilung…">
+            </div>
+            <div class="field"><label>Beschreibung</label>${rtfFieldBlockHtml("de-desc-preview-"+t.id, t.beschreibung||"", "Klicken, um eine Beschreibung zu erfassen…")}</div>
+            <div class="field"><label>Interne Notizen</label>${rtfFieldBlockHtml("de-notizen-preview-"+t.id, t.notizen||"", "Klicken, um interne Notizen zu erfassen…")}</div>
+            ${afnFieldBlockHtml("de-afn-field-"+t.id, t.afns||[])}
+            <div class="btn-row" style="margin-top:8px;">
+              <button class="btn small" id="de-save-${t.id}">Speichern</button>
+              <button class="btn secondary small" id="de-cancel-${t.id}">Abbrechen</button>
+              <button class="btn danger small" id="de-del-${t.id}" style="margin-left:auto;">Löschen</button>
+            </div>
+          </div>`;
+      }else{
+        const overdue = t.faelligAm && t.faelligAm < today;
+        html += `
+          <div class="agg-row" style="cursor:pointer;" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}">
+            <span class="prio-dot prio-${slug(t.prioritaet||'should')}"></span>
+            <span class="agg-project">${escapeHtml(t.projectName)}</span>
+            <span class="agg-title">${escapeHtml(t.titel)}${t.status==="wartet"?' <span class="badge wartet" style="margin-left:6px;">wartet auf '+escapeHtml(t.wartetAuf||"jemanden")+'</span>':''}</span>
+            <span class="agg-date"${overdue?' style="color:var(--rust);font-weight:600;"':''}>${overdue?'⚠ ':''}${fmtDate(t.faelligAm)}</span>
+          </div>`;
+      }
     });
     return html;
+  }
+
+  function wireDashboardTaskEditRow(el, tasks){
+    const t = tasks.find(x=>x.id===state.dashboardEditingTaskId);
+    if(!t) return;
+    let pendingDesc = t.beschreibung || "";
+    let pendingNotizen = t.notizen || "";
+    let pendingAfns = (t.afns||[]).slice();
+    wireRtfPreviewBox(document.getElementById("de-desc-preview-"+t.id), "Beschreibung", ()=>pendingDesc, v=>{pendingDesc=v;}, "Klicken, um eine Beschreibung zu erfassen…");
+    wireRtfPreviewBox(document.getElementById("de-notizen-preview-"+t.id), "Interne Notizen", ()=>pendingNotizen, v=>{pendingNotizen=v;}, "Klicken, um interne Notizen zu erfassen…");
+    wireAfnField(document.getElementById("de-afn-field-"+t.id), ()=>pendingAfns, v=>{pendingAfns=v;});
+    const statusSel = document.getElementById("de-status-"+t.id);
+    const wartetField = document.getElementById("de-wartet-field-"+t.id);
+    if(statusSel && wartetField){
+      statusSel.addEventListener("change", ()=>{ wartetField.style.display = statusSel.value==="wartet" ? "block" : "none"; });
+    }
+    const rowEl = document.querySelector('[data-task-row="'+t.id+'"]');
+    if(rowEl && typeof rowEl.scrollIntoView==="function") rowEl.scrollIntoView({block:"center", behavior:"smooth"});
+
+    document.getElementById("de-save-"+t.id).addEventListener("click", async ()=>{
+      const titel = document.getElementById("de-titel-"+t.id).value.trim();
+      if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
+      const data = await ensureProjectData(t.projectId);
+      const idx = data.tasks.findIndex(x=>x.id===t.id);
+      if(idx>=0){
+        const prevStatus = data.tasks[idx].status;
+        const newStatus = document.getElementById("de-status-"+t.id).value;
+        let abgeschlossenAm = data.tasks[idx].abgeschlossenAm || null;
+        if(newStatus==="erledigt" && prevStatus!=="erledigt") abgeschlossenAm = new Date().toISOString();
+        else if(newStatus!=="erledigt" && prevStatus==="erledigt") abgeschlossenAm = null;
+        const wartetAufInput = document.getElementById("de-wartet-auf-"+t.id);
+        data.tasks[idx] = {
+          ...data.tasks[idx],
+          titel,
+          prioritaet: document.getElementById("de-prio-"+t.id).value,
+          status: newStatus,
+          wartetAuf: newStatus==="wartet" ? (wartetAufInput?wartetAufInput.value.trim():"") : "",
+          faelligAm: document.getElementById("de-faellig-"+t.id).value,
+          kontaktId: document.getElementById("de-kontakt-"+t.id).value,
+          beschreibung: pendingDesc,
+          notizen: pendingNotizen,
+          afns: pendingAfns,
+          abgeschlossenAm
+        };
+        await sSet("tasks:"+t.projectId, data.tasks);
+      }
+      state.dashboardEditingTaskId = null;
+      renderDashboard();
+    });
+    document.getElementById("de-cancel-"+t.id).addEventListener("click", ()=>{
+      state.dashboardEditingTaskId = null;
+      renderDashboard();
+    });
+    document.getElementById("de-del-"+t.id).addEventListener("click", async ()=>{
+      const sure = await showConfirm("Diese Aufgabe löschen?");
+      if(!sure) return;
+      const data = await ensureProjectData(t.projectId);
+      data.tasks = data.tasks.filter(x=>x.id!==t.id);
+      await sSet("tasks:"+t.projectId, data.tasks);
+      state.dashboardEditingTaskId = null;
+      renderDashboard();
+    });
   }
 
   function renderDashboardCalendar(tasksWithDate){
@@ -1169,7 +1293,7 @@
         html += `<div class="cal-cell${cell.inMonth?'':' other-month'}${isToday?' today':''}">
           <div class="cal-daynum">${cell.date.getDate()}</div>`;
         dayTasks.slice(0,3).forEach(t=>{
-          html += `<div class="cal-task prio-${slug(t.prioritaet||'mittel')}" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}" title="${escapeHtml(t.projectName)}: ${escapeHtml(t.titel)}">${escapeHtml(t.titel)}</div>`;
+          html += `<div class="cal-task prio-${slug(t.prioritaet||'should')}" data-task-id="${t.id}" data-project-id="${t.projectId}" data-task-status="${t.status}" title="${escapeHtml(t.projectName)}: ${escapeHtml(t.titel)}">${escapeHtml(t.titel)}</div>`;
         });
         if(dayTasks.length>3) html += `<div class="cal-more">+${dayTasks.length-3} weitere</div>`;
         html += `</div>`;
@@ -1187,6 +1311,26 @@
     const today = todayStr();
     const byProject = {};
     (state.dashboardData.overdueTasks||[]).forEach(t=>{
+      (byProject[t.projectId] = byProject[t.projectId]||[]).push(t.id);
+    });
+    for(const projectId of Object.keys(byProject)){
+      const data = await ensureProjectData(projectId);
+      const ids = byProject[projectId];
+      data.tasks.forEach(t=>{
+        if(ids.includes(t.id)) t.faelligAm = today;
+      });
+      await sSet("tasks:"+projectId, data.tasks);
+    }
+  }
+
+  /**
+   * Sets faelligAm = today for every task currently without a due date, grouped by
+   * project so each project's task list is only saved once.
+   */
+  async function setAllNoDateTasksToToday(){
+    const today = todayStr();
+    const byProject = {};
+    (state.dashboardData.tasksNoDate||[]).forEach(t=>{
       (byProject[t.projectId] = byProject[t.projectId]||[]).push(t.id);
     });
     for(const projectId of Object.keys(byProject)){
@@ -1217,7 +1361,7 @@
       c.contacts.forEach(ct => {
         allContacts.push({id: ct.id, name: ct.name, projectId: p.id, projectName: p.name});
       });
-      if(p.typ==="Neukunde"){
+      if(hasEchtlauf(p)){
         c.timeline.forEach(m => { if(m.status!=="erledigt") allMilestones.push({...m, projectId:p.id, projectName:p.name}); });
       }
     }
@@ -1301,7 +1445,7 @@
               <span class="ticket-name">${escapeHtml(p.name)}</span>
               <span class="stamp ${p.status}">${labels[p.status]||p.status}</span>
             </div>
-            <div class="ticket-meta">${escapeHtml(p.kunde||"—")} · ${p.typ==="Neukunde" ? "Neukunde" : "Bestandskunde"}</div>
+            <div class="ticket-meta">${escapeHtml(p.kunde||"—")} · ${escapeHtml(p.typ)}</div>
           </div>
         </div>`;
     });
@@ -1429,25 +1573,34 @@
       </div>
     `;
 
+    let currentTaskListForEdit = [];
     if(state.dashboardTab==="liste"){
       if(state.showDashFilters) html += renderDashboardFilterBar(true);
       html += '<div class="section-title">Offene Aufgaben mit Termin</div>';
-      html += renderDashboardTaskRows(applyDashboardFilters(state.dashboardData.tasksWithDate, {dateAware:true}));
+      currentTaskListForEdit = applyDashboardFilters(state.dashboardData.tasksWithDate, {dateAware:true});
+      html += renderDashboardTaskRows(currentTaskListForEdit);
     }else if(state.dashboardTab==="kalender"){
       if(state.showDashFilters) html += renderDashboardFilterBar(false);
       html += renderDashboardCalendar(applyDashboardFilters(state.dashboardData.tasksWithDate, {dateAware:false}));
     }else if(state.dashboardTab==="ohne-datum"){
       if(state.showDashFilters) html += renderDashboardFilterBar(true);
-      html += '<div class="section-title">Offene Aufgaben ohne Termin</div>';
-      html += renderDashboardTaskRows(applyDashboardFilters(state.dashboardData.tasksNoDate, {dateAware:true}));
+      currentTaskListForEdit = applyDashboardFilters(state.dashboardData.tasksNoDate, {dateAware:true});
+      html += `
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Offene Aufgaben ohne Termin</span>
+          ${currentTaskListForEdit.length>0 ? '<button class="btn small" id="set-nodate-today-btn">Alle auf heute setzen</button>' : ''}
+        </div>`;
+      html += renderDashboardTaskRows(currentTaskListForEdit);
     }else if(state.dashboardTab==="wartet"){
       if(state.showDashFilters) html += renderDashboardFilterBar(true);
       html += '<div class="section-title">Aufgaben, bei denen du auf jemand anderen wartest</div>';
-      html += renderDashboardTaskRows(applyDashboardFilters(state.dashboardData.waitingTasks, {dateAware:true}));
+      currentTaskListForEdit = applyDashboardFilters(state.dashboardData.waitingTasks, {dateAware:true});
+      html += renderDashboardTaskRows(currentTaskListForEdit);
     }else{
       if(state.showDashFilters) html += renderDashboardFilterBar(true);
       html += '<div class="section-title">Erledigte Aufgaben</div>';
-      html += renderDashboardTaskRows(applyDashboardFilters(state.dashboardData.completedTasks, {dateAware:true}));
+      currentTaskListForEdit = applyDashboardFilters(state.dashboardData.completedTasks, {dateAware:true});
+      html += renderDashboardTaskRows(currentTaskListForEdit);
     }
 
     if(state.dashboardData.upcomingMilestones.length>0){
@@ -1465,6 +1618,7 @@
 
     el.innerHTML = html;
     wireDailyBriefingCard();
+    wireDashboardTaskEditRow(el, currentTaskListForEdit);
     const filterBarEl = el.querySelector(".filter-bar");
     if(filterBarEl) wireDashboardFilterBar(filterBarEl);
     const toggleDashFiltersBtn = document.getElementById("toggle-dash-filters");
@@ -1472,9 +1626,17 @@
     const setOverdueTodayBtn = document.getElementById("set-overdue-today-btn");
     if(setOverdueTodayBtn) setOverdueTodayBtn.addEventListener("click", async ()=>{
       const n = state.dashboardData.overdueTasks.length;
-      const sure = await showConfirm("Wirklich alle "+n+" überfälligen Aufgabe"+(n===1?"":"n")+" auf das heutige Datum ("+fmtDate(todayStr())+") setzen?");
+      const sure = await showConfirm("Wirklich alle "+n+" überfälligen Aufgabe"+(n===1?"":"n")+" auf das heutige Datum ("+fmtDate(todayStr())+") setzen?", {confirmLabel:"Bestätigen", danger:false});
       if(!sure) return;
       await setAllOverdueTasksToToday();
+      renderDashboard();
+    });
+    const setNodateTodayBtn = document.getElementById("set-nodate-today-btn");
+    if(setNodateTodayBtn) setNodateTodayBtn.addEventListener("click", async ()=>{
+      const n = state.dashboardData.tasksNoDate.length;
+      const sure = await showConfirm("Wirklich allen "+n+" Aufgabe"+(n===1?"":"n")+" ohne Termin das heutige Datum ("+fmtDate(todayStr())+") zuweisen?", {confirmLabel:"Bestätigen", danger:false});
+      if(!sure) return;
+      await setAllNoDateTasksToToday();
       renderDashboard();
     });
     el.querySelectorAll(".tab-btn").forEach(b=>{
@@ -1489,10 +1651,9 @@
     });
     el.querySelectorAll("[data-task-id]").forEach(x=>{
       x.addEventListener("click", ()=>{
-        state.view="project"; state.selectedId = x.dataset.projectId; state.activeTab="aufgaben";
-        state.editingTaskId = x.dataset.taskId;
-        state.taskFilterTab = x.dataset.taskStatus==="erledigt" ? "erledigt" : (x.dataset.taskStatus==="wartet" ? "wartet" : "offen");
-        renderAll();
+        state.dashboardEditingTaskId = x.dataset.taskId;
+        if(x.classList.contains("cal-task")) state.dashboardTab = "liste"; // Kalenderzellen sind zu klein zum Inline-Bearbeiten
+        renderDashboard();
       });
     });
     const calPrev = document.getElementById("cal-prev");
@@ -1531,7 +1692,7 @@
         <div>
           <div class="code">${projectCode(p)}</div>
           <h2>${escapeHtml(p.name)}</h2>
-          <div class="sub">${escapeHtml(p.kunde||"—")} · ${p.typ==="Neukunde"?"Neukunde":"Bestandskunde"} · <span class="stamp ${p.status}" style="color:inherit;">${labels[p.status]}</span></div>
+          <div class="sub">${escapeHtml(p.kunde||"—")} · ${escapeHtml(p.typ)} · <span class="stamp ${p.status}" style="color:inherit;">${labels[p.status]}</span></div>
         </div>
       </div>
       <div class="tabs">
@@ -1541,8 +1702,9 @@
         <span class="tab-sep"></span>
         <button class="tab-btn" data-tab="uebersicht">Übersicht</button>
         <button class="tab-btn" data-tab="ansprechpartner">Ansprechpartner</button>
-        ${p.typ==="Neukunde" ? '<button class="tab-btn" data-tab="zeitplan">Echtlauf-Zeitplan</button>' : ''}
+        ${hasEchtlauf(p) ? '<button class="tab-btn" data-tab="zeitplan">Echtlauf-Zeitplan</button>' : ''}
         <button class="tab-btn" data-tab="update">Update</button>
+        <button class="tab-btn" data-tab="auswertung">Auswertung</button>
         ${hasAiKey() ? '<button class="tab-btn" data-tab="ki-suche">KI-Suche</button>' : ''}
       </div>
       <div id="tab-content"></div>
@@ -1561,6 +1723,7 @@
     else if(state.activeTab==="aufgaben") renderTabTasks(tabEl, p, data);
     else if(state.activeTab==="zeitplan") renderTabTimeline(tabEl, p, data);
     else if(state.activeTab==="update") renderTabUpdates(tabEl, p, data);
+    else if(state.activeTab==="auswertung") renderTabProjectAnalytics(tabEl, p, data);
     else if(state.activeTab==="ki-suche") renderTabAiSearch(tabEl, p, data);
   }
 
@@ -1633,6 +1796,7 @@
             <select id="f-typ">
               <option value="Neukunde" ${p.typ==="Neukunde"?"selected":""}>Neukunde</option>
               <option value="Bestandskunde" ${p.typ==="Bestandskunde"?"selected":""}>Bestandskunde</option>
+              <option value="Bestandskunde mit Echtläufen" ${p.typ==="Bestandskunde mit Echtläufen"?"selected":""}>Bestandskunde mit Echtläufen</option>
             </select>
           </div>
           <div class="field"><label>Status</label>
@@ -2003,7 +2167,7 @@
         <label>Priorität</label>
         <select id="pt-prio">
           <option value="">Alle</option>
-          ${TASK_PRIO.map(pr=>`<option value="${pr}" ${f.prioritaet===pr?"selected":""}>${pr}</option>`).join("")}
+          ${TASK_PRIO.map(pr=>`<option value="${pr}" ${f.prioritaet===pr?"selected":""}>${prioLabel(pr)}</option>`).join("")}
         </select>
       </div>
       <div class="filter-field">
@@ -2040,7 +2204,7 @@
   function applyProjectTaskFilters(tasks){
     const f = state.projectTaskFilter;
     return tasks.filter(t=>{
-      if(f.prioritaet && (t.prioritaet||"mittel")!==f.prioritaet) return false;
+      if(f.prioritaet && (t.prioritaet||"should")!==f.prioritaet) return false;
       if(f.kontaktId && t.kontaktId!==f.kontaktId) return false;
       if(f.von || f.bis){
         if(!t.faelligAm) return false;
@@ -2065,7 +2229,7 @@
             <div class="field"><label>Titel</label><input id="t-titel"></div>
             <div class="field"><label>Fällig am</label><input type="date" id="t-faellig"></div>
             <div class="field"><label>Priorität</label>
-              <select id="t-prio">${TASK_PRIO.map(pr=>`<option value="${pr}" ${pr==="mittel"?"selected":""}>${pr}</option>`).join("")}</select>
+              <select id="t-prio">${TASK_PRIO.map(pr=>`<option value="${pr}" ${pr==="should"?"selected":""}>${prioLabel(pr)}</option>`).join("")}</select>
             </div>
             <div class="field"><label>Status</label>
               <select id="t-status">${TASK_STATUS.map(st=>`<option value="${st}" ${st==="offen"?"selected":""}>${st}</option>`).join("")}</select>
@@ -2079,6 +2243,7 @@
             <input id="t-wartet-auf" placeholder="z.B. Kollege Müller, Chef, IT-Abteilung…">
           </div>
           <div class="field"><label>Beschreibung</label>${rtfFieldBlockHtml("t-beschreibung-preview", "", "Klicken, um eine Beschreibung zu erfassen…")}</div>
+          <div class="field"><label>Interne Notizen</label>${rtfFieldBlockHtml("t-notizen-preview", "", "Klicken, um interne Notizen zu erfassen…")}</div>
           <div class="field"><label>AFN-Nummer(n)</label>${afnFieldBlockHtml("t-afn-field", [])}</div>
           <div class="btn-row">
             <button class="btn" id="save-task">Hinzufügen</button>
@@ -2122,10 +2287,10 @@
           html += `
             <div class="list-item task-edit-row" data-task-row="${t.id}">
               <div class="task-inline-row">
-                <span class="prio-dot prio-${slug(t.prioritaet||'mittel')}"></span>
+                <span class="prio-dot prio-${slug(t.prioritaet||'should')}"></span>
                 <input type="text" id="te-titel-${t.id}" value="${escapeHtml(t.titel)}">
                 <select id="te-prio-${t.id}">
-                  ${TASK_PRIO.map(pr=>`<option value="${pr}" ${t.prioritaet===pr?"selected":""}>${pr}</option>`).join("")}
+                  ${TASK_PRIO.map(pr=>`<option value="${pr}" ${t.prioritaet===pr?"selected":""}>${prioLabel(pr)}</option>`).join("")}
                 </select>
                 <select id="te-status-${t.id}" class="task-status-select ${slug(t.status)}">
                   ${TASK_STATUS.map(st=>`<option value="${st}" ${t.status===st?"selected":""}>${st}</option>`).join("")}
@@ -2138,6 +2303,7 @@
                 <input id="te-wartet-auf-${t.id}" value="${escapeHtml(t.wartetAuf||'')}" placeholder="z.B. Kollege Müller, Chef, IT-Abteilung…">
               </div>
               ${rtfFieldBlockHtml("te-desc-preview-"+t.id, t.beschreibung||"", "Klicken, um eine Beschreibung zu erfassen…")}
+              ${rtfFieldBlockHtml("te-notizen-preview-"+t.id, t.notizen||"", "Klicken, um interne Notizen zu erfassen…")}
               ${afnFieldBlockHtml("te-afn-field-"+t.id, t.afns||[])}
               <div class="btn-row" style="margin-top:8px;">
                 <button class="btn small" id="te-save-${t.id}">Speichern</button>
@@ -2151,13 +2317,14 @@
             <div class="list-item task-view-row" data-task-row="${t.id}" data-open-task="${t.id}">
               <div class="top-row">
                 <div>
-                  <span class="prio-dot prio-${slug(t.prioritaet||'mittel')}" style="display:inline-block;margin-right:4px;"></span>
+                  <span class="prio-dot prio-${slug(t.prioritaet||'should')}" style="display:inline-block;margin-right:4px;"></span>
                   <strong>${escapeHtml(t.titel)}</strong>
                   <span class="badge ${slug(t.status)}" style="margin-left:6px;">${t.status}</span>
                   ${t.afns&&t.afns.length?' '+afnViewMarkup(t.afns):''}
                   <div class="meta">Fällig: ${fmtDate(t.faelligAm)} ${contact?('· '+escapeHtml(contact.name)):''}${t.erstelltAm?(' · Erstellt: '+fmtDate(t.erstelltAm.slice(0,10))):''}${t.abgeschlossenAm?(' · Erledigt: '+fmtDate(t.abgeschlossenAm.slice(0,10))):''}</div>
                   ${t.status==="wartet"?'<div class="wartet-auf-note">⏳ Wartet auf: '+escapeHtml(t.wartetAuf||"—")+'</div>':''}
                   ${!isEmptyHtml(t.beschreibung)?'<div class="rtf-content rtf-field-preview-compact" style="margin-top:4px;">'+t.beschreibung+'</div>':''}
+                  ${!isEmptyHtml(t.notizen)?'<div class="meta" style="margin-top:4px;color:var(--violet);font-size:10.5px;text-transform:uppercase;letter-spacing:0.4px;">Interne Notiz</div><div class="rtf-content rtf-field-preview-compact">'+t.notizen+'</div>':''}
                 </div>
                 <div class="actions">
                   <button class="icon-btn" data-del="${t.id}">Löschen</button>
@@ -2170,6 +2337,7 @@
     el.innerHTML = html;
     renderAiSummaryCard(document.getElementById("ai-summary-card"), p, data);
     let pendingNewTaskBeschreibung = "";
+    let pendingNewTaskNotizen = "";
     let pendingNewTaskAfns = [];
     const newTaskDescBox = document.getElementById("t-beschreibung-preview");
     if(newTaskDescBox){
@@ -2177,6 +2345,14 @@
         newTaskDescBox, "Beschreibung",
         ()=>pendingNewTaskBeschreibung, (v)=>{ pendingNewTaskBeschreibung = v; },
         "Klicken, um eine Beschreibung zu erfassen…"
+      );
+    }
+    const newTaskNotizenBox = document.getElementById("t-notizen-preview");
+    if(newTaskNotizenBox){
+      wireRtfPreviewBox(
+        newTaskNotizenBox, "Interne Notizen",
+        ()=>pendingNewTaskNotizen, (v)=>{ pendingNewTaskNotizen = v; },
+        "Klicken, um interne Notizen zu erfassen…"
       );
     }
     wireAfnField(document.getElementById("t-afn-field"), ()=>pendingNewTaskAfns, (v)=>{ pendingNewTaskAfns = v; });
@@ -2214,6 +2390,7 @@
         wartetAuf: newStatus==="wartet" ? document.getElementById("t-wartet-auf").value.trim() : "",
         kontaktId: document.getElementById("t-kontakt").value,
         beschreibung: pendingNewTaskBeschreibung,
+        notizen: pendingNewTaskNotizen,
         afns: pendingNewTaskAfns,
         erstelltAm: new Date().toISOString(),
         abgeschlossenAm: null
@@ -2232,15 +2409,21 @@
       });
     });
 
-    // Edit-mode row: pending Beschreibung + Speichern/Abbrechen/Löschen
+    // Edit-mode row: pending Beschreibung + Notizen + Speichern/Abbrechen/Löschen
     const editingTask = sorted.find(t=>t.id===state.editingTaskId);
     if(editingTask){
       let pendingEditBeschreibung = editingTask.beschreibung || "";
+      let pendingEditNotizen = editingTask.notizen || "";
       let pendingEditAfns = (editingTask.afns||[]).slice();
       wireRtfPreviewBox(
         document.getElementById("te-desc-preview-"+editingTask.id), "Beschreibung",
         ()=>pendingEditBeschreibung, (v)=>{ pendingEditBeschreibung = v; },
         "Klicken, um eine Beschreibung zu erfassen…"
+      );
+      wireRtfPreviewBox(
+        document.getElementById("te-notizen-preview-"+editingTask.id), "Interne Notizen",
+        ()=>pendingEditNotizen, (v)=>{ pendingEditNotizen = v; },
+        "Klicken, um interne Notizen zu erfassen…"
       );
       wireAfnField(document.getElementById("te-afn-field-"+editingTask.id), ()=>pendingEditAfns, (v)=>{ pendingEditAfns = v; });
       const editStatusSel = document.getElementById("te-status-"+editingTask.id);
@@ -2273,6 +2456,7 @@
             faelligAm: document.getElementById("te-faellig-"+editingTask.id).value,
             kontaktId: document.getElementById("te-kontakt-"+editingTask.id).value,
             beschreibung: pendingEditBeschreibung,
+            notizen: pendingEditNotizen,
             afns: pendingEditAfns,
             abgeschlossenAm
           };
@@ -2759,7 +2943,7 @@
         }
       });
       data.tasks.forEach(t=>{
-        rows.push({Typ:"aufgabe", ProjektId:p.id, Id:t.id, Titel:t.titel, Datum:t.faelligAm||"", Prioritaet:t.prioritaet||"", Status:t.status||"", KontaktId:t.kontaktId||"", Beschreibung:t.beschreibung||"", ErstelltAm:t.erstelltAm||"", AbgeschlossenAm:t.abgeschlossenAm||"", AFN:(t.afns||[]).join(";"), WartetAuf:t.wartetAuf||""});
+        rows.push({Typ:"aufgabe", ProjektId:p.id, Id:t.id, Titel:t.titel, Datum:t.faelligAm||"", Prioritaet:t.prioritaet||"", Status:t.status||"", KontaktId:t.kontaktId||"", Beschreibung:t.beschreibung||"", ErstelltAm:t.erstelltAm||"", AbgeschlossenAm:t.abgeschlossenAm||"", AFN:(t.afns||[]).join(";"), WartetAuf:t.wartetAuf||"", Notiz:t.notizen||""});
       });
       data.timeline.forEach(m=>{
         rows.push({Typ:"meilenstein", ProjektId:p.id, Id:m.id, Titel:m.titel, Datum:m.datum||"", Status:m.status||"", Notiz:m.notiz||""});
@@ -2827,11 +3011,11 @@
     });
     rows.filter(r=>r.Typ==="aufgabe").forEach(r=>{
       (tasksByProject[r.ProjektId] = tasksByProject[r.ProjektId]||[]).push({
-        id:r.Id, titel:r.Titel||"", faelligAm:r.Datum||"", prioritaet:r.Prioritaet||"mittel",
+        id:r.Id, titel:r.Titel||"", faelligAm:r.Datum||"", prioritaet:migratePrio(r.Prioritaet),
         status:r.Status||"offen", kontaktId:r.KontaktId||"", beschreibung:r.Beschreibung||"",
         erstelltAm:r.ErstelltAm||null, abgeschlossenAm:r.AbgeschlossenAm||null,
         afns: (r.AFN||"").split(";").map(s=>s.trim()).filter(Boolean),
-        wartetAuf: r.WartetAuf||""
+        wartetAuf: r.WartetAuf||"", notizen: r.Notiz||""
       });
     });
     rows.filter(r=>r.Typ==="meilenstein").forEach(r=>{
@@ -2962,12 +3146,13 @@
       data.tasks.forEach(t=>{
         const contact = data.contacts.find(x=>x.id===t.kontaktId);
         const beschreibungText = htmlToPlainText(t.beschreibung);
+        const notizenText = htmlToPlainText(t.notizen);
         const afnText = (t.afns&&t.afns.length) ? " [AFN: "+t.afns.join(", ")+"]" : "";
         const wartetText = (t.status==="wartet" && t.wartetAuf) ? ", wartet auf: "+t.wartetAuf : "";
-        lines.push("- ["+t.status+"] "+t.titel+afnText+(t.faelligAm?" (Fällig: "+fmtDate(t.faelligAm)+")":"")+", Priorität: "+t.prioritaet+wartetText+(contact?", Ansprechpartner: "+contact.name:"")+(beschreibungText?" — "+beschreibungText:""));
+        lines.push("- ["+t.status+"] "+t.titel+afnText+(t.faelligAm?" (Fällig: "+fmtDate(t.faelligAm)+")":"")+", Priorität: "+prioLabel(t.prioritaet)+wartetText+(contact?", Ansprechpartner: "+contact.name:"")+(beschreibungText?" — "+beschreibungText:"")+(notizenText?" [Interne Notiz: "+notizenText+"]":""));
       });
     }
-    if(p.typ==="Neukunde" && data.timeline.length){
+    if(hasEchtlauf(p) && data.timeline.length){
       lines.push("Echtlauf-Zeitplan:");
       data.timeline.forEach(m=>{
         const notizText = htmlToPlainText(m.notiz);
@@ -3044,7 +3229,7 @@
       lines.push("Offene Aufgaben (alle Projekte, aktiv zu bearbeiten):");
       tasks.forEach(t=>{
         const overdue = t.faelligAm && t.faelligAm < todayStr();
-        lines.push("- ["+t.projectName+"] "+t.titel+" | Priorität: "+(t.prioritaet||"mittel")+" | Fällig: "+(t.faelligAm?fmtDate(t.faelligAm):"kein Datum")+(overdue?" (ÜBERFÄLLIG)":"")+(htmlToPlainText(t.beschreibung)?" — "+htmlToPlainText(t.beschreibung):""));
+        lines.push("- ["+t.projectName+"] "+t.titel+" | Priorität: "+prioLabel(t.prioritaet||"should")+" | Fällig: "+(t.faelligAm?fmtDate(t.faelligAm):"kein Datum")+(overdue?" (ÜBERFÄLLIG)":"")+(htmlToPlainText(t.beschreibung)?" — "+htmlToPlainText(t.beschreibung):""));
       });
     }else{
       lines.push("Keine offenen Aufgaben.");
@@ -3134,7 +3319,7 @@
       "Antworte AUSSCHLIESSLICH mit einem validen JSON-Array, ohne Erklärung, ohne Markdown-Codeblock, ohne führenden oder folgenden Text. "+
       "Format je Element: {\"titel\": string (kurz, max. ca. 80 Zeichen), \"beschreibung\": string (kurzer Kontext, oder leerer String), "+
       "\"faelligAm\": string im Format JJJJ-MM-TT falls im Text ein konkretes oder eindeutig relatives Datum genannt wird, sonst leerer String, "+
-      "\"prioritaet\": \"hoch\" oder \"mittel\" oder \"niedrig\"}. "+
+      "\"prioritaet\": \"must\" (Must have) oder \"should\" (Should have) oder \"could\" (Could have) oder \"wont\" (Won't have), nach der MoSCoW-Methode}. "+
       "Wenn keine Aufgaben für Fabian erkennbar sind, antworte mit [].";
     const userContent = "Heutiges Datum: "+todayStr()+"\n"+
       "Datum des Eintrags: "+(c.datum||"unbekannt")+"\n"+
@@ -3153,7 +3338,7 @@
         titel: String(t.titel).slice(0,200),
         beschreibung: t.beschreibung ? String(t.beschreibung) : "",
         faelligAm: /^\d{4}-\d{2}-\d{2}$/.test(t.faelligAm) ? t.faelligAm : "",
-        prioritaet: ["hoch","mittel","niedrig"].includes(t.prioritaet) ? t.prioritaet : "mittel"
+        prioritaet: TASK_PRIO.includes(t.prioritaet) ? t.prioritaet : "should"
       }));
   }
 
@@ -3548,31 +3733,30 @@
     return all;
   }
 
-  async function renderAnalyticsView(){
-    const el = document.getElementById("main-inner");
-    el.innerHTML = '<div class="loading-note">Werte Aufgaben aus…</div>';
-    const allTasks = await collectAllTasksForAnalytics();
-
+  /**
+   * Builds the shared analytics markup (stat row, breakdown tables, weekly grid) for
+   * a given list of tasks. Used both by the global Auswertung view (all projects) and
+   * by each project's own Auswertung tab (that project's tasks only).
+   */
+  function buildTaskAnalyticsHtml(allTasks, opts){
+    const showProjectBreakdown = !opts || opts.showProjectBreakdown !== false;
     const completed = allTasks.filter(t=>t.status==="erledigt" && t.abgeschlossenAm);
     const withDuration = completed
       .filter(t=>t.erstelltAm)
       .map(t=>({...t, duration: (new Date(t.abgeschlossenAm) - new Date(t.erstelltAm)) / 86400000}))
       .filter(t=>t.duration >= 0);
 
-    // By project
     const byProject = {};
     withDuration.forEach(t=>{
       (byProject[t.projectName] = byProject[t.projectName] || []).push(t.duration);
     });
-    // By priority
     const byPrio = {};
     withDuration.forEach(t=>{
-      const key = t.prioritaet || "mittel";
+      const key = t.prioritaet || "should";
       (byPrio[key] = byPrio[key] || []).push(t.duration);
     });
 
-    // Weekly completed counts
-    const weeklyCounts = {}; // "year-week" -> count
+    const weeklyCounts = {};
     const years = new Set([state.analyticsYear]);
     completed.forEach(t=>{
       const {year, week} = isoWeekInfo(t.abgeschlossenAm);
@@ -3583,20 +3767,11 @@
     const sortedYears = Array.from(years).sort((a,b)=>b-a);
     const year = state.analyticsYear;
     const nowInfo = isoWeekInfo(new Date().toISOString());
-    // number of ISO weeks in the selected year
     const weeksInYear = isoWeekInfo(new Date(Date.UTC(year,11,28)).toISOString()).week;
     let maxCount = 1;
     for(let w=1; w<=weeksInYear; w++){ maxCount = Math.max(maxCount, weeklyCounts[year+"-"+w] || 0); }
 
     let html = `
-      <h2>📊 Auswertung — Aufgaben</h2>
-      <div class="sub" style="color:var(--ink-soft);margin:4px 0 6px;">
-        Durchlaufzeit von Erstellung bis Abschluss, projektübergreifend, nach Projekt und Priorität — sowie deine Produktivität pro Kalenderwoche.
-      </div>
-      <div class="an-note">Basiert nur auf Aufgaben, die seit Einführung dieser Auswertung angelegt bzw. abgeschlossen wurden — ältere Aufgaben ohne Erstelldatum fließen in die Durchlaufzeit nicht ein, zählen aber bei der Wochenübersicht mit, sobald sie ein Abschlussdatum haben.</div>
-    `;
-
-    html += `
       <div class="stat-row">
         <div class="stat-card"><div class="num">${withDuration.length}</div><div class="label">Ausgewertete Aufgaben</div></div>
         <div class="stat-card"><div class="num">${fmtDays(avg(withDuration.map(t=>t.duration)))}</div><div class="label">Ø Durchlaufzeit</div></div>
@@ -3604,16 +3779,18 @@
       </div>
     `;
 
-    html += '<div class="section-title">Durchlaufzeit nach Projekt</div>';
-    if(Object.keys(byProject).length===0){
-      html += '<div class="empty-state"><h3>Noch keine Daten</h3><div>Sobald Aufgaben mit Erstell- und Abschlussdatum vorliegen, erscheinen hier Auswertungen.</div></div>';
-    }else{
-      html += '<table class="an-table"><tr><th>Projekt</th><th>Anzahl</th><th>Ø Tage</th><th>Median Tage</th></tr>';
-      Object.keys(byProject).sort((a,b)=>a.localeCompare(b)).forEach(name=>{
-        const durations = byProject[name];
-        html += `<tr><td>${escapeHtml(name)}</td><td>${durations.length}</td><td>${fmtDays(avg(durations))}</td><td>${fmtDays(median(durations))}</td></tr>`;
-      });
-      html += '</table>';
+    if(showProjectBreakdown){
+      html += '<div class="section-title">Durchlaufzeit nach Projekt</div>';
+      if(Object.keys(byProject).length===0){
+        html += '<div class="empty-state"><h3>Noch keine Daten</h3><div>Sobald Aufgaben mit Erstell- und Abschlussdatum vorliegen, erscheinen hier Auswertungen.</div></div>';
+      }else{
+        html += '<table class="an-table"><tr><th>Projekt</th><th>Anzahl</th><th>Ø Tage</th><th>Median Tage</th></tr>';
+        Object.keys(byProject).sort((a,b)=>a.localeCompare(b)).forEach(name=>{
+          const durations = byProject[name];
+          html += `<tr><td>${escapeHtml(name)}</td><td>${durations.length}</td><td>${fmtDays(avg(durations))}</td><td>${fmtDays(median(durations))}</td></tr>`;
+        });
+        html += '</table>';
+      }
     }
 
     html += '<div class="section-title">Durchlaufzeit nach Priorität</div>';
@@ -3621,10 +3798,10 @@
       html += '<div class="empty-state"><h3>Noch keine Daten</h3></div>';
     }else{
       html += '<table class="an-table"><tr><th>Priorität</th><th>Anzahl</th><th>Ø Tage</th><th>Median Tage</th></tr>';
-      ["hoch","mittel","niedrig"].forEach(key=>{
+      TASK_PRIO.forEach(key=>{
         if(!byPrio[key]) return;
         const durations = byPrio[key];
-        html += `<tr><td><span class="prio-dot prio-${slug(key)}" style="display:inline-block;margin-right:6px;"></span>${key}</td><td>${durations.length}</td><td>${fmtDays(avg(durations))}</td><td>${fmtDays(median(durations))}</td></tr>`;
+        html += `<tr><td><span class="prio-dot prio-${slug(key)}" style="display:inline-block;margin-right:6px;"></span>${prioLabel(key)}</td><td>${durations.length}</td><td>${fmtDays(avg(durations))}</td><td>${fmtDays(median(durations))}</td></tr>`;
       });
       html += '</table>';
     }
@@ -3654,12 +3831,47 @@
       }
       html += '</div>';
     }
+    return html;
+  }
+
+  async function renderAnalyticsView(){
+    const el = document.getElementById("main-inner");
+    el.innerHTML = '<div class="loading-note">Werte Aufgaben aus…</div>';
+    const allTasks = await collectAllTasksForAnalytics();
+
+    let html = `
+      <h2>📊 Auswertung — Aufgaben</h2>
+      <div class="sub" style="color:var(--ink-soft);margin:4px 0 6px;">
+        Durchlaufzeit von Erstellung bis Abschluss, projektübergreifend, nach Projekt und Priorität — sowie deine Produktivität pro Kalenderwoche.
+      </div>
+      <div class="an-note">Basiert nur auf Aufgaben, die seit Einführung dieser Auswertung angelegt bzw. abgeschlossen wurden — ältere Aufgaben ohne Erstelldatum fließen in die Durchlaufzeit nicht ein, zählen aber bei der Wochenübersicht mit, sobald sie ein Abschlussdatum haben.</div>
+    `;
+    html += buildTaskAnalyticsHtml(allTasks, {showProjectBreakdown:true});
 
     el.innerHTML = html;
     const yearSelect = document.getElementById("an-year-select");
     if(yearSelect) yearSelect.addEventListener("change", ()=>{
       state.analyticsYear = parseInt(yearSelect.value);
       renderAnalyticsView();
+    });
+  }
+
+  // --- Tab: Auswertung (pro Projekt) ---
+  function renderTabProjectAnalytics(el, p, data){
+    const allTasks = data.tasks.map(t=>({...t, projectId:p.id, projectName:p.name}));
+    let html = `
+      <div class="sub" style="color:var(--ink-soft);margin:0 0 6px;">
+        Durchlaufzeit und Wochenübersicht ausschließlich für dieses Projekt.
+      </div>
+      <div class="an-note">Basiert nur auf Aufgaben dieses Projekts, die seit Einführung dieser Auswertung angelegt bzw. abgeschlossen wurden.</div>
+    `;
+    html += buildTaskAnalyticsHtml(allTasks, {showProjectBreakdown:false});
+
+    el.innerHTML = html;
+    const yearSelect = document.getElementById("an-year-select");
+    if(yearSelect) yearSelect.addEventListener("change", ()=>{
+      state.analyticsYear = parseInt(yearSelect.value);
+      renderProject();
     });
   }
 
