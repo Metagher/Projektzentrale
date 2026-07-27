@@ -2218,6 +2218,7 @@
       row.addEventListener("click", (e)=>{
         if(e.target.closest("[data-doku-done]")) return;
         state.activeTab = "aufgaben";
+        state.taskFilterTab = "erledigt";
         state.editingTaskId = row.dataset.openTaskFromDoku;
         renderProject();
       });
