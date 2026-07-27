@@ -509,6 +509,36 @@
     margin-right:4px;
   }
 
+  /* Verknüpfungen: Kommunikation <-> Aufgaben */
+  .link-field{margin-top:6px;}
+  .link-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;}
+  .link-chips:empty{margin-bottom:0;}
+  .link-chip{
+    display:inline-flex;align-items:center;gap:4px;background:#3A2E17;color:var(--amber-deep);
+    border:1px solid #5C481F;border-radius:20px;padding:2px 4px 2px 9px;font-size:11.5px;
+    cursor:pointer;max-width:280px;
+  }
+  .link-chip:hover{border-color:var(--amber-deep);}
+  .link-chip-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .link-remove{
+    background:none;border:none;cursor:pointer;color:var(--amber-deep);font-size:13px;line-height:1;padding:0 5px;
+    border-radius:50%;flex-shrink:0;
+  }
+  .link-remove:hover{background:#5C481F;}
+  .link-add-row{display:flex;gap:6px;}
+  .link-select{
+    flex:1;max-width:320px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--field-bg);color:var(--ink);font-size:12.5px;
+  }
+  .link-select:focus{border-color:var(--focus);outline:none;}
+  .link-chip-view{
+    display:inline-flex;align-items:center;background:#3A2E17;color:var(--amber-deep);
+    border:1px solid #5C481F;border-radius:20px;padding:1px 8px;font-size:10.5px;
+    margin-right:4px;margin-top:4px;cursor:pointer;max-width:100%;
+  }
+  .link-chip-view:hover{border-color:var(--amber-deep);}
+  .link-chips-view{margin-top:4px;}
+
   /* Auswertung / Analytics */
   .afn-log-form{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
   .afn-log-form input{padding:8px 10px;}
@@ -628,7 +658,7 @@
   const CSV_COLUMNS = [
     "Typ","ProjektId","Id","Titel","Kunde","ProjektTyp","Status","Beschreibung",
     "ErstelltAm","AusgeblendeteOberpunkte","Level","Reihenfolge","Rolle","Telefon",
-    "Email","Notiz","Datum","Kanal","KontaktId","Betreff","OberpunktId","Inhalt","AktualisiertAm","Prioritaet","AbgeschlossenAm","AFN","WartetAuf","Revision","AktuelleVersion","Nr"
+    "Email","Notiz","Datum","Kanal","KontaktId","Betreff","OberpunktId","Inhalt","AktualisiertAm","Prioritaet","AbgeschlossenAm","AFN","WartetAuf","Revision","AktuelleVersion","Nr","VerknuepfteAufgabenIds","VerknuepfteKommIds"
   ];
 
   let state = {
@@ -1027,6 +1057,149 @@
       if(e.key==="Enter"){ e.preventDefault(); addFromInput(); }
     });
     wireRemoves();
+  }
+
+  // ---------- VERKNÜPFUNGEN: KOMMUNIKATION <-> AUFGABEN ----------
+  function taskLinkLabel(t){
+    return "#"+(t.nr||"?")+" "+t.titel;
+  }
+  function commLinkLabel(c){
+    const parts = [];
+    if(c.datum) parts.push(fmtDate(c.datum));
+    if(c.kanal) parts.push(c.kanal);
+    parts.push(c.betreff || "(kein Betreff)");
+    return parts.join(" · ");
+  }
+  function linkChipsMarkup(ids, items, labelFn){
+    return (ids||[]).map(id=>{
+      const item = items.find(x=>x.id===id);
+      if(!item) return "";
+      return '<span class="link-chip" data-link-jump="'+escapeHtml(id)+'" title="Zum verknüpften Eintrag springen">'
+        + '<span class="link-chip-label">'+escapeHtml(labelFn(item))+'</span>'
+        + '<button type="button" class="link-remove" data-link-remove="'+escapeHtml(id)+'" title="Verknüpfung entfernen">×</button></span>';
+    }).join("");
+  }
+  function linkChipsViewMarkup(ids, items, labelFn){
+    if(!ids || !ids.length) return "";
+    return '<div class="link-chips-view">'+ids.map(id=>{
+      const item = items.find(x=>x.id===id);
+      if(!item) return "";
+      return '<span class="link-chip-view" data-link-jump="'+escapeHtml(id)+'" title="Zum verknüpften Eintrag springen">↳ '+escapeHtml(labelFn(item))+'</span>';
+    }).join("")+'</div>';
+  }
+  function linkFieldBlockHtml(id, ids, items, labelFn, placeholderText){
+    const available = items.filter(it=>!(ids||[]).includes(it.id));
+    const options = '<option value="">'+escapeHtml(placeholderText)+'</option>'
+      + available.map(it=>'<option value="'+escapeHtml(it.id)+'">'+escapeHtml(labelFn(it))+'</option>').join("");
+    return `
+      <div class="link-field" id="${id}">
+        <div class="link-chips">${linkChipsMarkup(ids, items, labelFn)}</div>
+        <div class="link-add-row">
+          <select class="link-select">${options}</select>
+          <button type="button" class="btn secondary small link-add-btn">+ Verknüpfen</button>
+        </div>
+      </div>`;
+  }
+  /**
+   * Wires a link-picker field. getCurrent/setCurrent are closures over the caller's
+   * pending array of linked ids (same pattern as wireAfnField). onJump(id), if given,
+   * is called when a chip (not its remove button) is clicked.
+   */
+  function wireLinkField(containerEl, items, labelFn, placeholderText, getCurrent, setCurrent, onJump){
+    if(!containerEl) return;
+    function rerender(){
+      containerEl.querySelector(".link-chips").innerHTML = linkChipsMarkup(getCurrent(), items, labelFn);
+      const available = items.filter(it=>!getCurrent().includes(it.id));
+      containerEl.querySelector(".link-select").innerHTML = '<option value="">'+escapeHtml(placeholderText)+'</option>'
+        + available.map(it=>'<option value="'+escapeHtml(it.id)+'">'+escapeHtml(labelFn(it))+'</option>').join("");
+      wireInteractions();
+    }
+    function wireInteractions(){
+      containerEl.querySelectorAll("[data-link-remove]").forEach(btn=>{
+        btn.addEventListener("click", (e)=>{
+          e.stopPropagation();
+          const id = btn.dataset.linkRemove;
+          setCurrent(getCurrent().filter(x=>x!==id));
+          rerender();
+        });
+      });
+      if(onJump){
+        containerEl.querySelectorAll("[data-link-jump]").forEach(chip=>{
+          chip.addEventListener("click", (e)=>{
+            if(e.target.closest("[data-link-remove]")) return;
+            onJump(chip.dataset.linkJump);
+          });
+        });
+      }
+    }
+    containerEl.querySelector(".link-add-btn").addEventListener("click", ()=>{
+      const sel = containerEl.querySelector(".link-select");
+      const val = sel.value;
+      if(!val) return;
+      const cur = getCurrent().slice();
+      if(!cur.includes(val)) cur.push(val);
+      setCurrent(cur);
+      rerender();
+    });
+    wireInteractions();
+  }
+  function jumpToTask(taskId){
+    const data = state.cache[state.selectedId];
+    const task = data && data.tasks && data.tasks.find(t=>t.id===taskId);
+    state.activeTab = "aufgaben";
+    state.taskFilterTab = task ? (task.status==="erledigt" ? "erledigt" : (task.status==="wartet" ? "wartet" : "offen")) : "offen";
+    state.editingTaskId = taskId;
+    state.editingComm = null;
+    renderProject();
+  }
+  function jumpToComm(commId){
+    state.activeTab = "kommunikation";
+    state.editingComm = commId;
+    state.editingTaskId = null;
+    renderProject();
+  }
+  /**
+   * Gleicht die commIds-Arrays der betroffenen Aufgaben mit der aktuellen
+   * Verknüpfungsauswahl eines Kommunikationseintrags ab. Gibt true zurück,
+   * wenn data.tasks verändert wurde (dann muss gespeichert werden).
+   */
+  function syncCommTaskLinks(data, commId, oldTaskIds, newTaskIds){
+    const oldSet = new Set(oldTaskIds||[]);
+    const newSet = new Set(newTaskIds||[]);
+    let changed = false;
+    data.tasks.forEach(t=>{
+      const has = oldSet.has(t.id);
+      const should = newSet.has(t.id);
+      if(has && !should){
+        t.commIds = (t.commIds||[]).filter(id=>id!==commId);
+        changed = true;
+      }else if(!has && should){
+        t.commIds = t.commIds||[];
+        if(!t.commIds.includes(commId)){ t.commIds.push(commId); changed = true; }
+      }
+    });
+    return changed;
+  }
+  /**
+   * Gegenstück zu syncCommTaskLinks: gleicht die taskIds-Arrays der betroffenen
+   * Kommunikationseinträge mit der aktuellen Verknüpfungsauswahl einer Aufgabe ab.
+   */
+  function syncTaskCommLinks(data, taskId, oldCommIds, newCommIds){
+    const oldSet = new Set(oldCommIds||[]);
+    const newSet = new Set(newCommIds||[]);
+    let changed = false;
+    data.comms.forEach(c=>{
+      const has = oldSet.has(c.id);
+      const should = newSet.has(c.id);
+      if(has && !should){
+        c.taskIds = (c.taskIds||[]).filter(id=>id!==taskId);
+        changed = true;
+      }else if(!has && should){
+        c.taskIds = c.taskIds||[];
+        if(!c.taskIds.includes(taskId)){ c.taskIds.push(taskId); changed = true; }
+      }
+    });
+    return changed;
   }
 
   // ---------- STORAGE SAFETY BANNER ----------
@@ -2040,6 +2213,7 @@
           </div>
           <div class="field"><label>Notiz / Zusammenfassung</label>${rtfFieldBlockHtml("k-notiz-preview", editObj?editObj.notiz:"", "Klicken, um eine Notiz zu erfassen…")}</div>
           <div class="field"><label>AFN-Nummer(n)</label>${afnFieldBlockHtml("k-afn-field", editObj?(editObj.afns||[]):[])}</div>
+          <div class="field"><label>Verknüpfte Aufgaben</label>${linkFieldBlockHtml("k-task-link-field", editObj?(editObj.taskIds||[]):[], data.tasks, taskLinkLabel, "— Aufgabe auswählen —")}</div>
           ${data.contacts.length===0?'<div class="contact-empty-note">Tipp: Lege zuerst Ansprechpartner an, um sie hier auszuwählen.</div>':''}
           <div class="btn-row">
             <button class="btn" id="save-comm">${editObj?"Speichern":"Hinzufügen"}</button>
@@ -2067,6 +2241,7 @@
                 ${c.afns&&c.afns.length?' '+afnViewMarkup(c.afns):''}
                 <div style="margin-top:5px;"><strong>${escapeHtml(c.betreff||'(kein Betreff)')}</strong></div>
                 ${!isEmptyHtml(c.notiz)?'<div class="rtf-content rtf-field-preview-compact" style="margin-top:3px;">'+c.notiz+'</div>':''}
+                ${linkChipsViewMarkup(c.taskIds, data.tasks, taskLinkLabel)}
               </div>
               <div class="actions">
                 ${hasAiKey() ? '<button class="icon-btn edit" data-extract="'+c.id+'" title="KI: Aufgaben für Fabian aus diesem Eintrag erkennen">🤖 Aufgaben erkennen</button>' : ''}
@@ -2080,6 +2255,7 @@
     el.innerHTML = html;
     let pendingCommNotiz = editObj ? (editObj.notiz||"") : "";
     let pendingCommAfns = editObj ? (editObj.afns||[]).slice() : [];
+    let pendingCommTaskIds = editObj ? (editObj.taskIds||[]).slice() : [];
     const commNotizBox = document.getElementById("k-notiz-preview");
     if(commNotizBox){
       wireRtfPreviewBox(
@@ -2090,6 +2266,8 @@
     }
     const commAfnField = document.getElementById("k-afn-field");
     if(commAfnField) wireAfnField(commAfnField, ()=>pendingCommAfns, (v)=>{ pendingCommAfns = v; });
+    const commTaskLinkField = document.getElementById("k-task-link-field");
+    if(commTaskLinkField) wireLinkField(commTaskLinkField, data.tasks, taskLinkLabel, "— Aufgabe auswählen —", ()=>pendingCommTaskIds, (v)=>{ pendingCommTaskIds = v; });
     const showNewCommBtn = document.getElementById("show-new-comm");
     if(showNewCommBtn) showNewCommBtn.addEventListener("click", ()=>{ state.showNewCommForm = true; renderProject(); });
     const hideNewCommBtn = document.getElementById("hide-new-comm");
@@ -2107,8 +2285,10 @@
         kontaktId: document.getElementById("k-kontakt").value,
         betreff: document.getElementById("k-betreff").value.trim(),
         notiz: pendingCommNotiz,
-        afns: pendingCommAfns
+        afns: pendingCommAfns,
+        taskIds: pendingCommTaskIds
       };
+      const prevTaskIds = editObj ? (editObj.taskIds||[]) : [];
       if(editObj){
         const idx = data.comms.findIndex(c=>c.id===editObj.id);
         data.comms[idx] = obj;
@@ -2116,6 +2296,9 @@
         data.comms.push(obj);
       }
       await sSet("comms:"+p.id, data.comms);
+      if(syncCommTaskLinks(data, obj.id, prevTaskIds, pendingCommTaskIds)){
+        await sSet("tasks:"+p.id, data.tasks);
+      }
       state.editingComm = null;
       state.showNewCommForm = false;
       renderProject();
@@ -2126,10 +2309,17 @@
     el.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click", async ()=>{
       const sure = await showConfirm("Diesen Eintrag löschen?");
       if(!sure) return;
+      const delComm = data.comms.find(c=>c.id===b.dataset.del);
       data.comms = data.comms.filter(c=>c.id!==b.dataset.del);
       await sSet("comms:"+p.id, data.comms);
+      if(delComm && syncCommTaskLinks(data, delComm.id, delComm.taskIds||[], [])){
+        await sSet("tasks:"+p.id, data.tasks);
+      }
       renderProject();
     }));
+    el.querySelectorAll("[data-link-jump]").forEach(chip=>{
+      chip.addEventListener("click", ()=>{ jumpToTask(chip.dataset.linkJump); });
+    });
   }
 
   // --- Tab: Dokumentation ---
@@ -2367,6 +2557,7 @@
           <div class="field"><label>Beschreibung</label>${rtfFieldBlockHtml("t-beschreibung-preview", "", "Klicken, um eine Beschreibung zu erfassen…")}</div>
           <div class="field"><label>Interne Notizen</label>${rtfFieldBlockHtml("t-notizen-preview", "", "Klicken, um interne Notizen zu erfassen…")}</div>
           <div class="field"><label>AFN-Nummer(n)</label>${afnFieldBlockHtml("t-afn-field", [])}</div>
+          <div class="field"><label>Verknüpfte Kommunikation</label>${linkFieldBlockHtml("t-comm-link-field", [], data.comms, commLinkLabel, "— Eintrag auswählen —")}</div>
           <div class="btn-row">
             <button class="btn" id="save-task">Hinzufügen</button>
           </div>
@@ -2429,6 +2620,7 @@
               ${rtfFieldBlockHtml("te-desc-preview-"+t.id, t.beschreibung||"", "Klicken, um eine Beschreibung zu erfassen…")}
               ${rtfFieldBlockHtml("te-notizen-preview-"+t.id, t.notizen||"", "Klicken, um interne Notizen zu erfassen…")}
               ${afnFieldBlockHtml("te-afn-field-"+t.id, t.afns||[])}
+              ${linkFieldBlockHtml("te-comm-link-field-"+t.id, t.commIds||[], data.comms, commLinkLabel, "— Eintrag auswählen —")}
               <div class="btn-row" style="margin-top:8px;">
                 <button class="btn small" id="te-save-${t.id}">Speichern</button>
                 <button class="btn secondary small" id="te-cancel-${t.id}">Abbrechen</button>
@@ -2451,6 +2643,7 @@
                   ${t.status==="wartet"?'<div class="wartet-auf-note">⏳ Wartet auf: '+escapeHtml(t.wartetAuf||"—")+'</div>':''}
                   ${!isEmptyHtml(t.beschreibung)?'<div class="rtf-content rtf-field-preview-compact" style="margin-top:4px;">'+t.beschreibung+'</div>':''}
                   ${!isEmptyHtml(t.notizen)?'<div class="meta" style="margin-top:4px;color:var(--violet);font-size:10.5px;text-transform:uppercase;letter-spacing:0.4px;">Interne Notiz</div><div class="rtf-content rtf-field-preview-compact">'+t.notizen+'</div>':''}
+                  ${linkChipsViewMarkup(t.commIds, data.comms, commLinkLabel)}
                 </div>
                 <div class="actions">
                   <button class="icon-btn" data-del="${t.id}">Löschen</button>
@@ -2465,6 +2658,7 @@
     let pendingNewTaskBeschreibung = "";
     let pendingNewTaskNotizen = "";
     let pendingNewTaskAfns = [];
+    let pendingNewTaskCommIds = [];
     const newTaskDescBox = document.getElementById("t-beschreibung-preview");
     if(newTaskDescBox){
       wireRtfPreviewBox(
@@ -2482,6 +2676,7 @@
       );
     }
     wireAfnField(document.getElementById("t-afn-field"), ()=>pendingNewTaskAfns, (v)=>{ pendingNewTaskAfns = v; });
+    wireLinkField(document.getElementById("t-comm-link-field"), data.comms, commLinkLabel, "— Eintrag auswählen —", ()=>pendingNewTaskCommIds, (v)=>{ pendingNewTaskCommIds = v; });
     const newTaskStatusSel = document.getElementById("t-status");
     const newTaskWartetField = document.getElementById("t-wartet-field");
     if(newTaskStatusSel && newTaskWartetField){
@@ -2508,8 +2703,9 @@
       if(!titel){ await showAlert("Bitte einen Titel angeben."); return; }
       const newStatus = document.getElementById("t-status").value;
       const nr = await nextTaskNr();
+      const newTaskId = uid();
       data.tasks.push({
-        id: uid(),
+        id: newTaskId,
         nr,
         titel,
         faelligAm: document.getElementById("t-faellig").value,
@@ -2520,12 +2716,16 @@
         beschreibung: pendingNewTaskBeschreibung,
         notizen: pendingNewTaskNotizen,
         afns: pendingNewTaskAfns,
+        commIds: pendingNewTaskCommIds,
         erstelltAm: new Date().toISOString(),
         abgeschlossenAm: null,
         doku: document.getElementById("t-doku").checked,
         dokuErledigt: false
       });
       await sSet("tasks:"+p.id, data.tasks);
+      if(syncTaskCommLinks(data, newTaskId, [], pendingNewTaskCommIds)){
+        await sSet("comms:"+p.id, data.comms);
+      }
       state.showNewTaskForm = false;
       renderProject();
     });
@@ -2533,10 +2733,13 @@
     // Click a task row (view mode) to open it for editing
     el.querySelectorAll("[data-open-task]").forEach(row=>{
       row.addEventListener("click", (e)=>{
-        if(e.target.closest("[data-del]")) return;
+        if(e.target.closest("[data-del]") || e.target.closest("[data-link-jump]")) return;
         state.editingTaskId = row.dataset.openTask;
         renderProject();
       });
+    });
+    el.querySelectorAll(".task-view-row [data-link-jump]").forEach(chip=>{
+      chip.addEventListener("click", (e)=>{ e.stopPropagation(); jumpToComm(chip.dataset.linkJump); });
     });
 
     // Edit-mode row: pending Beschreibung + Notizen + Speichern/Abbrechen/Löschen
@@ -2545,6 +2748,7 @@
       let pendingEditBeschreibung = editingTask.beschreibung || "";
       let pendingEditNotizen = editingTask.notizen || "";
       let pendingEditAfns = (editingTask.afns||[]).slice();
+      let pendingEditCommIds = (editingTask.commIds||[]).slice();
       wireRtfPreviewBox(
         document.getElementById("te-desc-preview-"+editingTask.id), "Beschreibung",
         ()=>pendingEditBeschreibung, (v)=>{ pendingEditBeschreibung = v; },
@@ -2556,6 +2760,7 @@
         "Klicken, um interne Notizen zu erfassen…"
       );
       wireAfnField(document.getElementById("te-afn-field-"+editingTask.id), ()=>pendingEditAfns, (v)=>{ pendingEditAfns = v; });
+      wireLinkField(document.getElementById("te-comm-link-field-"+editingTask.id), data.comms, commLinkLabel, "— Eintrag auswählen —", ()=>pendingEditCommIds, (v)=>{ pendingEditCommIds = v; }, jumpToComm);
       const editStatusSel = document.getElementById("te-status-"+editingTask.id);
       const editWartetField = document.getElementById("te-wartet-field-"+editingTask.id);
       if(editStatusSel && editWartetField){
@@ -2578,6 +2783,7 @@
           }
           const wartetAufInput = document.getElementById("te-wartet-auf-"+editingTask.id);
           const dokuCheckbox = document.getElementById("te-doku-"+editingTask.id);
+          const prevCommIds = data.tasks[idx].commIds||[];
           data.tasks[idx] = {
             ...data.tasks[idx],
             titel,
@@ -2589,10 +2795,14 @@
             beschreibung: pendingEditBeschreibung,
             notizen: pendingEditNotizen,
             afns: pendingEditAfns,
+            commIds: pendingEditCommIds,
             abgeschlossenAm,
             doku: dokuCheckbox ? dokuCheckbox.checked : (data.tasks[idx].doku||false)
           };
           await sSet("tasks:"+p.id, data.tasks);
+          if(syncTaskCommLinks(data, editingTask.id, prevCommIds, pendingEditCommIds)){
+            await sSet("comms:"+p.id, data.comms);
+          }
         }
         state.editingTaskId = null;
         renderProject();
@@ -2606,6 +2816,9 @@
         if(!sure) return;
         data.tasks = data.tasks.filter(x=>x.id!==editingTask.id);
         await sSet("tasks:"+p.id, data.tasks);
+        if(syncTaskCommLinks(data, editingTask.id, editingTask.commIds||[], [])){
+          await sSet("comms:"+p.id, data.comms);
+        }
         state.editingTaskId = null;
         renderProject();
       });
@@ -2618,8 +2831,12 @@
       e.stopPropagation();
       const sure911 = await showConfirm("Diese Aufgabe löschen?");
       if(!sure911) return;
+      const delTask = data.tasks.find(t=>t.id===b.dataset.del);
       data.tasks = data.tasks.filter(t=>t.id!==b.dataset.del);
       await sSet("tasks:"+p.id, data.tasks);
+      if(delTask && syncTaskCommLinks(data, delTask.id, delTask.commIds||[], [])){
+        await sSet("comms:"+p.id, data.comms);
+      }
       renderProject();
     }));
   }
@@ -3066,7 +3283,7 @@
         rows.push({Typ:"kontakt", ProjektId:p.id, Id:c.id, Titel:c.name, Rolle:c.rolle||"", Telefon:c.telefon||"", Email:c.email||"", Notiz:c.notiz||""});
       });
       data.comms.forEach(c=>{
-        rows.push({Typ:"kommunikation", ProjektId:p.id, Id:c.id, Datum:c.datum||"", Kanal:c.kanal||"", KontaktId:c.kontaktId||"", Betreff:c.betreff||"", Notiz:c.notiz||"", AFN:(c.afns||[]).join(";")});
+        rows.push({Typ:"kommunikation", ProjektId:p.id, Id:c.id, Datum:c.datum||"", Kanal:c.kanal||"", KontaktId:c.kontaktId||"", Betreff:c.betreff||"", Notiz:c.notiz||"", AFN:(c.afns||[]).join(";"), VerknuepfteAufgabenIds:(c.taskIds||[]).join(";")});
       });
       (state.docDefs||[]).forEach(def=>{
         const entry = data.doc[def.id];
@@ -3075,7 +3292,7 @@
         }
       });
       data.tasks.forEach(t=>{
-        rows.push({Typ:"aufgabe", ProjektId:p.id, Id:t.id, Titel:t.titel, Datum:t.faelligAm||"", Prioritaet:t.prioritaet||"", Status:t.status||"", KontaktId:t.kontaktId||"", Beschreibung:t.beschreibung||"", ErstelltAm:t.erstelltAm||"", AbgeschlossenAm:t.abgeschlossenAm||"", AFN:(t.afns||[]).join(";"), WartetAuf:t.wartetAuf||"", Notiz:t.notizen||"", Nr:t.nr||""});
+        rows.push({Typ:"aufgabe", ProjektId:p.id, Id:t.id, Titel:t.titel, Datum:t.faelligAm||"", Prioritaet:t.prioritaet||"", Status:t.status||"", KontaktId:t.kontaktId||"", Beschreibung:t.beschreibung||"", ErstelltAm:t.erstelltAm||"", AbgeschlossenAm:t.abgeschlossenAm||"", AFN:(t.afns||[]).join(";"), WartetAuf:t.wartetAuf||"", Notiz:t.notizen||"", Nr:t.nr||"", VerknuepfteKommIds:(t.commIds||[]).join(";")});
       });
       data.timeline.forEach(m=>{
         rows.push({Typ:"meilenstein", ProjektId:p.id, Id:m.id, Titel:m.titel, Datum:m.datum||"", Status:m.status||"", Notiz:m.notiz||""});
@@ -3134,7 +3351,8 @@
     rows.filter(r=>r.Typ==="kommunikation").forEach(r=>{
       (commsByProject[r.ProjektId] = commsByProject[r.ProjektId]||[]).push({
         id:r.Id, datum:r.Datum||"", kanal:r.Kanal||"", kontaktId:r.KontaktId||"", betreff:r.Betreff||"", notiz:r.Notiz||"",
-        afns: (r.AFN||"").split(";").map(s=>s.trim()).filter(Boolean)
+        afns: (r.AFN||"").split(";").map(s=>s.trim()).filter(Boolean),
+        taskIds: (r.VerknuepfteAufgabenIds||"").split(";").map(s=>s.trim()).filter(Boolean)
       });
     });
     rows.filter(r=>r.Typ==="dokuinhalt").forEach(r=>{
@@ -3148,7 +3366,8 @@
         erstelltAm:r.ErstelltAm||null, abgeschlossenAm:r.AbgeschlossenAm||null,
         afns: (r.AFN||"").split(";").map(s=>s.trim()).filter(Boolean),
         wartetAuf: r.WartetAuf||"", notizen: r.Notiz||"",
-        nr: r.Nr!==undefined && r.Nr!=="" ? (parseInt(r.Nr)||undefined) : undefined
+        nr: r.Nr!==undefined && r.Nr!=="" ? (parseInt(r.Nr)||undefined) : undefined,
+        commIds: (r.VerknuepfteKommIds||"").split(";").map(s=>s.trim()).filter(Boolean)
       });
     });
     rows.filter(r=>r.Typ==="meilenstein").forEach(r=>{
@@ -3528,10 +3747,13 @@
       const extracted = await extractTasksFromComm(c, p, data);
       const selected = await showTaskExtractionReview(extracted);
       if(selected && selected.length){
+        const newTaskIds = [];
         for(const t of selected){
           const nr = await nextTaskNr();
+          const newTaskId = uid();
+          newTaskIds.push(newTaskId);
           data.tasks.push({
-            id: uid(),
+            id: newTaskId,
             nr,
             titel: t.titel,
             faelligAm: t.faelligAm,
@@ -3540,11 +3762,18 @@
             kontaktId: c.kontaktId || "",
             beschreibung: t.beschreibung ? "<p>"+escapeHtml(t.beschreibung)+"</p>" : "",
             afns: (c.afns||[]).slice(),
+            commIds: [c.id],
             erstelltAm: new Date().toISOString(),
             abgeschlossenAm: null
           });
         }
         await sSet("tasks:"+p.id, data.tasks);
+        // Aus diesem Eintrag erkannte Aufgaben automatisch mit ihm verknüpfen
+        const commIdx = data.comms.findIndex(x=>x.id===c.id);
+        if(commIdx>=0){
+          data.comms[commIdx].taskIds = Array.from(new Set([...(data.comms[commIdx].taskIds||[]), ...newTaskIds]));
+          await sSet("comms:"+p.id, data.comms);
+        }
         renderProject();
         return;
       }
