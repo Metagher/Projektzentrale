@@ -1,7 +1,7 @@
 import { useUiStore } from '../../store/uiStore';
+import Dashboard from '../dashboard/Dashboard';
 
 const VIEW_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
   project: 'Projekt',
   settings: 'Oberpunkte verwalten',
   data: 'CSV Import / Export',
@@ -13,6 +13,14 @@ const VIEW_LABELS: Record<string, string> = {
 
 export default function MainShell() {
   const view = useUiStore((s) => s.view);
+
+  if (view === 'dashboard') {
+    return (
+      <div id="main">
+        <Dashboard />
+      </div>
+    );
+  }
 
   return (
     <div id="main">
