@@ -1,6 +1,9 @@
 import { fmtDate, htmlToPlainText, todayStr, truncateText } from './format';
 import { prioLabel } from './constants';
-import type { DashboardData } from '../store/dataStore';
+import { computeDocLabels } from './docOutline';
+import { hasEchtlauf } from './format';
+import { useDataStore, type DashboardData } from '../store/dataStore';
+import type { Project, ProjectCache } from '../types/entities';
 
 export function buildDailyBriefingContext(dashboardData: DashboardData | null): string {
   const lines: string[] = [];
@@ -35,4 +38,94 @@ export function buildDailyBriefingContext(dashboardData: DashboardData | null): 
     });
   }
   return truncateText(lines.join('\n'), 60000);
+}
+
+export function buildProjectContextBlock(p: Project, data: ProjectCache, labels: Record<string, string>): string {
+  const docDefs = useDataStore.getState().docDefs || [];
+  const lines: string[] = [];
+  lines.push(`=== Projekt: ${p.name} (Kunde: ${p.kunde || '—'}, Typ: ${p.typ}, Status: ${p.status}) ===`);
+  if (p.beschreibung) lines.push('Beschreibung: ' + htmlToPlainText(p.beschreibung));
+  if (p.aktuelleVersion) lines.push('Aktuelle Programmversion: ' + p.aktuelleVersion);
+
+  if (data.updates.length) {
+    lines.push(`Punkte für das nächste Update (noch nicht ausgerollt, angesammelt seit Version ${p.aktuelleVersion || '—'}):`);
+    data.updates
+      .slice()
+      .sort((a, b) => (a.datum || '').localeCompare(b.datum || ''))
+      .forEach((u) => {
+        const afnText = u.afns && u.afns.length ? ` [AFN: ${u.afns.join(', ')}]` : '';
+        const beschreibungText = htmlToPlainText(u.beschreibung);
+        lines.push(`- ${fmtDate(u.datum)} | ${u.titel}${u.revision ? ` (${u.revision})` : ''}${afnText}${beschreibungText ? ': ' + beschreibungText : ''}`);
+      });
+  }
+
+  if (data.contacts.length) {
+    lines.push('Ansprechpartner:');
+    data.contacts.forEach((c) => {
+      const notizText = htmlToPlainText(c.notiz);
+      lines.push(`- ${c.name}${c.rolle ? ` (${c.rolle})` : ''}${c.telefon ? ', Tel: ' + c.telefon : ''}${c.email ? ', Mail: ' + c.email : ''}${notizText ? ' — Notiz: ' + notizText : ''}`);
+    });
+  }
+  if (data.comms.length) {
+    lines.push('Kommunikationsverlauf:');
+    data.comms
+      .slice()
+      .sort((a, b) => (a.datum || '').localeCompare(b.datum || ''))
+      .forEach((c) => {
+        const contact = data.contacts.find((x) => x.id === c.kontaktId);
+        const notizText = htmlToPlainText(c.notiz);
+        const afnText = c.afns && c.afns.length ? ` [AFN: ${c.afns.join(', ')}]` : '';
+        lines.push(`- ${fmtDate(c.datum)} | ${c.kanal}${contact ? ' | ' + contact.name : ''} | ${c.betreff || '(kein Betreff)'}${afnText}${notizText ? ': ' + notizText : ''}`);
+      });
+  }
+  const hidden = (data.doc._hidden as string[] | undefined) || [];
+  const visibleDefs = docDefs.filter((d) => !hidden.includes(d.id));
+  const docLines: string[] = [];
+  visibleDefs.forEach((d) => {
+    const entry = data.doc[d.id];
+    const contentText = entry && !Array.isArray(entry) ? htmlToPlainText(entry.content) : '';
+    const afnText = entry && !Array.isArray(entry) && entry.afns && entry.afns.length ? ` [AFN: ${entry.afns.join(', ')}]` : '';
+    if (contentText) docLines.push(`${labels[d.id] || ''} ${d.title}${afnText}: ${contentText}`);
+  });
+  if (docLines.length) {
+    lines.push('Projektdokumentation:');
+    lines.push(...docLines.map((l) => '- ' + l));
+  }
+  if (data.tasks.length) {
+    lines.push('Aufgaben:');
+    data.tasks.forEach((t) => {
+      const contact = data.contacts.find((x) => x.id === t.kontaktId);
+      const beschreibungText = htmlToPlainText(t.beschreibung);
+      const notizenText = htmlToPlainText(t.notizen);
+      const afnText = t.afns && t.afns.length ? ` [AFN: ${t.afns.join(', ')}]` : '';
+      const wartetText = t.status === 'wartet' && t.wartetAuf ? `, wartet auf: ${t.wartetAuf}` : '';
+      lines.push(
+        `- [${t.status}] ${t.titel}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}, Priorität: ${prioLabel(t.prioritaet)}${wartetText}${contact ? `, Ansprechpartner: ${contact.name}` : ''}${beschreibungText ? ' — ' + beschreibungText : ''}${notizenText ? ` [Interne Notiz: ${notizenText}]` : ''}`,
+      );
+    });
+  }
+  if (hasEchtlauf(p) && data.timeline.length) {
+    lines.push('Echtlauf-Zeitplan:');
+    data.timeline.forEach((m) => {
+      const notizText = htmlToPlainText(m.notiz);
+      lines.push(`- ${fmtDate(m.datum)} | ${m.status} | ${m.titel}${notizText ? ': ' + notizText : ''}`);
+    });
+  }
+  return lines.join('\n');
+}
+
+export async function buildAllProjectsContext(): Promise<string> {
+  const { projects, docDefs, ensureProjectData } = useDataStore.getState();
+  const labels = computeDocLabels(docDefs || []);
+  const blocks: string[] = [];
+  for (const p of projects || []) {
+    const data = await ensureProjectData(p.id);
+    blocks.push(buildProjectContextBlock(p, data, labels));
+  }
+  return truncateText(blocks.join('\n\n'), 180000);
+}
+
+export function buildSingleProjectContext(p: Project, data: ProjectCache): string {
+  const labels = computeDocLabels(useDataStore.getState().docDefs || []);
+  return truncateText(buildProjectContextBlock(p, data, labels), 180000);
 }

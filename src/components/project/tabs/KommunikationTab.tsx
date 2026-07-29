@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useDataStore } from '../../../store/dataStore';
 import { useProjectUiStore } from '../../../store/projectUiStore';
 import { useModalStore } from '../../../store/modalStore';
+import { useAiStore } from '../../../store/aiStore';
 import { CHANNELS } from '../../../lib/constants';
-import { fmtDate, isEmptyHtml, taskLinkLabel, todayStr, uid } from '../../../lib/format';
+import { escapeHtml, fmtDate, htmlToPlainText, isEmptyHtml, taskLinkLabel, todayStr, uid } from '../../../lib/format';
+import { extractTasksFromComm } from '../../../lib/ai';
 import RtfField from '../../shared/RtfField';
 import AfnChipsField from '../../shared/AfnChipsField';
 import AfnChipsView from '../../shared/AfnChipsView';
@@ -15,8 +17,13 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   const saveComm = useDataStore((s) => s.saveComm);
   const deleteComm = useDataStore((s) => s.deleteComm);
   const syncTaskLinksForComm = useDataStore((s) => s.syncTaskLinksForComm);
+  const createTask = useDataStore((s) => s.createTask);
+  const keyPresent = useAiStore((s) => s.keyPresent);
   const { editingComm, setEditingComm, showNewCommForm, setShowNewCommForm, jumpToTask } = useProjectUiStore();
   const confirm = useModalStore((s) => s.confirm);
+  const alert = useModalStore((s) => s.alert);
+  const taskExtractionReview = useModalStore((s) => s.taskExtractionReview);
+  const [extractingId, setExtractingId] = useState<string | null>(null);
 
   const editObj = editingComm ? data.comms.find((c) => c.id === editingComm) : null;
   const showForm = !!editObj || showNewCommForm;
@@ -74,6 +81,39 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
     if (!sure) return;
     await deleteComm(projectId, c.id);
     await syncTaskLinksForComm(projectId, c.id, c.taskIds || [], []);
+  }
+
+  async function handleExtractTasks(c: Comm) {
+    setExtractingId(c.id);
+    try {
+      const contact = data.contacts.find((x) => x.id === c.kontaktId);
+      const extracted = await extractTasksFromComm(c, contact?.name, todayStr(), htmlToPlainText);
+      const selected = await taskExtractionReview(extracted);
+      if (selected && selected.length) {
+        const newTaskIds: string[] = [];
+        for (const t of selected) {
+          const newId = await createTask(projectId, {
+            titel: t.titel,
+            faelligAm: t.faelligAm,
+            prioritaet: t.prioritaet,
+            status: 'offen',
+            wartetAuf: '',
+            kontaktId: c.kontaktId || '',
+            beschreibung: t.beschreibung ? `<p>${escapeHtml(t.beschreibung)}</p>` : '',
+            notizen: '',
+            afns: (c.afns || []).slice(),
+            commIds: [c.id],
+            doku: false,
+            dokuErledigt: false,
+          });
+          newTaskIds.push(newId);
+        }
+        await saveComm(projectId, { ...c, taskIds: Array.from(new Set([...(c.taskIds || []), ...newTaskIds])) });
+      }
+    } catch (err) {
+      await alert(`Aufgaben konnten nicht erkannt werden. (${(err as Error).message})`);
+    }
+    setExtractingId(null);
   }
 
   const sorted = data.comms.slice().sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
@@ -194,6 +234,17 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
                   <LinkChipsView ids={c.taskIds} items={data.tasks} labelFn={taskLinkLabel} onJump={jumpToTask} />
                 </div>
                 <div className="actions">
+                  {keyPresent && (
+                    <button
+                      className="icon-btn edit"
+                      title="KI: Aufgaben für Fabian aus diesem Eintrag erkennen"
+                      disabled={extractingId === c.id}
+                      style={extractingId === c.id ? { pointerEvents: 'none', opacity: 0.6 } : undefined}
+                      onClick={() => handleExtractTasks(c)}
+                    >
+                      {extractingId === c.id ? 'Analysiere…' : '🤖 Aufgaben erkennen'}
+                    </button>
+                  )}
                   <button className="icon-btn edit" onClick={() => startEdit(c)}>
                     Bearbeiten
                   </button>

@@ -63,6 +63,10 @@ export function projectCode(p: { id: string; createdAt: string }): string {
   return 'P-' + d.getFullYear().toString().slice(2) + String(d.getMonth() + 1).padStart(2, '0') + '-' + p.id.slice(-4).toUpperCase();
 }
 
+export function escapeHtml(str: string): string {
+  return str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+}
+
 export function htmlToPlainText(html: string | null | undefined): string {
   if (!html) return '';
   const tmp = document.createElement('div');

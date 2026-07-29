@@ -2,9 +2,9 @@ import { create } from 'zustand';
 import { sGet, sSet } from '../lib/supabase';
 import { useConnectionStore } from './connectionStore';
 import { useDataStore } from './dataStore';
-import { callAnthropicApi } from '../lib/ai';
-import { buildDailyBriefingContext } from '../lib/aiContext';
-import type { DailyBriefing } from '../types/entities';
+import { callAiSearch, callAnthropicApi, clearAiKey, hasAiKey, setAiKey } from '../lib/ai';
+import { buildAllProjectsContext, buildDailyBriefingContext, buildSingleProjectContext } from '../lib/aiContext';
+import type { DailyBriefing, Project, ProjectCache } from '../types/entities';
 
 function client() {
   const c = useConnectionStore.getState().client;
@@ -13,11 +13,31 @@ function client() {
 }
 
 interface AiStoreState {
+  keyPresent: boolean;
+  saveKey: (key: string) => void;
+  removeKey: () => void;
+
   dailyBriefing: DailyBriefing | null | undefined; // undefined = not loaded yet
   dailyBriefingLoading: boolean;
   dailyBriefingError: string | null;
   loadDailyBriefing: () => Promise<void>;
   refreshDailyBriefing: () => Promise<void>;
+
+  aiQuery: string;
+  aiAnswer: string;
+  aiError: string | null;
+  aiLoading: boolean;
+  askGlobal: (question: string) => Promise<void>;
+
+  projectAiQuery: string;
+  projectAiAnswer: string;
+  projectAiError: string | null;
+  projectAiLoading: boolean;
+  askProject: (p: Project, data: ProjectCache, question: string) => Promise<void>;
+
+  projectAiSummaryLoading: boolean;
+  projectAiSummaryError: string | null;
+  refreshProjectAiSummary: (p: Project, data: ProjectCache) => Promise<void>;
 }
 
 async function generateDailyBriefing(): Promise<string[]> {
@@ -39,13 +59,40 @@ async function generateDailyBriefing(): Promise<string[]> {
   return lines.length ? lines : ['Keine Einschätzung erhalten.'];
 }
 
-export const useAiStore = create<AiStoreState>((set, get) => ({
+async function generateProjectAiSummary(p: Project, data: ProjectCache): Promise<string[]> {
+  const ctx = buildSingleProjectContext(p, data);
+  const systemPrompt =
+    'Du bist ein Assistent für einen ERP-Consultant im Bereich Lebensmittel-/Fleischverarbeitung. ' +
+    'Fasse den aktuellen Stand eines Projekts in genau 5 kurzen, prägnanten Punkten zusammen — je Punkt maximal ein Satz. ' +
+    'Berücksichtige besonders: offene Punkte/Risiken, letzte wichtige Kommunikation, anstehende oder überfällige Aufgaben, aktuellen Gesamtstatus. ' +
+    'Nutze ausschließlich die bereitgestellten Projektdaten, erfinde nichts. Antworte NUR mit den 5 Punkten, jeder auf einer eigenen Zeile, ohne Einleitung, ohne Nummerierung, ohne Aufzählungszeichen.';
+  const userContent = `PROJEKTDATEN:\n${ctx}\n\nErstelle jetzt die 5 Punkte.`;
+  const text = await callAnthropicApi(systemPrompt, userContent, 600);
+  const lines = text
+    .split('\n')
+    .map((l) => l.replace(/^[\s\-•*\d.]+/, '').trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  return lines.length ? lines : ['Keine Zusammenfassung erhalten.'];
+}
+
+export const useAiStore = create<AiStoreState>((set) => ({
+  keyPresent: hasAiKey(),
+  saveKey: (key) => {
+    setAiKey(key);
+    set({ keyPresent: true });
+  },
+  removeKey: () => {
+    clearAiKey();
+    set({ keyPresent: false });
+  },
+
   dailyBriefing: undefined,
   dailyBriefingLoading: false,
   dailyBriefingError: null,
 
   loadDailyBriefing: async () => {
-    if (get().dailyBriefing !== undefined) return;
+    if (useAiStore.getState().dailyBriefing !== undefined) return;
     const briefing = (await sGet<DailyBriefing>(client(), 'ai-daily-briefing')) || null;
     set({ dailyBriefing: briefing });
   },
@@ -61,5 +108,58 @@ export const useAiStore = create<AiStoreState>((set, get) => ({
       set({ dailyBriefingError: `Die Einschätzung konnte nicht erstellt werden. (${(err as Error).message})` });
     }
     set({ dailyBriefingLoading: false });
+  },
+
+  aiQuery: '',
+  aiAnswer: '',
+  aiError: null,
+  aiLoading: false,
+
+  askGlobal: async (question) => {
+    set({ aiQuery: question, aiLoading: true, aiError: null, aiAnswer: '' });
+    try {
+      const ctx = await buildAllProjectsContext();
+      const answer = await callAiSearch(ctx, question);
+      set({ aiAnswer: answer });
+    } catch (err) {
+      set({ aiError: `Die KI-Suche ist fehlgeschlagen. Bitte erneut versuchen. (${(err as Error).message})` });
+    }
+    set({ aiLoading: false });
+  },
+
+  projectAiQuery: '',
+  projectAiAnswer: '',
+  projectAiError: null,
+  projectAiLoading: false,
+
+  askProject: async (p, data, question) => {
+    set({ projectAiQuery: question, projectAiLoading: true, projectAiError: null, projectAiAnswer: '' });
+    try {
+      const ctx = buildSingleProjectContext(p, data);
+      const answer = await callAiSearch(ctx, question);
+      set({ projectAiAnswer: answer });
+    } catch (err) {
+      set({ projectAiError: `Die KI-Suche ist fehlgeschlagen. Bitte erneut versuchen. (${(err as Error).message})` });
+    }
+    set({ projectAiLoading: false });
+  },
+
+  projectAiSummaryLoading: false,
+  projectAiSummaryError: null,
+
+  refreshProjectAiSummary: async (p, data) => {
+    set({ projectAiSummaryLoading: true, projectAiSummaryError: null });
+    try {
+      const points = await generateProjectAiSummary(p, data);
+      const summary = { points, generatedAt: new Date().toISOString() };
+      await sSet(client(), 'ai-summary:' + p.id, summary);
+      const cache = { ...useDataStore.getState().cache };
+      const existing = cache[p.id];
+      if (existing) cache[p.id] = { ...existing, aiSummary: summary };
+      useDataStore.setState({ cache });
+    } catch (err) {
+      set({ projectAiSummaryError: `KI-Übersicht konnte nicht erstellt werden. (${(err as Error).message})` });
+    }
+    set({ projectAiSummaryLoading: false });
   },
 }));

@@ -3,7 +3,7 @@ import { useUiStore } from '../../store/uiStore';
 import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { useDragReorder } from '../../hooks/useDragReorder';
-import { hasAiKey } from '../../lib/ai';
+import { useAiStore } from '../../store/aiStore';
 import ProjectTicket from './ProjectTicket';
 import type { Project, ProjectStatus } from '../../types/entities';
 
@@ -28,7 +28,7 @@ export default function Sidebar() {
   const reorderProjects = useDataStore((s) => s.reorderProjects);
   const createProject = useDataStore((s) => s.createProject);
   const newProjectForm = useModalStore((s) => s.newProjectForm);
-  const aiAvailable = hasAiKey();
+  const aiAvailable = useAiStore((s) => s.keyPresent);
 
   useEffect(() => {
     if (!aiAvailable && view === 'ai') goTo('dashboard');

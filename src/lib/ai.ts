@@ -60,3 +60,62 @@ export function parseJsonArrayResponse<T>(text: string): T[] {
   if (!Array.isArray(parsed)) throw new Error('Antwort war kein JSON-Array.');
   return parsed as T[];
 }
+
+export async function callAiSearch(contextText: string, question: string): Promise<string> {
+  const systemPrompt =
+    'Du bist ein Assistent für einen ERP-Consultant im Bereich Lebensmittel-/Fleischverarbeitung. ' +
+    'Du beantwortest Fragen ausschließlich auf Basis der bereitgestellten Projektdaten (Kommunikationsverlauf, Dokumentation, Ansprechpartner, Aufgaben, Echtlauf-Zeitpläne). ' +
+    'Antworte auf Deutsch, präzise und konkret. Nenne bei Aussagen zu einzelnen Projekten immer den Projektnamen. ' +
+    'Wenn die Information in den Daten nicht enthalten ist, sag das ehrlich, statt zu spekulieren. Erfinde keine Fakten.';
+  const userContent = `PROJEKTDATEN:\n${contextText}\n\nFRAGE: ${question}`;
+  const text = await callAnthropicApi(systemPrompt, userContent, 1500);
+  return text || 'Keine Antwort erhalten.';
+}
+
+export interface ExtractedTask {
+  titel: string;
+  beschreibung: string;
+  faelligAm: string;
+  prioritaet: 'must' | 'should' | 'could' | 'wont';
+}
+
+export async function extractTasksFromComm(
+  comm: { datum: string; kanal: string; betreff: string; notiz: string },
+  contactName: string | undefined,
+  todayStr: string,
+  htmlToPlainText: (html: string) => string,
+): Promise<ExtractedTask[]> {
+  const notizText = htmlToPlainText(comm.notiz);
+  const systemPrompt =
+    'Du analysierst einen einzelnen Kommunikationseintrag (Teams/Telefon/Mail/Vor-Ort-Notiz) eines ERP-Consultants namens Fabian, der Kundenprojekte im Bereich Lebensmittel-/Fleischverarbeitung betreut. ' +
+    'Extrahiere ausschließlich konkrete Aufgaben, die FABIAN SELBST noch erledigen muss (z.B. eigene Zusagen, offene To-dos von ihm). ' +
+    'Ignoriere Aufgaben oder Zusagen, die andere Personen (Kunde, Kollegen, Dritte) zu erledigen haben. ' +
+    'Antworte AUSSCHLIESSLICH mit einem validen JSON-Array, ohne Erklärung, ohne Markdown-Codeblock, ohne führenden oder folgenden Text. ' +
+    'Format je Element: {"titel": string (kurz, max. ca. 80 Zeichen), "beschreibung": string (kurzer Kontext, oder leerer String), ' +
+    '"faelligAm": string im Format JJJJ-MM-TT falls im Text ein konkretes oder eindeutig relatives Datum genannt wird, sonst leerer String, ' +
+    '"prioritaet": "must" (Must have) oder "should" (Should have) oder "could" (Could have) oder "wont" (Won\'t have), nach der MoSCoW-Methode}. ' +
+    'Wenn keine Aufgaben für Fabian erkennbar sind, antworte mit [].';
+  const userContent =
+    `Heutiges Datum: ${todayStr}\n` +
+    `Datum des Eintrags: ${comm.datum || 'unbekannt'}\n` +
+    `Kanal: ${comm.kanal}\n` +
+    `Ansprechpartner: ${contactName || 'unbekannt'}\n` +
+    `Betreff: ${comm.betreff || '(kein Betreff)'}\n` +
+    `Notiz:\n${notizText || '(keine Notiz erfasst)'}`;
+  const text = await callAnthropicApi(systemPrompt, userContent, 800);
+  let parsed: unknown;
+  try {
+    parsed = parseJsonArrayResponse<Record<string, unknown>>(text);
+  } catch {
+    throw new Error('Antwort der KI konnte nicht gelesen werden');
+  }
+  const TASK_PRIO_VALUES = ['must', 'should', 'could', 'wont'];
+  return (parsed as Record<string, unknown>[])
+    .filter((t) => t && t.titel)
+    .map((t) => ({
+      titel: String(t.titel).slice(0, 200),
+      beschreibung: t.beschreibung ? String(t.beschreibung) : '',
+      faelligAm: /^\d{4}-\d{2}-\d{2}$/.test(String(t.faelligAm)) ? String(t.faelligAm) : '',
+      prioritaet: (TASK_PRIO_VALUES.includes(t.prioritaet as string) ? t.prioritaet : 'should') as ExtractedTask['prioritaet'],
+    }));
+}

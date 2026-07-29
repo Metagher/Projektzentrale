@@ -6,6 +6,7 @@ import ProjectNewTaskForm from '../ProjectNewTaskForm';
 import ProjectTaskFilterBar from '../ProjectTaskFilterBar';
 import ProjectTaskRow from '../ProjectTaskRow';
 import ProjectTaskEditRow from '../ProjectTaskEditRow';
+import AiSummaryCard from '../AiSummaryCard';
 import type { Project, ProjectCache, TaskStatus } from '../../../types/entities';
 
 const STATUS_ORDER: Record<TaskStatus, number> = { offen: 0, 'in Arbeit': 1, wartet: 2, erledigt: 3 };
@@ -61,6 +62,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
 
   return (
     <>
+      <AiSummaryCard project={project} data={data} />
       {showNewTaskForm ? (
         <ProjectNewTaskForm projectId={project.id} data={data} />
       ) : (

@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
 import { useAiStore } from '../../store/aiStore';
-import { hasAiKey } from '../../lib/ai';
 import { fmtDateTime } from '../../lib/format';
 
 export default function DailyBriefingCard() {
-  const { dailyBriefing, dailyBriefingLoading, dailyBriefingError, loadDailyBriefing, refreshDailyBriefing } =
+  const { dailyBriefing, dailyBriefingLoading, dailyBriefingError, loadDailyBriefing, refreshDailyBriefing, keyPresent } =
     useAiStore();
-  const aiAvailable = hasAiKey();
+  const aiAvailable = keyPresent;
 
   useEffect(() => {
     if (aiAvailable) loadDailyBriefing();

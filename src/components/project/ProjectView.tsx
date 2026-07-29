@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
-import { hasAiKey } from '../../lib/ai';
+import { useAiStore } from '../../store/aiStore';
 import { hasEchtlauf, projectCode } from '../../lib/format';
 import UebersichtTab from './tabs/UebersichtTab';
 import AnsprechpartnerTab from './tabs/AnsprechpartnerTab';
@@ -10,6 +10,7 @@ import DokumentationTab from './tabs/DokumentationTab';
 import AufgabenTab from './tabs/AufgabenTab';
 import EchtlaufTab from './tabs/EchtlaufTab';
 import UpdateTab from './tabs/UpdateTab';
+import KiSucheTab from './tabs/KiSucheTab';
 
 const STATUS_LABELS: Record<string, string> = { aktiv: 'Aktiv', pausiert: 'Pausiert', abgeschlossen: 'Abgeschlossen' };
 
@@ -24,7 +25,7 @@ export default function ProjectView() {
 
   const project = projects?.find((p) => p.id === selectedId);
   const data = selectedId ? cache[selectedId] : undefined;
-  const aiAvailable = hasAiKey();
+  const aiAvailable = useAiStore((s) => s.keyPresent);
 
   useEffect(() => {
     if (selectedId) ensureProjectData(selectedId);
@@ -59,8 +60,7 @@ export default function ProjectView() {
     tabContent = (
       <p className="empty-hint">Diese Ansicht wird in einer der nächsten Phasen des Rewrites befüllt.</p>
     );
-  else if (activeTab === 'ki-suche')
-    tabContent = <p className="empty-hint">Diese Ansicht wird in einer der nächsten Phasen des Rewrites befüllt.</p>;
+  else if (activeTab === 'ki-suche') tabContent = <KiSucheTab project={project} data={data} />;
   else tabContent = <AufgabenTab project={project} data={data} />;
 
   return (
