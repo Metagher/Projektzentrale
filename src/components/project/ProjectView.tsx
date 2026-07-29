@@ -11,6 +11,7 @@ import AufgabenTab from './tabs/AufgabenTab';
 import EchtlaufTab from './tabs/EchtlaufTab';
 import UpdateTab from './tabs/UpdateTab';
 import KiSucheTab from './tabs/KiSucheTab';
+import AuswertungTab from './tabs/AuswertungTab';
 
 const STATUS_LABELS: Record<string, string> = { aktiv: 'Aktiv', pausiert: 'Pausiert', abgeschlossen: 'Abgeschlossen' };
 
@@ -56,10 +57,7 @@ export default function ProjectView() {
   else if (activeTab === 'dokumentation') tabContent = <DokumentationTab projectId={project.id} data={data} />;
   else if (activeTab === 'zeitplan') tabContent = <EchtlaufTab projectId={project.id} data={data} />;
   else if (activeTab === 'update') tabContent = <UpdateTab project={project} data={data} />;
-  else if (activeTab === 'auswertung')
-    tabContent = (
-      <p className="empty-hint">Diese Ansicht wird in einer der nächsten Phasen des Rewrites befüllt.</p>
-    );
+  else if (activeTab === 'auswertung') tabContent = <AuswertungTab project={project} data={data} />;
   else if (activeTab === 'ki-suche') tabContent = <KiSucheTab project={project} data={data} />;
   else tabContent = <AufgabenTab project={project} data={data} />;
 
