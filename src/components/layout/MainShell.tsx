@@ -1,9 +1,9 @@
 import { useUiStore } from '../../store/uiStore';
 import Dashboard from '../dashboard/Dashboard';
 import ProjectView from '../project/ProjectView';
+import SettingsView from '../settings/SettingsView';
 
 const VIEW_LABELS: Record<string, string> = {
-  settings: 'Oberpunkte verwalten',
   data: 'CSV Import / Export',
   ai: 'KI-Suche',
   knowledge: 'Wissensdatenbank',
@@ -26,6 +26,14 @@ export default function MainShell() {
     return (
       <div id="main">
         <ProjectView />
+      </div>
+    );
+  }
+
+  if (view === 'settings') {
+    return (
+      <div id="main">
+        <SettingsView />
       </div>
     );
   }
