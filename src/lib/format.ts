@@ -78,3 +78,15 @@ export function isEmptyHtml(html: string | null | undefined): boolean {
   if (!html) return true;
   return htmlToPlainText(html).length === 0;
 }
+
+export function taskLinkLabel(t: { nr: number; titel: string }): string {
+  return `#${t.nr || '?'} ${t.titel}`;
+}
+
+export function commLinkLabel(c: { datum: string; kanal: string; betreff: string }): string {
+  const parts: string[] = [];
+  if (c.datum) parts.push(fmtDate(c.datum));
+  if (c.kanal) parts.push(c.kanal);
+  parts.push(c.betreff || '(kein Betreff)');
+  return parts.join(' · ');
+}

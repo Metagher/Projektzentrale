@@ -1,0 +1,132 @@
+import { useEffect } from 'react';
+import { useDataStore } from '../../store/dataStore';
+import { useUiStore } from '../../store/uiStore';
+import { hasAiKey } from '../../lib/ai';
+import { hasEchtlauf, projectCode } from '../../lib/format';
+import UebersichtTab from './tabs/UebersichtTab';
+import AnsprechpartnerTab from './tabs/AnsprechpartnerTab';
+import KommunikationTab from './tabs/KommunikationTab';
+import DokumentationTab from './tabs/DokumentationTab';
+import AufgabenTab from './tabs/AufgabenTab';
+import EchtlaufTab from './tabs/EchtlaufTab';
+import UpdateTab from './tabs/UpdateTab';
+
+const STATUS_LABELS: Record<string, string> = { aktiv: 'Aktiv', pausiert: 'Pausiert', abgeschlossen: 'Abgeschlossen' };
+
+export default function ProjectView() {
+  const selectedId = useUiStore((s) => s.selectedId);
+  const activeTab = useUiStore((s) => s.activeTab);
+  const setActiveTab = useUiStore((s) => s.setActiveTab);
+  const goTo = useUiStore((s) => s.goTo);
+  const projects = useDataStore((s) => s.projects);
+  const cache = useDataStore((s) => s.cache);
+  const ensureProjectData = useDataStore((s) => s.ensureProjectData);
+
+  const project = projects?.find((p) => p.id === selectedId);
+  const data = selectedId ? cache[selectedId] : undefined;
+  const aiAvailable = hasAiKey();
+
+  useEffect(() => {
+    if (selectedId) ensureProjectData(selectedId);
+  }, [selectedId, ensureProjectData]);
+
+  useEffect(() => {
+    if (projects && !project) goTo('dashboard');
+  }, [projects, project, goTo]);
+
+  useEffect(() => {
+    if (activeTab === 'ki-suche' && !aiAvailable) setActiveTab('aufgaben');
+  }, [activeTab, aiAvailable, setActiveTab]);
+
+  if (!project || !data) {
+    return (
+      <div className="main-inner">
+        <div className="loading-note">Lade Projekt…</div>
+      </div>
+    );
+  }
+
+  const echtlauf = hasEchtlauf(project);
+
+  let tabContent = null;
+  if (activeTab === 'uebersicht') tabContent = <UebersichtTab project={project} />;
+  else if (activeTab === 'ansprechpartner') tabContent = <AnsprechpartnerTab projectId={project.id} data={data} />;
+  else if (activeTab === 'kommunikation') tabContent = <KommunikationTab projectId={project.id} data={data} />;
+  else if (activeTab === 'dokumentation') tabContent = <DokumentationTab projectId={project.id} data={data} />;
+  else if (activeTab === 'zeitplan') tabContent = <EchtlaufTab projectId={project.id} data={data} />;
+  else if (activeTab === 'update') tabContent = <UpdateTab project={project} data={data} />;
+  else if (activeTab === 'auswertung')
+    tabContent = (
+      <p className="empty-hint">Diese Ansicht wird in einer der nächsten Phasen des Rewrites befüllt.</p>
+    );
+  else if (activeTab === 'ki-suche')
+    tabContent = <p className="empty-hint">Diese Ansicht wird in einer der nächsten Phasen des Rewrites befüllt.</p>;
+  else tabContent = <AufgabenTab project={project} data={data} />;
+
+  return (
+    <div className="main-inner">
+      <div className="project-header">
+        <div>
+          <div className="code">{projectCode(project)}</div>
+          <h2>{project.name}</h2>
+          <div className="sub">
+            {project.kunde || '—'} · {project.typ} ·{' '}
+            <span className={`stamp ${project.status}`} style={{ color: 'inherit' }}>
+              {STATUS_LABELS[project.status]}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="tabs">
+        <button className={`tab-btn${activeTab === 'aufgaben' ? ' active' : ''}`} onClick={() => setActiveTab('aufgaben')}>
+          Aufgaben
+        </button>
+        <button
+          className={`tab-btn${activeTab === 'dokumentation' ? ' active' : ''}`}
+          onClick={() => setActiveTab('dokumentation')}
+        >
+          Dokumentation
+        </button>
+        <button
+          className={`tab-btn${activeTab === 'kommunikation' ? ' active' : ''}`}
+          onClick={() => setActiveTab('kommunikation')}
+        >
+          Kommunikation
+        </button>
+        <span className="tab-sep" />
+        <button
+          className={`tab-btn${activeTab === 'uebersicht' ? ' active' : ''}`}
+          onClick={() => setActiveTab('uebersicht')}
+        >
+          Übersicht
+        </button>
+        <button
+          className={`tab-btn${activeTab === 'ansprechpartner' ? ' active' : ''}`}
+          onClick={() => setActiveTab('ansprechpartner')}
+        >
+          Ansprechpartner
+        </button>
+        {echtlauf && (
+          <button className={`tab-btn${activeTab === 'zeitplan' ? ' active' : ''}`} onClick={() => setActiveTab('zeitplan')}>
+            Echtlauf-Zeitplan
+          </button>
+        )}
+        <button className={`tab-btn${activeTab === 'update' ? ' active' : ''}`} onClick={() => setActiveTab('update')}>
+          Update
+        </button>
+        <button
+          className={`tab-btn${activeTab === 'auswertung' ? ' active' : ''}`}
+          onClick={() => setActiveTab('auswertung')}
+        >
+          Auswertung
+        </button>
+        {aiAvailable && (
+          <button className={`tab-btn${activeTab === 'ki-suche' ? ' active' : ''}`} onClick={() => setActiveTab('ki-suche')}>
+            KI-Suche
+          </button>
+        )}
+      </div>
+      <div>{tabContent}</div>
+    </div>
+  );
+}

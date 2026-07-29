@@ -71,7 +71,7 @@ interface DataStoreState {
 
   nextTaskNr: () => Promise<number>;
   saveTask: (projectId: string, task: Task) => Promise<void>;
-  createTask: (projectId: string, partial: Omit<Task, 'id' | 'nr' | 'erstelltAm' | 'abgeschlossenAm'>) => Promise<void>;
+  createTask: (projectId: string, partial: Omit<Task, 'id' | 'nr' | 'erstelltAm' | 'abgeschlossenAm'>) => Promise<string>;
   deleteTask: (projectId: string, taskId: string) => Promise<void>;
   setAllOverdueTasksToToday: () => Promise<void>;
   setAllNoDateTasksToToday: () => Promise<void>;
@@ -89,6 +89,11 @@ interface DataStoreState {
 
   loadDocDefs: () => Promise<void>;
   saveDocDefs: (defs: DocSectionDef[]) => Promise<void>;
+
+  /** Keeps task.commIds in sync after a comm's linked-tasks selection changed; persists tasks if anything changed. */
+  syncTaskLinksForComm: (projectId: string, commId: string, oldTaskIds: string[], newTaskIds: string[]) => Promise<void>;
+  /** Keeps comm.taskIds in sync after a task's linked-comms selection changed; persists comms if anything changed. */
+  syncCommLinksForTask: (projectId: string, taskId: string, oldCommIds: string[], newCommIds: string[]) => Promise<void>;
 }
 
 async function persistTasks(get: () => DataStoreState, set: (p: Partial<DataStoreState>) => void, projectId: string, tasks: Task[]) {
@@ -315,6 +320,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const data = await get().ensureProjectData(projectId);
     await persistTasks(get, set, projectId, [...data.tasks, task]);
     await get().loadDashboardData();
+    return task.id;
   },
 
   deleteTask: async (projectId, taskId) => {
@@ -438,6 +444,52 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const cache = { ...get().cache, [projectId]: { ...data, doc } };
     set({ cache });
     await sSet(client(), 'doc:' + projectId, doc);
+  },
+
+  syncTaskLinksForComm: async (projectId, commId, oldTaskIds, newTaskIds) => {
+    const data = await get().ensureProjectData(projectId);
+    const oldSet = new Set(oldTaskIds);
+    const newSet = new Set(newTaskIds);
+    let changed = false;
+    const tasks = data.tasks.map((t) => {
+      const has = oldSet.has(t.id);
+      const should = newSet.has(t.id);
+      if (has && !should) {
+        changed = true;
+        return { ...t, commIds: (t.commIds || []).filter((id) => id !== commId) };
+      }
+      if (!has && should && !(t.commIds || []).includes(commId)) {
+        changed = true;
+        return { ...t, commIds: [...(t.commIds || []), commId] };
+      }
+      return t;
+    });
+    if (changed) await persistTasks(get, set, projectId, tasks);
+  },
+
+  syncCommLinksForTask: async (projectId, taskId, oldCommIds, newCommIds) => {
+    const data = await get().ensureProjectData(projectId);
+    const oldSet = new Set(oldCommIds);
+    const newSet = new Set(newCommIds);
+    let changed = false;
+    const comms = data.comms.map((c) => {
+      const has = oldSet.has(c.id);
+      const should = newSet.has(c.id);
+      if (has && !should) {
+        changed = true;
+        return { ...c, taskIds: (c.taskIds || []).filter((id) => id !== taskId) };
+      }
+      if (!has && should && !(c.taskIds || []).includes(taskId)) {
+        changed = true;
+        return { ...c, taskIds: [...(c.taskIds || []), taskId] };
+      }
+      return c;
+    });
+    if (changed) {
+      const cache = { ...get().cache, [projectId]: { ...data, comms } };
+      set({ cache });
+      await sSet(client(), 'comms:' + projectId, comms);
+    }
   },
 }));
 
