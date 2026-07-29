@@ -1,0 +1,80 @@
+/* Forms & cards */
+.card{background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.field label{font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.4px;}
+.field input, .field select, .field textarea{
+  padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);color:var(--ink);outline:none;
+}
+.field input:focus, .field select:focus, .field textarea:focus{border-color:var(--focus);}
+.field textarea{resize:vertical;min-height:70px;}
+.doku-check-field{display:flex;align-items:center;margin-bottom:12px;}
+.doku-check-field label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);cursor:pointer;text-transform:none;letter-spacing:0;}
+.doku-check-field input[type="checkbox"]{width:14px;height:14px;cursor:pointer;accent-color:var(--violet);}
+.doku-check-inline{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-soft);cursor:pointer;flex-shrink:0;white-space:nowrap;}
+.doku-check-inline input[type="checkbox"]{width:13px;height:13px;cursor:pointer;accent-color:var(--violet);}
+.badge.doku{background:var(--violet-bg);color:var(--violet);border:1px solid var(--violet-border);}
+.doku-list-row{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:10px;background:var(--paper-raised);
+  border:1px solid var(--line-soft);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;cursor:pointer;
+}
+.doku-list-row:hover{border-color:rgba(195,135,46,0.5);}
+.doku-list-row .doku-list-title{font-size:13px;}
+.doku-list-row .doku-list-meta{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+.btn{
+  padding:8px 14px;border-radius:var(--radius);border:1px solid var(--amber);background:var(--amber);color:#1B1F1A;
+  cursor:pointer;font-size:13px;font-weight:600;
+}
+.btn:hover{background:var(--amber-deep);border-color:var(--amber-deep);}
+.btn.secondary{background:none;color:var(--ink);border-color:var(--line);font-weight:500;}
+.btn.secondary:hover{border-color:var(--ink-soft);background:var(--field-bg);}
+.btn.danger{background:none;color:var(--rust);border-color:var(--rust);font-weight:500;}
+.btn.danger:hover{background:var(--rust);color:#1B1F1A;}
+.btn.small{padding:5px 9px;font-size:11.5px;}
+.btn-row{display:flex;gap:8px;margin-top:4px;}
+
+.list-item{
+  background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius);
+  padding:12px 14px;margin-bottom:8px;position:relative;
+}
+.list-item .top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+.list-item .meta{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
+.list-item .actions{display:flex;gap:6px;flex-shrink:0;}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--ink-soft);font-size:12px;padding:2px 4px;}
+.icon-btn:hover{color:var(--rust);}
+.icon-btn.edit:hover{color:var(--focus);}
+
+.badge{font-size:10.5px;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:0.4px;font-weight:600;}
+.badge.offen{background:#4A3419;color:var(--amber-deep);}
+.badge.in-arbeit{background:#1B3B2C;color:var(--focus);}
+.badge.erledigt{background:var(--line-soft);color:var(--ink-soft);}
+.badge.geplant{background:var(--violet-bg);color:var(--violet);}
+.badge.wartet{background:var(--violet-bg);color:var(--violet);}
+
+.channel-tag{font-size:10.5px;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);border:1px solid var(--line);padding:1px 6px;border-radius:2px;}
+
+/* Inline task-row editing */
+.task-inline-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.task-inline-row input[type="text"]{
+  flex:1;min-width:180px;border:1px solid transparent;background:none;padding:4px 6px;border-radius:var(--radius);
+  font-size:13.5px;font-weight:500;color:var(--ink);
+}
+.task-inline-row input[type="text"]:hover{border-color:var(--line);background:var(--field-bg);}
+.task-inline-row input[type="text"]:focus{border-color:var(--focus);background:var(--field-bg);outline:none;}
+.task-inline-row select, .task-inline-row input[type="date"]{
+  border:1px solid var(--line);border-radius:var(--radius);padding:4px 6px;font-size:12px;background:var(--field-bg);color:var(--ink);
+}
+.task-inline-row select:focus, .task-inline-row input[type="date"]:focus{border-color:var(--focus);outline:none;}
+.task-status-select.offen{color:var(--amber-deep);}
+.task-status-select.in-arbeit{color:var(--focus);}
+.task-status-select.wartet{color:var(--violet);}
+.task-status-select.erledigt{color:var(--ink-soft);}
+.wartet-auf-field{margin-top:8px;}
+.wartet-auf-note{font-size:11.5px;color:var(--violet);background:var(--violet-bg);border:1px solid var(--violet-border);border-radius:var(--radius);padding:6px 10px;margin-top:4px;}
+@keyframes taskHighlightFlash{
+  0%{background:#4A3419;} 100%{background:transparent;}
+}
+.list-item.task-highlight{animation:taskHighlightFlash 2.2s ease-out;}
+.task-view-row{cursor:pointer;}
+.task-view-row:hover{border-color:var(--focus);}
+.task-edit-row{border-color:var(--focus);background:#182C20;}

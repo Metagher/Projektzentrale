@@ -1,0 +1,23 @@
+/* Auswertung / Analytics */
+.afn-log-form{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.afn-log-form input{padding:8px 10px;}
+.afn-log-form input[type="number"]{width:180px;}
+.an-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;}
+.an-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);padding:6px 10px;border-bottom:1px solid var(--line);}
+.an-table td{padding:7px 10px;border-bottom:1px solid var(--line-soft);}
+.an-table tr:last-child td{border-bottom:none;}
+.an-week-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(78px,1fr));gap:6px;margin-bottom:8px;}
+.an-week-cell{
+  background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius);
+  padding:6px 8px;text-align:center;position:relative;overflow:hidden;height:60px;box-sizing:border-box;
+}
+.an-week-cell .an-week-num{position:relative;z-index:1;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);}
+.an-week-cell .an-week-count{position:relative;z-index:1;font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-top:2px;}
+.an-week-cell.an-current{border-color:var(--amber);border-width:2px;}
+.an-week-bar{position:absolute;left:0;bottom:0;right:0;top:auto;background:#22402E;z-index:0;}
+.an-year-select{padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;background:var(--field-bg);color:var(--ink);}
+.an-note{font-size:11.5px;color:var(--ink-soft);margin-bottom:18px;max-width:640px;}
+.an-daily-grid{grid-template-columns:repeat(auto-fill, minmax(48px,1fr));}
+.an-daily-grid .an-week-cell{min-height:70px;padding:5px 4px;}
+.an-daily-grid .an-week-num{font-size:9px;}
+.an-daily-grid .an-week-count{font-size:14px;}

@@ -1,0 +1,30 @@
+/* AI search */
+.ai-box{display:flex;gap:8px;align-items:flex-start;}
+.ai-box textarea{flex:1;min-height:64px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);resize:vertical;}
+.ai-box textarea:focus{border-color:var(--focus);outline:none;}
+.ai-answer{
+  background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;margin-top:14px;white-space:pre-wrap;font-size:13.5px;line-height:1.6;
+}
+.ai-error{color:var(--rust);font-size:13px;margin-top:10px;}
+.ai-loading{color:var(--ink-soft);font-size:13px;margin-top:10px;}
+.ai-scope-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+
+.ai-summary-card{
+  background:linear-gradient(180deg, #2C2515, var(--paper-raised) 40%);
+  border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:var(--radius);
+  padding:16px 18px;margin-bottom:18px;
+}
+.ai-summary-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.ai-summary-head h3{font-size:14px;letter-spacing:0.2px;}
+.ai-summary-list{margin:0;padding-left:0;list-style:none;}
+.ai-summary-list li{
+  position:relative;padding-left:20px;margin-bottom:7px;font-size:13.5px;line-height:1.5;
+}
+.ai-summary-list li::before{
+  content:'—';position:absolute;left:0;color:var(--amber-deep);
+}
+.ai-summary-meta{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.ai-summary-empty{font-size:13px;color:var(--ink-soft);}
+.ai-advisor-card{border-left-color:var(--focus);background:linear-gradient(180deg, #16261D, var(--paper-raised) 45%);margin-bottom:22px;}
+.ai-advisor-card .ai-summary-list li::before{color:var(--focus);}

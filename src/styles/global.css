@@ -1,0 +1,39 @@
+*{box-sizing:border-box;}
+html{color-scheme:dark;}
+html,body,#root{margin:0;padding:0;height:100%;}
+body{
+  font-family:'IBM Plex Sans', sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.5;
+}
+::selection{background:var(--amber);color:#fff;}
+h1,h2,h3{font-family:'Fraunces', serif;font-weight:600;margin:0;}
+button{font-family:inherit;}
+input,textarea,select{font-family:inherit;font-size:13px;background:var(--field-bg);color:var(--ink);border:1px solid var(--line);border-radius:var(--radius);}
+input::placeholder,textarea::placeholder{color:var(--ink-soft);opacity:0.8;}
+a{color:inherit;}
+.mono{font-family:'IBM Plex Mono', monospace;}
+
+.empty-state{
+  text-align:center;padding:50px 20px;color:var(--ink-soft);
+}
+.empty-state h3{color:var(--ink);margin-bottom:6px;font-size:17px;}
+
+select.contact-select{max-width:260px;}
+.contact-empty-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+.loading-note{color:var(--ink-soft);font-size:12px;padding:20px;}
+
+/* Storage safety banner */
+#storage-banner{
+  display:none;position:sticky;top:0;left:0;right:0;z-index:2000;
+  background:#3D2418;color:#FCEFE2;padding:10px 20px;font-size:13px;line-height:1.5;
+  border-bottom:2px solid var(--rust);
+}
+#storage-banner.show{display:block;}
+#storage-banner strong{color:#FFB088;}
+#storage-banner .banner-close{
+  float:right;background:none;border:1px solid rgba(255,255,255,0.3);color:#FCEFE2;
+  border-radius:2px;padding:2px 8px;cursor:pointer;font-size:11px;margin-left:12px;
+}

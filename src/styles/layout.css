@@ -1,0 +1,12 @@
+#app{display:none;height:100vh;overflow:hidden;}
+#app.ready{display:flex;}
+
+/* ===== MAIN ===== */
+#main{flex:1;overflow-y:auto;position:relative;}
+.main-inner{max-width:920px;margin:0 auto;padding:32px 40px 80px;}
+
+@media (max-width:760px){
+  #sidebar{width:220px;}
+  .main-inner{padding:20px;}
+  .field-grid{grid-template-columns:1fr;}
+}

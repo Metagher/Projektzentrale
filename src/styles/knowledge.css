@@ -1,0 +1,22 @@
+/* Wissensdatenbank / Second Brain */
+.kb-stale-note{
+  background:#382C13;border:1px solid #5C4620;border-left:3px solid var(--amber);border-radius:var(--radius);
+  padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--amber-deep);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.kb-category-title{
+  font-family:'Fraunces',serif;font-size:16px;font-weight:600;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:8px;
+}
+.kb-category-title:first-of-type{margin-top:8px;}
+.kb-entry-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;}
+.kb-entry-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
+.kb-entry-title{font-size:14.5px;font-weight:600;}
+.kb-source-tag{
+  font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.4px;
+  border:1px solid var(--line);border-radius:2px;padding:1px 6px;
+}
+.kb-source-tag.manual{color:var(--sage);border-color:var(--sage);}
+.kb-source-tag.ai{color:var(--amber-deep);border-color:var(--amber-deep);}
+.kb-projects{font-size:11px;color:var(--ink-soft);margin-top:6px;}
+.kb-search{width:100%;max-width:340px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px;background:var(--field-bg);color:var(--ink);}
+.kb-search:focus{border-color:var(--focus);outline:none;}
