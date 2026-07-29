@@ -1,8 +1,12 @@
 # Projektzentrale
 
 Projekt-Datenbank und Aufgabenplanung für Consulting-Projekte — Aufgaben, Dokumentation,
-Kommunikation, Wissensdatenbank und KI-Auswertungen an einem Ort. Läuft als einzelne
-`index.html`, Daten liegen in Supabase, gehostet über GitHub Pages.
+Kommunikation, Wissensdatenbank und KI-Auswertungen an einem Ort. Läuft als React-App
+(Vite + TypeScript), automatisch gebaut und veröffentlicht über GitHub Actions, Daten
+liegen in Supabase, gehostet über GitHub Pages.
+
+Die alte Single-File-Fassung (`index.html`, kein Build-Schritt) liegt zum Vergleich
+weiterhin unter [`legacy/index.html`](legacy/index.html) — sie wird nicht mehr gepflegt.
 
 ## 1. Supabase einrichten
 
@@ -17,21 +21,34 @@ rührt keine vorhandenen Tabellen an. Ein neues Projekt ist also nicht nötig.
    (den klassischen langen JWT-Key, nicht den neuen "Publishable key") kopieren —
    bei einem wiederverwendeten Projekt sind das dieselben Werte wie bei der anderen App.
 
-## 2. Über GitHub hochladen (nur im Browser, kein Terminal)
+## 2. Hosten mit GitHub Pages (automatisches Deployment)
 
-1. Neues **privates** Repository auf github.com anlegen.
-2. **Add file → Upload files** → `index.html`, `schema.sql` und diese `README.md`
-   per Drag & Drop hochladen.
-3. Unten **Commit changes** klicken.
-
-## 3. Hosten mit GitHub Pages
+Diese App wird nicht mehr als fertige Datei hochgeladen, sondern aus dem Quellcode
+automatisch gebaut. Das ist nur einmalig einzurichten:
 
 1. Im Repository zu **Settings → Pages**.
-2. Bei **Branch** `main` auswählen, Ordner `/ (root)`, speichern.
-3. Nach ein bis zwei Minuten ist die App unter der angezeigten `github.io`-Adresse
-   erreichbar.
+2. Bei **Source** die Option **"GitHub Actions"** auswählen (statt "Deploy from a branch").
+3. Jeder Push auf den `main`-Branch löst automatisch den Workflow unter
+   `.github/workflows/deploy.yml` aus: er installiert die Abhängigkeiten, prüft die
+   Typen, baut die App und veröffentlicht das Ergebnis.
+4. Nach dem ersten erfolgreichen Lauf (sichtbar im Tab **Actions** des Repos) ist die App
+   unter der in **Settings → Pages** angezeigten `github.io`-Adresse erreichbar.
 
-## 4. Einmalig einrichten
+Für spätere Änderungen reicht ein normaler `git push` auf `main` — GitHub Pages
+aktualisiert sich dann automatisch, kein manueller Upload-Schritt mehr nötig.
+
+### Lokal entwickeln (optional)
+
+Mit installiertem [Node.js](https://nodejs.org):
+
+```
+npm install
+npm run dev       # lokaler Entwicklungsserver mit Hot Reload
+npm run typecheck # TypeScript-Prüfung
+npm run build     # Produktions-Build nach dist/ (wird von der CI ebenfalls ausgeführt)
+```
+
+## 3. Einmalig einrichten
 
 1. Die App-URL öffnen.
 2. Beim ersten Öffnen erscheint der Einrichtungs-Bildschirm: Project URL und anon key
@@ -43,7 +60,7 @@ rührt keine vorhandenen Tabellen an. Ein neues Projekt ist also nicht nötig.
 einmal wiederholt werden (URL + Key sind identisch, die Eingabe passiert lokal auf
 jedem Gerät).
 
-## 5. KI-Funktionen aktivieren (optional)
+## 4. KI-Funktionen aktivieren (optional)
 
 KI-Suche, KI-Übersicht, Wissensdatenbank-Update, Aufgaben-Erkennung aus
 Kommunikationseinträgen und der persönliche Berater brauchen einen eigenen
@@ -58,12 +75,6 @@ Netzwerk-Ansicht der Browser-Entwicklertools einsehbar. Für die persönliche Nu
 auf den eigenen Geräten ist das unkritisch, den Key oder das Gerät aber nicht mit
 Dritten teilen. Ohne hinterlegten Key funktioniert die App normal weiter, nur die
 KI-Funktionen zeigen dann einen entsprechenden Hinweis statt eines Ergebnisses.
-
-## Updates später hochladen
-
-Bei Änderungen einfach die neue `index.html` erneut über **Add file → Upload files**
-hochladen — GitHub Pages aktualisiert die Seite automatisch. Die Supabase-Daten
-bleiben davon unberührt.
 
 ## Backup
 
