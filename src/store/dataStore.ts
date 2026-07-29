@@ -94,6 +94,20 @@ interface DataStoreState {
   syncTaskLinksForComm: (projectId: string, commId: string, oldTaskIds: string[], newTaskIds: string[]) => Promise<void>;
   /** Keeps comm.taskIds in sync after a task's linked-comms selection changed; persists comms if anything changed. */
   syncCommLinksForTask: (projectId: string, taskId: string, oldCommIds: string[], newCommIds: string[]) => Promise<void>;
+
+  /**
+   * Destructively replaces ALL data (projects, doc defs, and every project's contacts/
+   * comms/doc/tasks/timeline/updates) — used by CSV import. Deletes storage keys of
+   * previously existing projects first, then writes the new dataset.
+   */
+  importAllData: (input: {
+    projects: Project[];
+    docDefs: DocSectionDef[];
+    perProject: Record<
+      string,
+      { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[] }
+    >;
+  }) => Promise<void>;
 }
 
 async function persistTasks(get: () => DataStoreState, set: (p: Partial<DataStoreState>) => void, projectId: string, tasks: Task[]) {
@@ -490,6 +504,33 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       set({ cache });
       await sSet(client(), 'comms:' + projectId, comms);
     }
+  },
+
+  importAllData: async ({ projects, docDefs, perProject }) => {
+    const sb = client();
+    const previousProjects = get().projects || [];
+    for (const p of previousProjects) {
+      await Promise.all(
+        ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'ai-summary:', 'updates:'].map((prefix) =>
+          sDelete(sb, prefix + p.id),
+        ),
+      );
+    }
+    for (const p of projects) {
+      const d = perProject[p.id] || { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [] };
+      await sSet(sb, 'contacts:' + p.id, d.contacts);
+      await sSet(sb, 'comms:' + p.id, d.comms);
+      await sSet(sb, 'doc:' + p.id, d.doc);
+      await sSet(sb, 'tasks:' + p.id, d.tasks);
+      await sSet(sb, 'timeline:' + p.id, d.timeline);
+      await sSet(sb, 'updates:' + p.id, d.updates);
+    }
+    await sSet(sb, 'projects', projects);
+    await sSet(sb, 'doc-section-defs', docDefs);
+
+    set({ projects, docDefs, cache: {} });
+    await ensureTaskNumbers(get, set);
+    await get().loadDashboardData();
   },
 }));
 

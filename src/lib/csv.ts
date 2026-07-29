@@ -1,0 +1,207 @@
+import Papa from 'papaparse';
+import { CSV_COLUMNS } from './constants';
+import { migratePrio } from './migrations';
+import { defLevel, todayStr } from './format';
+import { useDataStore } from '../store/dataStore';
+import type { Comm, Contact, DocData, DocSectionDef, Milestone, Project, ProjectTyp, Task, UpdateEntry } from '../types/entities';
+
+type CsvRow = Record<string, string | number | undefined>;
+
+function splitList(v: string | undefined): string[] {
+  return (v || '').split(';').map((s) => s.trim()).filter(Boolean);
+}
+
+export function downloadTextFile(content: string, filename: string, mime: string): void {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export async function buildExportCsv(): Promise<string> {
+  const { projects, docDefs, ensureProjectData } = useDataStore.getState();
+  const rows: CsvRow[] = [];
+
+  (docDefs || []).forEach((d, i) => {
+    rows.push({ Typ: 'oberpunkt', Id: d.id, Titel: d.title, Level: defLevel(d.level), Reihenfolge: i + 1 });
+  });
+
+  for (const p of projects || []) {
+    const data = await ensureProjectData(p.id);
+    rows.push({
+      Typ: 'projekt',
+      ProjektId: p.id,
+      Id: p.id,
+      Titel: p.name,
+      Kunde: p.kunde || '',
+      ProjektTyp: p.typ || '',
+      Status: p.status || '',
+      Beschreibung: p.beschreibung || '',
+      ErstelltAm: p.createdAt || '',
+      AusgeblendeteOberpunkte: ((data.doc._hidden as string[] | undefined) || []).join(';'),
+      AktuelleVersion: p.aktuelleVersion || '',
+      Reihenfolge: p.sortIndex ?? 0,
+    });
+    data.contacts.forEach((c) => {
+      rows.push({ Typ: 'kontakt', ProjektId: p.id, Id: c.id, Titel: c.name, Rolle: c.rolle || '', Telefon: c.telefon || '', Email: c.email || '', Notiz: c.notiz || '' });
+    });
+    data.comms.forEach((c) => {
+      rows.push({
+        Typ: 'kommunikation', ProjektId: p.id, Id: c.id, Datum: c.datum || '', Kanal: c.kanal || '',
+        KontaktId: c.kontaktId || '', Betreff: c.betreff || '', Notiz: c.notiz || '',
+        AFN: (c.afns || []).join(';'), VerknuepfteAufgabenIds: (c.taskIds || []).join(';'),
+      });
+    });
+    (docDefs || []).forEach((def) => {
+      const entry = data.doc[def.id];
+      if (entry && !Array.isArray(entry) && (entry.content || entry.updatedAt || (entry.afns && entry.afns.length))) {
+        rows.push({ Typ: 'dokuinhalt', ProjektId: p.id, OberpunktId: def.id, Inhalt: entry.content || '', AktualisiertAm: entry.updatedAt || '', AFN: (entry.afns || []).join(';') });
+      }
+    });
+    data.tasks.forEach((t) => {
+      rows.push({
+        Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '',
+        Status: t.status || '', KontaktId: t.kontaktId || '', Beschreibung: t.beschreibung || '', ErstelltAm: t.erstelltAm || '',
+        AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '',
+        Notiz: t.notizen || '', Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'),
+      });
+    });
+    data.timeline.forEach((m) => {
+      rows.push({ Typ: 'meilenstein', ProjektId: p.id, Id: m.id, Titel: m.titel, Datum: m.datum || '', Status: m.status || '', Notiz: m.notiz || '' });
+    });
+    (data.updates || []).forEach((u) => {
+      rows.push({ Typ: 'update', ProjektId: p.id, Id: u.id, Titel: u.titel || '', Datum: u.datum || '', Revision: u.revision || '', Beschreibung: u.beschreibung || '', AFN: (u.afns || []).join(';') });
+    });
+  }
+
+  return Papa.unparse({ fields: CSV_COLUMNS as unknown as string[], data: rows });
+}
+
+export async function exportAllDataToCsv(): Promise<void> {
+  const csv = await buildExportCsv();
+  downloadTextFile(csv, `projektzentrale-export-${todayStr()}.csv`, 'text/csv');
+}
+
+export interface ParsedImport {
+  projects: Project[];
+  docDefs: DocSectionDef[];
+  perProject: Record<
+    string,
+    { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[] }
+  >;
+}
+
+export function parseImportCsv(text: string): { ok: true; data: ParsedImport } | { ok: false; error: string } {
+  const parsed = Papa.parse<CsvRow>(text, { header: true, skipEmptyLines: true });
+  if (parsed.errors && parsed.errors.length) {
+    return { ok: false, error: 'Die CSV-Datei konnte nicht gelesen werden. Bitte prüfe das Format (am besten eine zuvor exportierte Datei verwenden).' };
+  }
+  const rows = parsed.data;
+  if (!rows.length) {
+    return { ok: false, error: 'Die Datei enthält keine Daten.' };
+  }
+
+  const docDefs: DocSectionDef[] = rows
+    .filter((r) => r.Typ === 'oberpunkt')
+    .sort((a, b) => (parseInt(String(a.Reihenfolge)) || 0) - (parseInt(String(b.Reihenfolge)) || 0))
+    .map((r) => ({ id: String(r.Id), title: String(r.Titel || ''), level: defLevel(parseInt(String(r.Level)) || 1) }));
+
+  const hiddenByProject: Record<string, string[]> = {};
+  const projects: Project[] = rows
+    .filter((r) => r.Typ === 'projekt')
+    .map((r, i) => {
+      hiddenByProject[String(r.Id)] = splitList(r.AusgeblendeteOberpunkte as string);
+      return {
+        id: String(r.Id),
+        name: String(r.Titel || '(ohne Namen)'),
+        kunde: String(r.Kunde || ''),
+        typ: (r.ProjektTyp as ProjectTyp) || 'Bestandskunde',
+        status: (r.Status as Project['status']) || 'aktiv',
+        beschreibung: String(r.Beschreibung || ''),
+        createdAt: String(r.ErstelltAm || new Date().toISOString()),
+        aktuelleVersion: String(r.AktuelleVersion || ''),
+        sortIndex: r.Reihenfolge !== undefined && r.Reihenfolge !== '' ? parseInt(String(r.Reihenfolge)) || 0 : i,
+      };
+    });
+
+  const perProject: ParsedImport['perProject'] = {};
+  for (const p of projects) {
+    perProject[p.id] = { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [] };
+  }
+
+  rows
+    .filter((r) => r.Typ === 'kontakt')
+    .forEach((r) => {
+      const pid = String(r.ProjektId);
+      if (!perProject[pid]) return;
+      perProject[pid].contacts.push({ id: String(r.Id), name: String(r.Titel || ''), rolle: String(r.Rolle || ''), telefon: String(r.Telefon || ''), email: String(r.Email || ''), notiz: String(r.Notiz || '') });
+    });
+
+  rows
+    .filter((r) => r.Typ === 'kommunikation')
+    .forEach((r) => {
+      const pid = String(r.ProjektId);
+      if (!perProject[pid]) return;
+      perProject[pid].comms.push({
+        id: String(r.Id), datum: String(r.Datum || ''), kanal: (r.Kanal as Comm['kanal']) || 'Sonstiges',
+        kontaktId: String(r.KontaktId || ''), betreff: String(r.Betreff || ''), notiz: String(r.Notiz || ''),
+        afns: splitList(r.AFN as string), taskIds: splitList(r.VerknuepfteAufgabenIds as string),
+      });
+    });
+
+  rows
+    .filter((r) => r.Typ === 'dokuinhalt')
+    .forEach((r) => {
+      const pid = String(r.ProjektId);
+      if (!perProject[pid]) return;
+      perProject[pid].doc[String(r.OberpunktId)] = {
+        content: String(r.Inhalt || ''),
+        updatedAt: (r.AktualisiertAm as string) || null,
+        afns: splitList(r.AFN as string),
+      };
+    });
+
+  rows
+    .filter((r) => r.Typ === 'aufgabe')
+    .forEach((r) => {
+      const pid = String(r.ProjektId);
+      if (!perProject[pid]) return;
+      const nrRaw = r.Nr !== undefined && r.Nr !== '' ? parseInt(String(r.Nr)) : NaN;
+      perProject[pid].tasks.push({
+        id: String(r.Id), titel: String(r.Titel || ''), faelligAm: String(r.Datum || ''),
+        prioritaet: migratePrio(r.Prioritaet as string), status: (r.Status as Task['status']) || 'offen',
+        kontaktId: String(r.KontaktId || ''), beschreibung: String(r.Beschreibung || ''),
+        erstelltAm: (r.ErstelltAm as string) || '', abgeschlossenAm: (r.AbgeschlossenAm as string) || null,
+        afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), notizen: String(r.Notiz || ''),
+        nr: Number.isFinite(nrRaw) ? nrRaw : 0, commIds: splitList(r.VerknuepfteKommIds as string),
+        doku: false, dokuErledigt: false,
+      });
+    });
+
+  rows
+    .filter((r) => r.Typ === 'meilenstein')
+    .forEach((r) => {
+      const pid = String(r.ProjektId);
+      if (!perProject[pid]) return;
+      perProject[pid].timeline.push({ id: String(r.Id), titel: String(r.Titel || ''), datum: String(r.Datum || ''), status: (r.Status as Milestone['status']) || 'geplant', notiz: String(r.Notiz || '') });
+    });
+
+  rows
+    .filter((r) => r.Typ === 'update')
+    .forEach((r) => {
+      const pid = String(r.ProjektId);
+      if (!perProject[pid]) return;
+      perProject[pid].updates.push({ id: String(r.Id), titel: String(r.Titel || ''), datum: String(r.Datum || ''), revision: String(r.Revision || ''), beschreibung: String(r.Beschreibung || ''), afns: splitList(r.AFN as string) });
+    });
+
+  for (const p of projects) {
+    perProject[p.id].doc._hidden = hiddenByProject[p.id] || [];
+  }
+
+  return { ok: true, data: { projects, docDefs, perProject } };
+}

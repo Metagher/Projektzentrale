@@ -25,3 +25,11 @@ export function prioAbbr(key: TaskPrio | string): string {
   return '[' + (PRIO_ABBR[key as TaskPrio] || '?') + ']';
 }
 export const MILESTONE_STATUS: MilestoneStatus[] = ['geplant', 'in Arbeit', 'erledigt'];
+
+export const CSV_COLUMNS = [
+  'Typ', 'ProjektId', 'Id', 'Titel', 'Kunde', 'ProjektTyp', 'Status', 'Beschreibung',
+  'ErstelltAm', 'AusgeblendeteOberpunkte', 'Level', 'Reihenfolge', 'Rolle', 'Telefon',
+  'Email', 'Notiz', 'Datum', 'Kanal', 'KontaktId', 'Betreff', 'OberpunktId', 'Inhalt',
+  'AktualisiertAm', 'Prioritaet', 'AbgeschlossenAm', 'AFN', 'WartetAuf', 'Revision',
+  'AktuelleVersion', 'Nr', 'VerknuepfteAufgabenIds', 'VerknuepfteKommIds',
+] as const;

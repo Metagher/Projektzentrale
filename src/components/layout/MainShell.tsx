@@ -5,9 +5,9 @@ import SettingsView from '../settings/SettingsView';
 import GlobalAiSearch from '../ai/GlobalAiSearch';
 import AiSettingsView from '../ai/AiSettingsView';
 import KnowledgeView from '../knowledge/KnowledgeView';
+import DataView from '../data/DataView';
 
 const VIEW_LABELS: Record<string, string> = {
-  data: 'CSV Import / Export',
   analytics: 'Auswertung',
 };
 
@@ -58,6 +58,14 @@ export default function MainShell() {
     return (
       <div id="main">
         <KnowledgeView />
+      </div>
+    );
+  }
+
+  if (view === 'data') {
+    return (
+      <div id="main">
+        <DataView />
       </div>
     );
   }
