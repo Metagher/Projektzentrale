@@ -120,7 +120,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   return (
     <>
       {showForm ? (
-        <div className="card">
+        <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label={editObj ? 'Kommunikation bearbeiten' : 'Kommunikation anlegen'}><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Kommunikation</span><strong>{editObj ? editObj.betreff || 'Eintrag bearbeiten' : 'Neuer Kommunikationseintrag'}</strong></div></div><div className="card">
           <div className="top-row" style={{ marginBottom: 10 }}>
             <h3 style={{ fontSize: 15 }}>{editObj ? 'Eintrag bearbeiten' : 'Neuer Kommunikationseintrag'}</h3>
             {!editObj && (
@@ -198,7 +198,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
               </button>
             )}
           </div>
-        </div>
+        </div></div></div>
       ) : (
         <button className="btn secondary" style={{ marginBottom: 14 }} onClick={() => setShowNewCommForm(true)}>
           + Neuer Kommunikationseintrag

@@ -206,6 +206,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .task-edit-dialog-head span { color: #777; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .task-edit-dialog-head strong { font-size: 16px; }
 .task-edit-dialog .task-edit-row { margin: 0; padding: 0; background: #fff; border: 0; box-shadow: none; }
+.task-edit-dialog > .card, .task-edit-dialog > * > .card { margin: 0; padding: 0; background: #fff; border: 0; box-shadow: none; }
 .kanban-board { display: grid; grid-template-columns: repeat(3, minmax(260px, 1fr)); gap: 12px; align-items: start; }
 .kanban-board.without-completed { grid-template-columns: repeat(2, minmax(300px, 1fr)); }
 .kanban-column { min-width: 0; padding: 10px; background: #e9e9e9; border: 1px solid #d2d2d2; border-radius: 13px; transition: background .16s ease, border-color .16s ease; }

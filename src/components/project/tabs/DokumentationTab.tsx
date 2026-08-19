@@ -6,12 +6,14 @@ import { fmtDate, fmtDateTime, isEmptyHtml, todayStr, uid } from '../../../lib/f
 import RtfField from '../../shared/RtfField';
 import AfnChipsField from '../../shared/AfnChipsField';
 import AfnChipsView from '../../shared/AfnChipsView';
-import type { DocEntryValue, ProjectCache, ProjectDocumentationArea, ProjectStatusEntry } from '../../../types/entities';
+import type { DocEntryValue, Project, ProjectCache, ProjectDocumentationArea, ProjectStatusEntry } from '../../../types/entities';
 import { compareTaskColors } from '../../../lib/taskColors';
+import { exportCurrentProjectStatus } from '../../../lib/projectStatusExport';
 
 const CURRENT_STATE_KEY = '_currentProjectState';
 
-export default function DokumentationTab({ projectId, data }: { projectId: string; data: ProjectCache }) {
+export default function DokumentationTab({ project, data }: { project: Project; data: ProjectCache }) {
+  const projectId = project.id;
   const docDefs = useDataStore((state) => state.docDefs) || [];
   const saveStatusEntry = useDataStore((state) => state.saveProjectStatusEntry);
   const deleteStatusEntry = useDataStore((state) => state.deleteProjectStatusEntry);
@@ -94,14 +96,14 @@ export default function DokumentationTab({ projectId, data }: { projectId: strin
   return <div className="project-status-doc">
     <nav className="documentation-areas" aria-label="Dokumentationsbereiche">
       <div className="documentation-area-tabs">{areas.map((area) => <button className={area.id === selectedArea.id ? 'active' : ''} key={area.id} onClick={() => { setSelectedAreaId(area.id); setEditingCurrent(false); setEditingEntry(null); }}>{area.name}</button>)}</div>
-      <div className="documentation-area-actions"><button className="icon-btn" onClick={addArea}>+ Bereich</button><button className="icon-btn" onClick={renameArea}>Umbenennen</button>{areas.length > 1 && <button className="icon-btn" onClick={deleteArea}>Löschen</button>}</div>
+      <div className="documentation-area-actions"><button className="icon-btn" onClick={() => exportCurrentProjectStatus(project, areas)}>⇩ Aktuellen Stand exportieren</button><button className="icon-btn" onClick={addArea}>+ Bereich</button><button className="icon-btn" onClick={renameArea}>Umbenennen</button>{areas.length > 1 && <button className="icon-btn" onClick={deleteArea}>Löschen</button>}</div>
     </nav>
     <header className="project-status-intro">
       <div><span className="eyebrow">Bereich · {selectedArea.name}</span><h3>Aktueller Projektstand</h3><p>Hier steht nur, was für diesen Bereich gegenwärtig relevant ist. Änderungen und Entscheidungen werden darunter chronologisch festgehalten.</p></div>
       {!editingCurrent && <button className="btn small" onClick={() => setEditingCurrent(true)}>{isEmptyHtml(current.content) ? 'Projektstand erfassen' : 'Projektstand bearbeiten'}</button>}
     </header>
 
-    {editingCurrent ? <CurrentStateEditor entry={current} onSave={saveCurrent} onClose={() => setEditingCurrent(false)} /> :
+    {editingCurrent ? <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Projektstand bearbeiten"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Dokumentation bearbeiten</span><strong>{selectedArea.name} · Aktueller Projektstand</strong></div></div><CurrentStateEditor entry={current} onSave={saveCurrent} onClose={() => setEditingCurrent(false)} /></div></div> :
       <section className="current-state-card" onClick={() => setEditingCurrent(true)}>
         <div className="doc-section-head"><strong>Stand heute</strong><span className="doc-updated">{current.updatedAt ? `aktualisiert ${fmtDateTime(current.updatedAt)}` : 'noch nicht erfasst'}</span></div>
         {!!current.afns?.length && <AfnChipsView afns={current.afns} />}
@@ -117,7 +119,7 @@ export default function DokumentationTab({ projectId, data }: { projectId: strin
     </section>}
 
     <div className="project-status-history-head"><div><div className="section-title">Verlauf</div><p>Entscheidungen, Änderungen und erreichte Zwischenstände.</p></div><button className="btn small" onClick={() => setEditingEntry('new')}>+ Standseintrag</button></div>
-    {editingEntry && <StatusEntryEditor projectId={projectId} areaId={selectedArea.id} entry={editingEntry === 'new' ? undefined : editingEntry} onSave={saveStatusEntry} onClose={() => setEditingEntry(null)} />}
+    {editingEntry && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Standseintrag bearbeiten"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Dokumentation</span><strong>{editingEntry === 'new' ? 'Neuer Standseintrag' : editingEntry.titel} · {selectedArea.name}</strong></div></div><StatusEntryEditor projectId={projectId} areaId={selectedArea.id} entry={editingEntry === 'new' ? undefined : editingEntry} onSave={saveStatusEntry} onClose={() => setEditingEntry(null)} /></div></div>}
     {history.length === 0 && !editingEntry && <div className="empty-state"><h3>Noch kein Verlauf</h3><div>Lege den ersten Eintrag an, sobald sich im Projekt etwas Wesentliches ändert.</div></div>}
     <div className="project-status-timeline">{history.map((entry) => <article className="project-status-entry" key={entry.id}>
       <time>{fmtDate(entry.datum)}</time><div className="project-status-entry-body"><div className="doc-section-head"><h3>{entry.titel}</h3><div className="actions"><button className="icon-btn" onClick={() => setEditingEntry(entry)}>Bearbeiten</button><button className="icon-btn" onClick={() => removeEntry(entry)}>Löschen</button></div></div>

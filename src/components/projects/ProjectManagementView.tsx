@@ -148,7 +148,7 @@ export default function ProjectManagementView() {
         <div><div className="eyebrow">Zentrale Verwaltung</div><h2>Projekte verwalten</h2><p>Stammdaten anlegen und pflegen – getrennt von der operativen Projektarbeit.</p></div>
         <button className="btn" onClick={create}>＋ Neues Projekt</button>
       </header>
-      {editingProject && <ProjectEditor key={editingProject.id} project={editingProject} onClose={() => setEditingId(null)} />}
+      {editingProject && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Projekt bearbeiten"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Projektverwaltung</span><strong>{editingProject.name}</strong></div></div><ProjectEditor key={editingProject.id} project={editingProject} onClose={() => setEditingId(null)} /></div></div>}
       <div className="section-title">Alle Projekte ({all.length}) — nach Kunde gruppiert, Kunden und Projekte per Griff ziehbar</div>
       {projects === null && <div className="loading-note">Projekte werden geladen…</div>}
       {projects !== null && all.length === 0 && <div className="empty-state"><h3>Noch keine Projekte</h3><div>Lege dein erstes Projekt über die Schaltfläche oben an.</div></div>}

@@ -56,7 +56,7 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
 
   let tabContent = null;
   if (activeTab === 'kommunikation') tabContent = <KommunikationTab projectId={project.id} data={data} />;
-  else if (activeTab === 'dokumentation') tabContent = <DokumentationTab projectId={project.id} data={data} />;
+  else if (activeTab === 'dokumentation') tabContent = <DokumentationTab project={project} data={data} />;
   else if (activeTab === 'zeitplan') tabContent = <EchtlaufTab projectId={project.id} data={data} />;
   else if (activeTab === 'update') tabContent = <UpdateTab project={project} data={data} />;
   else if (activeTab === 'auswertung') tabContent = <AuswertungTab project={project} data={data} />;

@@ -124,14 +124,15 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
     <>
       <AiSummaryCard project={project} data={data} />
       <div className="task-board-toolbar">
-        {showNewTaskForm ? <ProjectNewTaskForm projectId={project.id} data={data} /> : <button className="btn" onClick={() => setShowNewTaskForm(true)}>＋ Neue Aufgabe</button>}
-        {!showNewTaskForm && <div className="task-board-toolbar-actions">
+        <button className="btn" onClick={() => setShowNewTaskForm(true)}>＋ Neue Aufgabe</button>
+        <div className="task-board-toolbar-actions">
           <button className={`btn secondary${showCompletedKanban ? ' active' : ''}`} onClick={toggleShowCompletedKanban}>
             {showCompletedKanban ? 'Erledigte ausblenden' : `Erledigte einblenden (${tasksByColumn.erledigt.length})`}
           </button>
           <button className="btn secondary" onClick={toggleShowTaskFilters}>{showTaskFilters ? 'Filter ausblenden' : 'Filter'}</button>
-        </div>}
+        </div>
       </div>
+      {showNewTaskForm && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Neue Aufgabe"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Aufgabe anlegen</span><strong>Neue Aufgabe · {project.name}</strong></div></div><ProjectNewTaskForm projectId={project.id} data={data} /></div></div>}
       {showTaskFilters && <ProjectTaskFilterBar contacts={data.contacts} />}
       {editingTask && (
         <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten">

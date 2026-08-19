@@ -20,6 +20,7 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
   const [datum, setDatum] = useState(editObj?.datum || '');
   const [status, setStatus] = useState<MilestoneStatus>(editObj?.status || 'geplant');
   const [notiz, setNotiz] = useState(editObj?.notiz || '');
+  const [showForm, setShowForm] = useState(false);
 
   function resetForm() {
     setTitel('');
@@ -29,6 +30,7 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
   }
 
   function startEdit(m: Milestone) {
+    setShowForm(true);
     setEditingMilestone(m.id);
     setTitel(m.titel);
     setDatum(m.datum || '');
@@ -44,6 +46,7 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
     }
     await saveMilestone(projectId, { id: editObj ? editObj.id : uid(), titel: trimmed, datum, status, notiz });
     setEditingMilestone(null);
+    setShowForm(false);
     resetForm();
   }
 
@@ -57,7 +60,8 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
 
   return (
     <>
-      <div className="card">
+      <button className="btn" style={{ marginBottom: 14 }} onClick={() => { resetForm(); setEditingMilestone(null); setShowForm(true); }}>+ Neuer Meilenstein</button>
+      {(showForm || editObj) && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label={editObj ? 'Meilenstein bearbeiten' : 'Meilenstein anlegen'}><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Zeitplan</span><strong>{editObj ? editObj.titel : 'Neuer Meilenstein'}</strong></div></div><div className="card">
         <h3 style={{ marginBottom: 10, fontSize: 15 }}>{editObj ? 'Meilenstein bearbeiten' : 'Neuer Meilenstein'}</h3>
         <div className="field-grid">
           <div className="field">
@@ -87,19 +91,9 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
           <button className="btn" onClick={handleSave}>
             {editObj ? 'Speichern' : 'Hinzufügen'}
           </button>
-          {editObj && (
-            <button
-              className="btn secondary"
-              onClick={() => {
-                setEditingMilestone(null);
-                resetForm();
-              }}
-            >
-              Abbrechen
-            </button>
-          )}
+          <button className="btn secondary" onClick={() => { setEditingMilestone(null); setShowForm(false); resetForm(); }}>Abbrechen</button>
         </div>
-      </div>
+      </div></div></div>}
       <div className="section-title">Zeitplan</div>
       {sorted.length === 0 ? (
         <div className="empty-state">
