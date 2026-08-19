@@ -13,10 +13,15 @@ import AuswertungTab from './tabs/AuswertungTab';
 
 const STATUS_LABELS: Record<string, string> = { aktiv: 'Aktiv', pausiert: 'Pausiert', abgeschlossen: 'Abgeschlossen' };
 
-export default function ProjectView() {
-  const selectedId = useUiStore((s) => s.selectedId);
-  const activeTab = useUiStore((s) => s.activeTab);
-  const setActiveTab = useUiStore((s) => s.setActiveTab);
+interface Props { projectId?: string | null; paneTab?: string; onPaneTabChange?: (tab: string) => void; }
+
+export default function ProjectView({ projectId, paneTab, onPaneTabChange }: Props = {}) {
+  const globalSelectedId = useUiStore((s) => s.selectedId);
+  const globalActiveTab = useUiStore((s) => s.activeTab);
+  const setGlobalActiveTab = useUiStore((s) => s.setActiveTab);
+  const selectedId = projectId === undefined ? globalSelectedId : projectId;
+  const activeTab = paneTab ?? globalActiveTab;
+  const setActiveTab = onPaneTabChange ?? setGlobalActiveTab;
   const goTo = useUiStore((s) => s.goTo);
   const projects = useDataStore((s) => s.projects);
   const cache = useDataStore((s) => s.cache);
@@ -31,8 +36,8 @@ export default function ProjectView() {
   }, [selectedId, ensureProjectData]);
 
   useEffect(() => {
-    if (projects && !project) goTo('dashboard');
-  }, [projects, project, goTo]);
+    if (projectId === undefined && projects && !project) goTo('dashboard');
+  }, [projects, project, goTo, projectId]);
 
   useEffect(() => {
     if (activeTab === 'ki-suche' && !aiAvailable) setActiveTab('aufgaben');

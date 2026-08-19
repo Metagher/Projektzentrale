@@ -9,6 +9,8 @@ export default function ProjectQuickBar() {
   const projects = useDataStore((state) => state.projects);
   const view = useUiStore((state) => state.view);
   const selectedId = useUiStore((state) => state.selectedId);
+  const secondaryPane = useUiStore((state) => state.secondaryPane);
+  const setSecondaryPane = useUiStore((state) => state.setSecondaryPane);
   const aiAvailable = useAiStore((state) => state.keyPresent);
   const newProjectForm = useModalStore((state) => state.newProjectForm);
   const createProject = useDataStore((state) => state.createProject);
@@ -18,6 +20,11 @@ export default function ProjectQuickBar() {
     if (!result) return;
     const id = await createProject(result);
     useUiStore.setState({ view: 'project-management', selectedId: id });
+  }
+
+  function dragPane(event: DragEvent, pane: { view: 'dashboard' | 'project'; selectedId: string | null; activeTab: string }) {
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('application/x-projectzentrale-pane', JSON.stringify(pane));
   }
 
   const sorted = (projects || []).slice().sort((a, b) =>
@@ -37,7 +44,7 @@ export default function ProjectQuickBar() {
     <nav className="project-quickbar" aria-label="Projektschnellwahl">
       <button className="top-brand" onClick={() => useUiStore.getState().goTo('dashboard')} title="Projektzentrale">PZ</button>
       <div className="top-primary-nav" aria-label="Hauptbereiche">
-        <button className={view === 'dashboard' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('dashboard')} title="Dashboard" aria-label="Dashboard">⌂</button>
+        <button draggable className={view === 'dashboard' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('dashboard')} title="Dashboard – ziehen oder öffnen" aria-label="Dashboard">⌂</button>
         <button className={view === 'calendar' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('calendar')} title="Kalender" aria-label="Kalender">▤</button>
         <button className={view === 'knowledge' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('knowledge')} title="Wissensdatenbank" aria-label="Wissensdatenbank">◇</button>
         <button className={view === 'analytics' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('analytics')} title="Auswertung" aria-label="Auswertung">↗</button>
@@ -52,6 +59,8 @@ export default function ProjectQuickBar() {
             <button
               className={`project-quickbar-item${view === 'project' && selectedId === project.id ? ' active' : ''}`}
               key={project.id}
+              draggable
+              onDragStart={(event) => dragPane(event, { view: 'project', selectedId: project.id, activeTab: 'aufgaben' })}
               title={`${project.name} · ${group.label}`}
               onClick={() => useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'aufgaben', sidebarOpen: false })}
             >
@@ -62,6 +71,7 @@ export default function ProjectQuickBar() {
         </div>)}
       </div>
       <div className="top-admin-nav">
+        <button className={secondaryPane ? 'active' : ''} onClick={() => secondaryPane ? useUiStore.getState().closeSecondaryPane() : setSecondaryPane({ view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} title={secondaryPane ? 'Geteilte Ansicht schließen' : 'Bildschirm teilen'} aria-label="Bildschirm teilen">◫</button>
         <button onClick={create} title="Neues Projekt" aria-label="Neues Projekt">＋</button>
         <button className={view === 'project-management' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('project-management')} title="Projektverwaltung" aria-label="Projektverwaltung">▦</button>
         <button className={view === 'settings' || view === 'data' || view === 'ai-settings' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('settings')} title="Einstellungen" aria-label="Einstellungen">⚙</button>
@@ -69,3 +79,4 @@ export default function ProjectQuickBar() {
     </nav>
   );
 }
+import type { DragEvent } from 'react';

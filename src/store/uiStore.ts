@@ -13,6 +13,7 @@ export type View =
   | 'ai-settings';
 
 export type DashboardTab = 'liste' | 'ohne-datum' | 'wartet' | 'erledigt';
+export interface WorkspacePane { view: 'dashboard' | 'project'; selectedId: string | null; activeTab: string; }
 
 export interface DashFilter {
   projectId: string;
@@ -31,6 +32,7 @@ interface UiState {
   search: string;
   moreNavExpanded: boolean;
   sidebarOpen: boolean;
+  secondaryPane: WorkspacePane | null;
 
   dashboardTab: DashboardTab;
   calendarMonth: { year: number; month: number } | null;
@@ -43,6 +45,9 @@ interface UiState {
   toggleMoreNav: () => void;
   toggleSidebar: () => void;
   closeSidebar: () => void;
+  setSecondaryPane: (pane: WorkspacePane) => void;
+  setSecondaryTab: (tab: string) => void;
+  closeSecondaryPane: () => void;
   setActiveTab: (tab: string) => void;
 
   setDashboardTab: (tab: DashboardTab) => void;
@@ -60,6 +65,7 @@ export const useUiStore = create<UiState>((set) => ({
   search: '',
   moreNavExpanded: false,
   sidebarOpen: false,
+  secondaryPane: null,
 
   dashboardTab: 'liste',
   calendarMonth: null,
@@ -72,6 +78,9 @@ export const useUiStore = create<UiState>((set) => ({
   toggleMoreNav: () => set((s) => ({ moreNavExpanded: !s.moreNavExpanded })),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   closeSidebar: () => set({ sidebarOpen: false }),
+  setSecondaryPane: (pane) => set({ secondaryPane: pane }),
+  setSecondaryTab: (activeTab) => set((state) => ({ secondaryPane: state.secondaryPane ? { ...state.secondaryPane, activeTab } : null })),
+  closeSecondaryPane: () => set({ secondaryPane: null }),
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   setDashboardTab: (tab) => set({ dashboardTab: tab }),
