@@ -29,9 +29,11 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
   const deleteTask = useDataStore((state) => state.deleteTask);
   const saveTask = useDataStore((state) => state.saveTask);
   const taskColorOrder = useDataStore((state) => state.taskColorOrder);
+  const waitingOptions = useDataStore((state) => state.waitingOptions);
   const syncCommLinksForTask = useDataStore((state) => state.syncCommLinksForTask);
   const confirm = useModalStore((state) => state.confirm);
-  const prompt = useModalStore((state) => state.prompt);
+  const choice = useModalStore((state) => state.choice);
+  const alert = useModalStore((state) => state.alert);
   const { showNewTaskForm, setShowNewTaskForm, showTaskFilters, toggleShowTaskFilters, showCompletedKanban, toggleShowCompletedKanban, projectTaskFilter, editingTaskId } = useProjectUiStore();
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<BoardColumn | null>(null);
@@ -78,11 +80,12 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
     if (nextStatus === 'wartet' && targetPerson) {
       wartetAuf = targetPerson;
     } else if (nextStatus === 'wartet') {
-      const person = await prompt({
+      if (waitingOptions.length === 0) { await alert('Bitte zuerst unter Einstellungen die Grunddaten für „Wartet auf“ anlegen.'); return; }
+      const person = await choice({
         title: 'Auf wen wird gewartet?',
         message: `Die Aufgabe „${task.titel}“ wird in „Wartet auf andere“ verschoben.`,
         label: 'Person oder Stelle',
-        placeholder: 'z. B. Frau Müller, IT-Abteilung oder Kunde',
+        options: waitingOptions,
         initialValue: task.wartetAuf,
         confirmLabel: 'Aufgabe verschieben',
       });

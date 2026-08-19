@@ -102,6 +102,17 @@ function PromptForm({ modal }: { modal: Extract<ReturnType<typeof useModalStore.
   );
 }
 
+function ChoiceForm({ modal }: { modal: Extract<ReturnType<typeof useModalStore.getState>['modal'], { kind: 'choice' }> }) {
+  const close = useModalStore((state) => state.close);
+  const [value, setValue] = useState(modal.options.includes(modal.initialValue) ? modal.initialValue : '');
+  const [invalid, setInvalid] = useState(false);
+  function submit() {
+    if (!value) { setInvalid(true); return; }
+    close(); modal.resolve(value);
+  }
+  return <div className="modal-box"><h3>{modal.title}</h3><p>{modal.message}</p><div className="field"><label>{modal.label}</label><select autoFocus value={value} aria-invalid={invalid} onChange={(event) => { setValue(event.target.value); setInvalid(false); }}><option value="">Bitte auswählen</option>{modal.options.map((option) => <option key={option} value={option}>{option}</option>)}</select>{invalid && <span className="field-error">Bitte eine Möglichkeit auswählen.</span>}</div><div className="modal-actions"><button className="btn secondary" onClick={() => { close(); modal.resolve(null); }}>Abbrechen</button><button className="btn" onClick={submit}>{modal.confirmLabel}</button></div></div>;
+}
+
 export default function ModalRoot() {
   const modal = useModalStore((s) => s.modal);
   const close = useModalStore((s) => s.close);
@@ -171,6 +182,8 @@ export default function ModalRoot() {
   if (modal.kind === 'prompt') {
     return <div className="modal-overlay"><PromptForm modal={modal} /></div>;
   }
+
+  if (modal.kind === 'choice') return <div className="modal-overlay"><ChoiceForm modal={modal} /></div>;
 
   return (
     <div className="modal-overlay">

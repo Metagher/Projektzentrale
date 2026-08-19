@@ -64,6 +64,7 @@ interface DataStoreState {
   dashboardData: DashboardData | null;
   taskColorOrder: TaskColor[];
   taskColorLabels: TaskColorLabels;
+  waitingOptions: string[];
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -95,6 +96,7 @@ interface DataStoreState {
   saveDocDefs: (defs: DocSectionDef[]) => Promise<void>;
   saveTaskColorOrder: (order: TaskColor[]) => Promise<void>;
   saveTaskColorLabels: (labels: TaskColorLabels) => Promise<void>;
+  saveWaitingOptions: (options: string[]) => Promise<void>;
 
   /** Keeps task.commIds in sync after a comm's linked-tasks selection changed; persists tasks if anything changed. */
   syncTaskLinksForComm: (projectId: string, commId: string, oldTaskIds: string[], newTaskIds: string[]) => Promise<void>;
@@ -131,6 +133,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   dashboardData: null,
   taskColorOrder: DEFAULT_TASK_COLOR_ORDER,
   taskColorLabels: DEFAULT_TASK_COLOR_LABELS,
+  waitingOptions: [],
 
   loadAll: async () => {
     const sb = client();
@@ -139,16 +142,22 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
+      sGet<string[]>(sb, 'waiting-options'),
     ]);
     const taskColorOrder = normalizeTaskColorOrder(storedColorOrder);
     const taskColorLabels = normalizeTaskColorLabels(storedColorLabels);
-    set({ projects, taskColorOrder, taskColorLabels });
+    set({ projects, taskColorOrder, taskColorLabels, waitingOptions: storedWaitingOptions || [] });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
     await get().loadDashboardData();
+    if (!storedWaitingOptions) {
+      const inferred = Array.from(new Set((get().dashboardData?.waitingTasks || []).map((task) => task.wartetAuf.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de'));
+      set({ waitingOptions: inferred });
+      await sSet(sb, 'waiting-options', inferred);
+    }
   },
 
   loadDocDefs: async () => {
@@ -177,6 +186,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const normalized = normalizeTaskColorLabels(labels);
     set({ taskColorLabels: normalized });
     await sSet(client(), 'task-color-labels', normalized);
+  },
+
+  saveWaitingOptions: async (options) => {
+    const normalized = Array.from(new Set(options.map((option) => option.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de'));
+    set({ waitingOptions: normalized });
+    await sSet(client(), 'waiting-options', normalized);
   },
 
   ensureProjectData: async (id) => {

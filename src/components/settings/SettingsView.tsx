@@ -5,6 +5,7 @@ import { computeDocLabels, getSubtreeIds, moveSubtreeTo } from '../../lib/docOut
 import { defLevel, uid } from '../../lib/format';
 import type { DocSectionDef } from '../../types/entities';
 import TaskColorSettings from './TaskColorSettings';
+import WaitingOptionsSettings from './WaitingOptionsSettings';
 
 export default function SettingsView() {
   const docDefs = useDataStore((s) => s.docDefs) || [];
@@ -79,6 +80,7 @@ export default function SettingsView() {
         hier zu löschen.
       </div>
       <TaskColorSettings />
+      <WaitingOptionsSettings />
       <div className="section-title">Dokumentationsstruktur</div>
       <div className="card">
         <h3 style={{ marginBottom: 10, fontSize: 15 }}>Neuen Oberpunkt hinzufügen</h3>

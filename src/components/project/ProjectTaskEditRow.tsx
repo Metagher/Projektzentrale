@@ -19,6 +19,7 @@ interface Props {
 
 export default function ProjectTaskEditRow({ task, projectId, data, contacts }: Props) {
   const saveTask = useDataStore((s) => s.saveTask);
+  const waitingOptions = useDataStore((s) => s.waitingOptions);
   const deleteTask = useDataStore((s) => s.deleteTask);
   const syncCommLinksForTask = useDataStore((s) => s.syncCommLinksForTask);
   const { setEditingTaskId } = useProjectUiStore();
@@ -44,6 +45,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       await alert('Bitte einen Titel angeben.');
       return;
     }
+    if (status === 'wartet' && !wartetAuf) { await alert('Bitte auswählen, auf wen gewartet wird.'); return; }
     let abgeschlossenAm = task.abgeschlossenAm || null;
     if (status === 'erledigt' && task.status !== 'erledigt') abgeschlossenAm = new Date().toISOString();
     else if (status !== 'erledigt' && task.status === 'erledigt') abgeschlossenAm = null;
@@ -116,7 +118,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       {status === 'wartet' && (
         <div className="field wartet-auf-field">
           <label>Wartet auf (Person)</label>
-          <input value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)} placeholder="z.B. Kollege Müller, Chef, IT-Abteilung…" />
+          <select value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)}><option value="">Bitte auswählen</option>{wartetAuf && !waitingOptions.includes(wartetAuf) && <option value={wartetAuf}>{wartetAuf} (Bestand)</option>}{waitingOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
         </div>
       )}
       <div className="field">

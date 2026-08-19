@@ -198,6 +198,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .color-order-row > input { width: 100%; padding: 6px 8px; font-weight: 600; }
 .color-order-row .actions { display: flex; gap: 4px; }
 .color-order-row .btn:disabled { opacity: .3; cursor: not-allowed; }
+.settings-explanation { margin: 5px 0 14px; color: var(--ink-soft); font-size: 12.5px; }
+.waiting-option-add { display: flex; gap: 8px; max-width: 520px; }
+.waiting-option-add input { flex: 1; min-width: 0; padding: 8px 10px; }
+.waiting-option-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.waiting-option-list > span { display: inline-flex; align-items: center; gap: 7px; padding: 5px 6px 5px 10px; color: #fff; background: #111; border-radius: 999px; font-size: 11px; }
+.waiting-option-list button { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; color: #111; background: #fff; border: 0; border-radius: 50%; cursor: pointer; }
 
 @media (max-width: 980px) {
   .stat-row { grid-template-columns: repeat(2, 1fr); }

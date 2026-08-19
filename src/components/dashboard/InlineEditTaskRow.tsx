@@ -18,6 +18,7 @@ interface Props {
 
 export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: Props) {
   const contacts = useDataStore((s) => s.cache[task.projectId]?.contacts) || [];
+  const waitingOptions = useDataStore((s) => s.waitingOptions);
   const saveTask = useDataStore((s) => s.saveTask);
   const deleteTask = useDataStore((s) => s.deleteTask);
   const confirm = useModalStore((s) => s.confirm);
@@ -41,6 +42,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       await alert('Bitte einen Titel angeben.');
       return;
     }
+    if (status === 'wartet' && !wartetAuf) { await alert('Bitte auswählen, auf wen gewartet wird.'); return; }
     let abgeschlossenAm = task.abgeschlossenAm || null;
     if (status === 'erledigt' && task.status !== 'erledigt') abgeschlossenAm = new Date().toISOString();
     else if (status !== 'erledigt' && task.status === 'erledigt') abgeschlossenAm = null;
@@ -117,11 +119,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       {status === 'wartet' && (
         <div className="field wartet-auf-field">
           <label>Wartet auf (Person)</label>
-          <input
-            value={wartetAuf}
-            onChange={(e) => setWartetAuf(e.target.value)}
-            placeholder="z.B. Kollege Müller, Chef, IT-Abteilung…"
-          />
+          <select value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)}><option value="">Bitte auswählen</option>{wartetAuf && !waitingOptions.includes(wartetAuf) && <option value={wartetAuf}>{wartetAuf} (Bestand)</option>}{waitingOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
         </div>
       )}
       <div className="field">

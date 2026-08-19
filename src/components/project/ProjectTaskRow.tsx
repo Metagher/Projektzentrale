@@ -45,7 +45,6 @@ export default function ProjectTaskRow({ task, contact, data, onDelete }: Props)
             {task.erstelltAm && ` · Erstellt: ${fmtDate(task.erstelltAm.slice(0, 10))}`}
             {task.abgeschlossenAm && ` · Erledigt: ${fmtDate(task.abgeschlossenAm.slice(0, 10))}`}
           </div>
-          {task.status === 'wartet' && <div className="wartet-auf-note">⏳ Wartet auf: {task.wartetAuf || '—'}</div>}
           {!isEmptyHtml(task.beschreibung) && (
             <div className="rtf-content rtf-field-preview-compact" style={{ marginTop: 4 }} dangerouslySetInnerHTML={{ __html: task.beschreibung }} />
           )}

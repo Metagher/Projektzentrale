@@ -12,6 +12,7 @@ import type { ProjectCache, Task, TaskColor, TaskPrio, TaskStatus } from '../../
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const createTask = useDataStore((s) => s.createTask);
+  const waitingOptions = useDataStore((s) => s.waitingOptions);
   const syncCommLinksForTask = useDataStore((s) => s.syncCommLinksForTask);
   const setShowNewTaskForm = useProjectUiStore((s) => s.setShowNewTaskForm);
   const alert = useModalStore((s) => s.alert);
@@ -35,6 +36,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       await alert('Bitte einen Titel angeben.');
       return;
     }
+    if (status === 'wartet' && !wartetAuf) { await alert('Bitte auswählen, auf wen gewartet wird.'); return; }
     const partial: Omit<Task, 'id' | 'nr' | 'erstelltAm' | 'abgeschlossenAm'> = {
       titel: trimmed,
       faelligAm,
@@ -109,7 +111,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       {status === 'wartet' && (
         <div className="field wartet-auf-field">
           <label>Wartet auf (Person)</label>
-          <input value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)} placeholder="z.B. Kollege Müller, Chef, IT-Abteilung…" />
+          <select value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)}><option value="">Bitte auswählen</option>{waitingOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
         </div>
       )}
       <div className="doku-check-field">
