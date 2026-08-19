@@ -64,6 +64,30 @@
   .cal-tasks, .cal-more{display:none;}
 }
 
+/* Operatives Dashboard-Cockpit */
+.dashboard-cockpit{display:grid;gap:14px;margin-top:8px;}
+.dashboard-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-top:20px;padding-bottom:9px;border-bottom:2px solid #111;}
+.dashboard-section-head h3,.dashboard-worklists-head h3{margin:2px 0 3px;font-size:22px;}
+.dashboard-section-head p,.dashboard-worklists-head p{margin:0;color:var(--ink-soft);font-size:11px;}
+.dashboard-cockpit-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.85fr);gap:14px;align-items:start;}
+.dashboard-panel{min-width:0;padding:14px;background:#fff;border:1px solid #bbb;border-radius:12px;}
+.dashboard-panel-wide{min-width:0;}
+.dashboard-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
+.dashboard-panel-head strong,.dashboard-panel-head small{display:block;}.dashboard-panel-head strong{font-size:13px}.dashboard-panel-head small{margin-top:2px;color:var(--ink-soft);font-size:9px;}
+.dashboard-panel-head button{padding:3px 6px;color:#111;background:transparent;border:0;border-bottom:1px solid #111;cursor:pointer;font-size:9px;font-weight:700;}
+.dashboard-panel .agg-row{padding:8px 9px;margin-bottom:5px;}.dashboard-panel .agg-row:last-child{margin-bottom:0;}
+.waiting-summary{display:grid;gap:5px;}.waiting-summary button{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 9px;color:#111;background:#f2f2f2;border:1px solid #ddd;border-radius:7px;cursor:pointer;text-align:left;font-size:11px;}.waiting-summary button:hover{color:#fff;background:#111;border-color:#111}.waiting-summary b{display:grid;place-items:center;min-width:22px;height:20px;color:#fff;background:#111;border-radius:5px;font-size:9px}.waiting-summary button:hover b{color:#111;background:#fff;}
+.dashboard-good-state{padding:18px;color:#555;background:#f2f2f2;border:1px dashed #aaa;border-radius:8px;font-size:11px;text-align:center;}
+.project-pulse-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;}
+.project-pulse-grid>button{display:flex;align-items:stretch;flex-direction:column;min-width:0;padding:13px;color:#111;background:#fff;border:1px solid #bbb;border-radius:10px;cursor:pointer;text-align:left;}
+.project-pulse-grid>button:hover{color:#fff;background:#111;border-color:#111;}.project-pulse-grid>button strong,.project-pulse-grid>button small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.project-pulse-grid>button strong{font-size:12px}.project-pulse-grid>button small{margin-top:2px;color:#777;font-size:9px}.project-pulse-grid>button:hover small{color:#bbb}
+.project-pulse-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:12px 0 9px;}.project-pulse-metrics span{padding:5px 3px;background:#eee;border-radius:5px;font-size:8px;text-align:center}.project-pulse-metrics b{display:block;font-size:14px}.project-pulse-metrics .critical{color:#fff;background:#111}.project-pulse-grid>button:hover .project-pulse-metrics span{color:#111;background:#fff}.project-pulse-grid>button:hover .project-pulse-metrics .critical{outline:1px solid #fff}
+.project-pulse-grid em{margin-top:auto;color:#777;font-size:8px;font-style:normal}.project-pulse-grid>button:hover em{color:#ccc}
+.dashboard-forward-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.dashboard-panel>.section-title:first-child{margin:0 0 10px;}.dashboard-panel .section-title+ .agg-row{margin-top:0;}
+.dashboard-worklists-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-top:34px;padding:16px 0 10px;border-top:2px solid #111;}
+@media(max-width:1000px){.project-pulse-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-cockpit-grid{grid-template-columns:1fr}}
+@media(max-width:650px){.project-pulse-grid,.dashboard-forward-grid{grid-template-columns:1fr}.dashboard-worklists-head{align-items:flex-start;flex-direction:column}}
+
 /* Dashboard filter bar */
 .filter-bar{
   display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;background:var(--paper-raised);

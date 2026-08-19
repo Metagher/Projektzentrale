@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useUiStore, type DashboardTab } from '../../store/uiStore';
 import { useModalStore } from '../../store/modalStore';
@@ -6,11 +6,10 @@ import { applyDashboardFilters } from '../../lib/filters';
 import { fmtDate, todayStr } from '../../lib/format';
 import { getDashboardSummary } from '../../lib/dashboardModel';
 import DailyBriefingCard from './DailyBriefingCard';
-import OverdueBanner from './OverdueBanner';
 import DashboardFilterBar from './DashboardFilterBar';
 import TaskRows from './TaskRows';
-import MilestonesList from './MilestonesList';
 import DailyPlanner from './DailyPlanner';
+import DashboardCockpit from './DashboardCockpit';
 
 const TABS: { key: DashboardTab; label: (n: number) => string }[] = [
   { key: 'liste', label: () => 'Liste' },
@@ -26,6 +25,7 @@ export default function Dashboard() {
   const setAllNoDateTasksToToday = useDataStore((s) => s.setAllNoDateTasksToToday);
   const confirm = useModalStore((s) => s.confirm);
   const { dashboardTab, setDashboardTab, showDashFilters, toggleDashFilters, dashFilter } = useUiStore();
+  const [showWorklists, setShowWorklists] = useState(false);
 
   useEffect(() => {
     if (projects) loadDashboardData();
@@ -133,8 +133,9 @@ export default function Dashboard() {
           <div className="label">Echtläufe in 30 Tagen</div>
         </div>
       </div>
-      <OverdueBanner count={summary.overdueTasks} />
-      <div className="tabs" style={{ justifyContent: 'space-between' }}>
+      <DashboardCockpit projects={projects} data={dashboardData} openWorklist={(tab) => { setDashboardTab(tab); setShowWorklists(true); }} openTask={(taskId) => { setDashboardTab('liste'); useUiStore.getState().setDashboardEditingTaskId(taskId); setShowWorklists(true); }} />
+      <div className="dashboard-worklists-head"><div><span className="eyebrow">Detailansichten</span><h3>Arbeitslisten</h3><p>Vollständige Aufgabenlisten für Recherche und Nachbearbeitung.</p></div><button className="btn secondary small" onClick={() => setShowWorklists((value) => !value)}>{showWorklists ? 'Arbeitslisten schließen' : 'Arbeitslisten öffnen'}</button></div>
+      {showWorklists && <><div className="tabs" style={{ justifyContent: 'space-between' }}>
         <div style={{ display: 'flex' }}>
           {TABS.map((t) => (
             <button
@@ -150,8 +151,7 @@ export default function Dashboard() {
           {showDashFilters ? 'Filter ausblenden' : '🔍 Filter'}
         </button>
       </div>
-      {content}
-      <MilestonesList milestones={dashboardData.upcomingMilestones} />
+      {content}</>}
     </div>
   );
 }
