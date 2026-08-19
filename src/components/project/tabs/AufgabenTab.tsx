@@ -35,6 +35,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
   const { showNewTaskForm, setShowNewTaskForm, showTaskFilters, toggleShowTaskFilters, showCompletedKanban, toggleShowCompletedKanban, projectTaskFilter, editingTaskId } = useProjectUiStore();
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<BoardColumn | null>(null);
+  const [dragOverPerson, setDragOverPerson] = useState<string | null>(null);
 
   const filteredTasks = applyProjectTaskFilters(data.tasks, projectTaskFilter);
   const tasksByColumn = COLUMNS.reduce<Record<BoardColumn, Task[]>>((groups, column) => {
@@ -46,6 +47,15 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
   const editingTask = editingTaskId ? data.tasks.find((task) => task.id === editingTaskId) : undefined;
   const filterActive = !!(projectTaskFilter.prioritaet || projectTaskFilter.kontaktId || projectTaskFilter.von || projectTaskFilter.bis);
   const visibleColumns = showCompletedKanban ? COLUMNS : COLUMNS.filter((column) => column.key !== 'erledigt');
+  const waitingGroups = tasksByColumn.wartet.reduce<{ key: string; label: string; person: string; tasks: Task[] }[]>((groups, task) => {
+    const person = (task.wartetAuf || '').trim();
+    const label = person || 'Nicht angegeben';
+    const key = label.toLocaleLowerCase('de');
+    const existing = groups.find((group) => group.key === key);
+    if (existing) existing.tasks.push(task);
+    else groups.push({ key, label, person, tasks: [task] });
+    return groups;
+  }, []);
 
   async function handleDelete(taskId: string) {
     if (!(await confirm('Diese Aufgabe löschen?'))) return;
@@ -54,15 +64,20 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
     if (task) await syncCommLinksForTask(project.id, taskId, task.commIds || [], []);
   }
 
-  async function moveTask(targetColumn: BoardColumn) {
+  async function moveTask(targetColumn: BoardColumn, targetPerson?: string) {
     const task = data.tasks.find((item) => item.id === draggedTaskId);
     setDraggedTaskId(null);
     setDragOverColumn(null);
-    if (!task || columnForStatus(task.status) === targetColumn) return;
+    setDragOverPerson(null);
+    if (!task) return;
+    const sameColumn = columnForStatus(task.status) === targetColumn;
+    if (sameColumn && (targetColumn !== 'wartet' || !targetPerson || task.wartetAuf.trim() === targetPerson.trim())) return;
 
     const nextStatus: TaskStatus = targetColumn === 'offen' ? 'offen' : targetColumn;
     let wartetAuf = nextStatus === 'wartet' ? task.wartetAuf : '';
-    if (nextStatus === 'wartet') {
+    if (nextStatus === 'wartet' && targetPerson) {
+      wartetAuf = targetPerson;
+    } else if (nextStatus === 'wartet') {
       const person = await prompt({
         title: 'Auf wen wird gewartet?',
         message: `Die Aufgabe „${task.titel}“ wird in „Wartet auf andere“ verschoben.`,
@@ -86,6 +101,20 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     setDragOverColumn(column);
+  }
+
+  function renderTask(task: Task) {
+    return (
+      <div
+        className={`kanban-task${task.farbe ? ` marked task-color-border-${task.farbe}` : ''}${draggedTaskId === task.id ? ' dragging' : ''}`}
+        key={task.id}
+        draggable
+        onDragStart={(event) => { setDraggedTaskId(task.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', task.id); }}
+        onDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); setDragOverPerson(null); }}
+      >
+        <ProjectTaskRow task={task} contact={data.contacts.find((contact) => contact.id === task.kontaktId)} data={data} onDelete={() => handleDelete(task.id)} />
+      </div>
+    );
   }
 
   return (
@@ -122,17 +151,21 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
             </header>
             <div className="kanban-column-body">
               {tasksByColumn[column.key].length === 0 && <div className="kanban-empty">{filterActive ? 'Keine Treffer' : 'Keine Aufgaben'}</div>}
-              {tasksByColumn[column.key].map((task) => (
-                <div
-                  className={`kanban-task${task.farbe ? ` marked task-color-border-${task.farbe}` : ''}${draggedTaskId === task.id ? ' dragging' : ''}`}
-                  key={task.id}
-                  draggable
-                  onDragStart={(event) => { setDraggedTaskId(task.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', task.id); }}
-                  onDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
+              {column.key === 'wartet' && waitingGroups.length > 0 && <div className="waiting-summary" aria-label="Zusammenfassung nach Person">
+                {waitingGroups.map((group) => <span key={group.key}><strong>{group.label}</strong><b>{group.tasks.length}</b></span>)}
+              </div>}
+              {column.key === 'wartet' ? waitingGroups.map((group) => (
+                <section
+                  className={`waiting-person-group${dragOverPerson === group.key ? ' drag-over' : ''}`}
+                  key={group.key}
+                  onDragOver={(event) => { event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = 'move'; setDragOverColumn(null); setDragOverPerson(group.key); }}
+                  onDragLeave={(event) => { event.stopPropagation(); if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverPerson(null); }}
+                  onDrop={(event) => { event.preventDefault(); event.stopPropagation(); moveTask('wartet', group.person || undefined); }}
                 >
-                  <ProjectTaskRow task={task} contact={data.contacts.find((contact) => contact.id === task.kontaktId)} data={data} onDelete={() => handleDelete(task.id)} />
-                </div>
-              ))}
+                  <header className="waiting-person-head"><span>Wartet auf</span><strong>{group.label}</strong><span className="waiting-person-count">{group.tasks.length}</span></header>
+                  <div className="waiting-person-tasks">{group.tasks.map(renderTask)}</div>
+                </section>
+              )) : tasksByColumn[column.key].map(renderTask)}
             </div>
           </section>
         ))}

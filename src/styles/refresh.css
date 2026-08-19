@@ -161,6 +161,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .kanban-task .badge { display: inline-block; margin-top: 4px; }
 .kanban-task .rtf-field-preview-compact { max-height: 92px; overflow: hidden; }
 .kanban-empty { display: grid; place-items: center; min-height: 76px; padding: 12px; color: #777; border: 1px dashed #bbb; border-radius: 9px; font-size: 11px; text-align: center; }
+.waiting-person-group { display: grid; gap: 7px; padding: 8px; background: #f8f8f8; border: 1px solid #d2d2d2; border-radius: 10px; transition: border-color .15s ease, background .15s ease; }
+.waiting-person-group.drag-over { padding: 7px; background: #fff; border: 2px solid #000; }
+.waiting-person-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; padding: 1px 3px 5px; color: #111; border-bottom: 1px solid #ddd; }
+.waiting-person-head > span:first-child { color: #777; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.waiting-person-head > strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.waiting-person-count { display: grid; place-items: center; min-width: 21px; height: 21px; color: #fff; background: #111; border-radius: 6px; font-size: 9px; }
+.waiting-person-tasks { display: grid; gap: 7px; }
+.waiting-summary { display: flex; flex-wrap: wrap; gap: 5px; padding-bottom: 2px; }
+.waiting-summary > span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 5px 4px 8px; color: #111; background: #fff; border: 1px solid #ccc; border-radius: 999px; font-size: 9.5px; }
+.waiting-summary b { display: grid; place-items: center; min-width: 18px; height: 18px; color: #fff; background: #111; border-radius: 50%; font-size: 8px; }
 .field-error { color: #111; font-size: 11px; font-weight: 700; }
 
 /* Task color marking is intentionally the only chromatic layer in the monochrome UI. */
