@@ -12,6 +12,7 @@ type ModalSpec =
   | { kind: 'none' }
   | { kind: 'confirm'; message: string; confirmLabel: string; danger: boolean; resolve: (v: boolean) => void }
   | { kind: 'alert'; message: string; resolve: () => void }
+  | { kind: 'prompt'; title: string; message: string; label: string; placeholder: string; initialValue: string; confirmLabel: string; resolve: (v: string | null) => void }
   | { kind: 'newProject'; resolve: (v: NewProjectResult | null) => void }
   | { kind: 'taskExtractionReview'; tasks: ExtractedTask[]; resolve: (v: ExtractedTask[] | null) => void };
 
@@ -19,6 +20,7 @@ interface ModalStoreState {
   modal: ModalSpec;
   confirm: (message: string, opts?: { confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
   alert: (message: string) => Promise<void>;
+  prompt: (options: { title: string; message: string; label: string; placeholder?: string; initialValue?: string; confirmLabel?: string }) => Promise<string | null>;
   newProjectForm: () => Promise<NewProjectResult | null>;
   taskExtractionReview: (tasks: ExtractedTask[]) => Promise<ExtractedTask[] | null>;
   close: () => void;
@@ -41,6 +43,21 @@ export const useModalStore = create<ModalStoreState>((set) => ({
   alert: (message) =>
     new Promise<void>((resolve) => {
       set({ modal: { kind: 'alert', message, resolve } });
+    }),
+  prompt: (options) =>
+    new Promise<string | null>((resolve) => {
+      set({
+        modal: {
+          kind: 'prompt',
+          title: options.title,
+          message: options.message,
+          label: options.label,
+          placeholder: options.placeholder || '',
+          initialValue: options.initialValue || '',
+          confirmLabel: options.confirmLabel || 'Übernehmen',
+          resolve,
+        },
+      });
     }),
   newProjectForm: () =>
     new Promise<NewProjectResult | null>((resolve) => {

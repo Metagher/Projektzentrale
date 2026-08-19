@@ -7,7 +7,8 @@ import { commLinkLabel } from '../../lib/format';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
-import type { ProjectCache, Task, TaskPrio, TaskStatus } from '../../types/entities';
+import TaskColorSelect from '../shared/TaskColorSelect';
+import type { ProjectCache, Task, TaskColor, TaskPrio, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const createTask = useDataStore((s) => s.createTask);
@@ -18,6 +19,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [titel, setTitel] = useState('');
   const [faelligAm, setFaelligAm] = useState('');
   const [prioritaet, setPrioritaet] = useState<TaskPrio>('should');
+  const [farbe, setFarbe] = useState<TaskColor | ''>('');
   const [status, setStatus] = useState<TaskStatus>('offen');
   const [kontaktId, setKontaktId] = useState('');
   const [wartetAuf, setWartetAuf] = useState('');
@@ -37,6 +39,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       titel: trimmed,
       faelligAm,
       prioritaet,
+      farbe,
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
       kontaktId,
@@ -102,6 +105,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
           </select>
         </div>
       </div>
+      <div className="field"><label>Farbmarkierung</label><TaskColorSelect value={farbe} onChange={setFarbe} /></div>
       {status === 'wartet' && (
         <div className="field wartet-auf-field">
           <label>Wartet auf (Person)</label>

@@ -30,6 +30,23 @@ export function dateKey(d: Date): string {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+/** Monday of the week containing `date` (time reset to midnight). */
+export function startOfWeek(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayNr = (d.getDay() + 6) % 7; // 0=Mon ... 6=Sun
+  d.setDate(d.getDate() - dayNr);
+  return d;
+}
+
+/** The 7 consecutive dates (Mon-Sun) starting at `start`. */
+export function getWeekDates(start: Date): Date[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+}
+
 export const MONTH_NAMES = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',

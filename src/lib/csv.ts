@@ -65,7 +65,7 @@ export async function buildExportCsv(): Promise<string> {
     });
     data.tasks.forEach((t) => {
       rows.push({
-        Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '',
+        Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '', Farbe: t.farbe || '',
         Status: t.status || '', KontaktId: t.kontaktId || '', Beschreibung: t.beschreibung || '', ErstelltAm: t.erstelltAm || '',
         AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '',
         Notiz: t.notizen || '', Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'),
@@ -174,7 +174,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
       const nrRaw = r.Nr !== undefined && r.Nr !== '' ? parseInt(String(r.Nr)) : NaN;
       perProject[pid].tasks.push({
         id: String(r.Id), titel: String(r.Titel || ''), faelligAm: String(r.Datum || ''),
-        prioritaet: migratePrio(r.Prioritaet as string), status: (r.Status as Task['status']) || 'offen',
+        prioritaet: migratePrio(r.Prioritaet as string), farbe: (r.Farbe as Task['farbe']) || '', status: (r.Status as Task['status']) || 'offen',
         kontaktId: String(r.KontaktId || ''), beschreibung: String(r.Beschreibung || ''),
         erstelltAm: (r.ErstelltAm as string) || '', abgeschlossenAm: (r.AbgeschlossenAm as string) || null,
         afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), notizen: String(r.Notiz || ''),

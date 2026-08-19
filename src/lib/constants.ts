@@ -1,4 +1,4 @@
-import type { Kanal, MilestoneStatus, TaskPrio, TaskStatus } from '../types/entities';
+import type { Kanal, MilestoneStatus, TaskColor, TaskPrio, TaskStatus } from '../types/entities';
 
 export const DEFAULT_DOC_SECTIONS = [
   { id: 'ausgangslage', title: 'Ausgangslage & Scope', level: 1 as const },
@@ -11,6 +11,10 @@ export const DEFAULT_DOC_SECTIONS = [
 export const CHANNELS: Kanal[] = ['Teams', 'Telefon', 'E-Mail', 'Vor Ort', 'Sonstiges'];
 export const TASK_STATUS: TaskStatus[] = ['offen', 'in Arbeit', 'wartet', 'erledigt'];
 export const TASK_PRIO: TaskPrio[] = ['must', 'should', 'could', 'wont'];
+export const TASK_COLORS: TaskColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'gray'];
+export const TASK_COLOR_LABELS: Record<TaskColor, string> = {
+  red: 'Rot', orange: 'Orange', yellow: 'Gelb', green: 'Grün', blue: 'Blau', purple: 'Violett', gray: 'Grau',
+};
 export const PRIO_LABELS: Record<TaskPrio, string> = {
   must: 'Must have',
   should: 'Should have',
@@ -31,5 +35,5 @@ export const CSV_COLUMNS = [
   'ErstelltAm', 'AusgeblendeteOberpunkte', 'Level', 'Reihenfolge', 'Rolle', 'Telefon',
   'Email', 'Notiz', 'Datum', 'Kanal', 'KontaktId', 'Betreff', 'OberpunktId', 'Inhalt',
   'AktualisiertAm', 'Prioritaet', 'AbgeschlossenAm', 'AFN', 'WartetAuf', 'Revision',
-  'AktuelleVersion', 'Nr', 'VerknuepfteAufgabenIds', 'VerknuepfteKommIds',
+  'AktuelleVersion', 'Nr', 'Farbe', 'VerknuepfteAufgabenIds', 'VerknuepfteKommIds',
 ] as const;

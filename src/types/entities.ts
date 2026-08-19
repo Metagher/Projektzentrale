@@ -54,6 +54,7 @@ export type DocData = Record<string, DocEntryValue | string[] | undefined>;
 
 export type TaskStatus = 'offen' | 'in Arbeit' | 'wartet' | 'erledigt';
 export type TaskPrio = 'must' | 'should' | 'could' | 'wont';
+export type TaskColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'gray';
 
 export interface Task {
   id: string;
@@ -61,6 +62,7 @@ export interface Task {
   titel: string;
   faelligAm: string;
   prioritaet: TaskPrio;
+  farbe?: TaskColor | '';
   status: TaskStatus;
   wartetAuf: string;
   kontaktId: string;

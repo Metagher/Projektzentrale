@@ -19,13 +19,16 @@
 .rtf-editor, .rtf-editor *, .rtf-content, .rtf-content *, .rtf-field-preview, .rtf-field-preview *{
   color:var(--ink) !important;
   background-color:transparent !important;
+  font-family:inherit !important;
+  font-size:inherit !important;
+  line-height:inherit !important;
 }
 .rtf-field-preview.empty, .rtf-field-preview.empty *{
   color:var(--ink-soft) !important;
 }
 /* Shared typography for rendered rich-text content, used both in the editor and in previews */
 .rtf-content h3, .rtf-content h4, .rtf-editor h3, .rtf-editor h4{
-  font-family:'Fraunces',serif;font-size:15px;font-weight:600;margin:0 0 6px;color:var(--ink);
+  font-family:inherit !important;font-size:15px !important;font-weight:700;margin:0 0 6px;color:var(--ink);
 }
 .rtf-content p, .rtf-editor p{margin:0 0 8px;}
 .rtf-content p:last-child, .rtf-editor p:last-child{margin-bottom:0;}
@@ -41,5 +44,5 @@
 .rtf-field-preview-compact{
   font-size:12.5px;line-height:1.4;cursor:default;border:none;padding:0;background:none;
 }
-.rtf-field-preview-compact h3, .rtf-field-preview-compact h4{font-size:13px;margin:4px 0 3px;}
+.rtf-field-preview-compact h3, .rtf-field-preview-compact h4{font-size:13px !important;margin:4px 0 3px;}
 .rtf-field-preview-compact p{margin:0 0 4px;}

@@ -1,0 +1,35 @@
+/* Current-week panel (Kalender view) — the actionable near-term days, shown in full detail
+   above the more compact month overview. */
+.current-week-panel{
+  background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius);
+  padding:16px 18px;margin-bottom:22px;
+}
+.current-week-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;}
+.current-week-head h3{font-size:15px;}
+.current-week-kw{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);}
+.current-week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+.current-week-day{
+  background:var(--paper);border:1px solid var(--line-soft);border-radius:var(--radius);
+  padding:8px;min-height:120px;display:flex;flex-direction:column;gap:6px;
+}
+.current-week-day.today{border-color:var(--amber);border-width:1.5px;}
+.current-week-day-head{display:flex;flex-direction:column;}
+.current-week-weekday{font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--ink-soft);}
+.current-week-date{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);}
+.current-week-day.today .current-week-date{color:var(--amber-deep);font-weight:600;}
+.current-week-empty{color:var(--ink-soft);font-size:11px;opacity:0.6;}
+.current-week-tasks{display:flex;flex-direction:column;gap:4px;overflow-y:auto;}
+.current-week-task{
+  display:flex;align-items:flex-start;gap:5px;font-size:11.5px;line-height:1.3;cursor:pointer;
+  padding:3px 4px;border-radius:2px;
+}
+.current-week-task:hover{background:var(--field-bg);}
+.current-week-task .prio-dot{margin-top:4px;}
+.current-week-task-title{flex:1;}
+
+@media (max-width:900px){
+  .current-week-grid{grid-template-columns:repeat(4,1fr);}
+}
+@media (max-width:600px){
+  .current-week-grid{grid-template-columns:repeat(2,1fr);}
+}

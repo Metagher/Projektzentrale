@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ClipboardEvent } from 'react';
+import { normalizeRichTextTypography } from '../../lib/richText';
 
 interface Props {
   title: string;
@@ -18,6 +19,17 @@ export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }:
   function exec(cmd: string, val?: string) {
     document.execCommand(cmd, false, val);
     editableRef.current?.focus();
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const clipboard = event.clipboardData;
+    const pastedHtml = clipboard.getData('text/html');
+    if (pastedHtml) {
+      exec('insertHTML', normalizeRichTextTypography(pastedHtml));
+      return;
+    }
+    exec('insertText', clipboard.getData('text/plain'));
   }
 
   return (
@@ -82,13 +94,14 @@ export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }:
           contentEditable
           suppressContentEditableWarning
           ref={editableRef}
+          onPaste={handlePaste}
           dangerouslySetInnerHTML={{ __html: initialHtml || '' }}
         />
         <div className="modal-actions">
           <button className="btn secondary" onClick={onCancel}>
             Abbrechen
           </button>
-          <button className="btn" onClick={() => onSave((editableRef.current?.innerHTML || '').trim())}>
+          <button className="btn" onClick={() => onSave(normalizeRichTextTypography((editableRef.current?.innerHTML || '').trim()))}>
             Übernehmen
           </button>
         </div>

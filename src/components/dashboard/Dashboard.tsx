@@ -9,12 +9,10 @@ import DailyBriefingCard from './DailyBriefingCard';
 import OverdueBanner from './OverdueBanner';
 import DashboardFilterBar from './DashboardFilterBar';
 import TaskRows from './TaskRows';
-import CalendarGrid from './CalendarGrid';
 import MilestonesList from './MilestonesList';
 
 const TABS: { key: DashboardTab; label: (n: number) => string }[] = [
   { key: 'liste', label: () => 'Liste' },
-  { key: 'kalender', label: () => 'Kalender' },
   { key: 'ohne-datum', label: (n) => `Ohne Datum (${n})` },
   { key: 'wartet', label: (n) => `Wartet auf andere (${n})` },
   { key: 'erledigt', label: (n) => `Erledigt (${n})` },
@@ -45,7 +43,6 @@ export default function Dashboard() {
 
   const counts: Record<DashboardTab, number> = {
     liste: dashboardData.tasksWithDate.length,
-    kalender: 0,
     'ohne-datum': dashboardData.tasksNoDate.length,
     wartet: dashboardData.waitingTasks.length,
     erledigt: dashboardData.completedTasks.length,
@@ -59,14 +56,6 @@ export default function Dashboard() {
         {showDashFilters && <DashboardFilterBar showDateFilter />}
         <div className="section-title">Offene Aufgaben mit Termin</div>
         <TaskRows tasks={filtered} />
-      </>
-    );
-  } else if (dashboardTab === 'kalender') {
-    const filtered = applyDashboardFilters(dashboardData.tasksWithDate, dashFilter, false);
-    content = (
-      <>
-        {showDashFilters && <DashboardFilterBar showDateFilter={false} />}
-        <CalendarGrid tasksWithDate={filtered} />
       </>
     );
   } else if (dashboardTab === 'ohne-datum') {

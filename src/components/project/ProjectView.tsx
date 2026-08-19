@@ -3,7 +3,6 @@ import { useDataStore } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
 import { useAiStore } from '../../store/aiStore';
 import { hasEchtlauf, projectCode } from '../../lib/format';
-import AnsprechpartnerTab from './tabs/AnsprechpartnerTab';
 import KommunikationTab from './tabs/KommunikationTab';
 import DokumentationTab from './tabs/DokumentationTab';
 import AufgabenTab from './tabs/AufgabenTab';
@@ -50,8 +49,7 @@ export default function ProjectView() {
   const echtlauf = hasEchtlauf(project);
 
   let tabContent = null;
-  if (activeTab === 'ansprechpartner') tabContent = <AnsprechpartnerTab projectId={project.id} data={data} />;
-  else if (activeTab === 'kommunikation') tabContent = <KommunikationTab projectId={project.id} data={data} />;
+  if (activeTab === 'kommunikation') tabContent = <KommunikationTab projectId={project.id} data={data} />;
   else if (activeTab === 'dokumentation') tabContent = <DokumentationTab projectId={project.id} data={data} />;
   else if (activeTab === 'zeitplan') tabContent = <EchtlaufTab projectId={project.id} data={data} />;
   else if (activeTab === 'update') tabContent = <UpdateTab project={project} data={data} />;
@@ -83,12 +81,6 @@ export default function ProjectView() {
           onClick={() => setActiveTab('kommunikation')}
         >
           Kommunikation
-        </button>
-        <button
-          className={`tab-btn${activeTab === 'ansprechpartner' ? ' active' : ''}`}
-          onClick={() => setActiveTab('ansprechpartner')}
-        >
-          Ansprechpartner
         </button>
         {echtlauf && (
           <button className={`tab-btn${activeTab === 'zeitplan' ? ' active' : ''}`} onClick={() => setActiveTab('zeitplan')}>

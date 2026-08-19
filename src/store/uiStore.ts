@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 export type View =
   | 'dashboard'
+  | 'calendar'
   | 'project-management'
   | 'project'
   | 'settings'
@@ -11,7 +12,7 @@ export type View =
   | 'analytics'
   | 'ai-settings';
 
-export type DashboardTab = 'liste' | 'kalender' | 'ohne-datum' | 'wartet' | 'erledigt';
+export type DashboardTab = 'liste' | 'ohne-datum' | 'wartet' | 'erledigt';
 
 export interface DashFilter {
   projectId: string;

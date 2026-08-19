@@ -8,12 +8,14 @@ import RtfField from '../../shared/RtfField';
 import AfnChipsField from '../../shared/AfnChipsField';
 import AfnChipsView from '../../shared/AfnChipsView';
 import type { DocEntryValue, ProjectCache } from '../../../types/entities';
+import { compareTaskColors } from '../../../lib/taskColors';
 
 export default function DokumentationTab({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const docDefs = useDataStore((s) => s.docDefs) || [];
   const saveDocEntry = useDataStore((s) => s.saveDocEntry);
   const setDocHidden = useDataStore((s) => s.setDocHidden);
   const saveTask = useDataStore((s) => s.saveTask);
+  const taskColorOrder = useDataStore((s) => s.taskColorOrder);
   const { editingDocSectionId, setEditingDocSectionId, setEditingTaskId, setTaskFilterTab } = useProjectUiStore();
   const setActiveTab = useUiStore((s) => s.setActiveTab);
 
@@ -24,7 +26,7 @@ export default function DokumentationTab({ projectId, data }: { projectId: strin
   const dokuTasks = data.tasks
     .filter((t) => t.status === 'erledigt' && t.doku && !t.dokuErledigt)
     .slice()
-    .sort((a, b) => (b.abgeschlossenAm || '').localeCompare(a.abgeschlossenAm || ''));
+    .sort((a, b) => compareTaskColors(a, b, taskColorOrder) || (b.abgeschlossenAm || '').localeCompare(a.abgeschlossenAm || ''));
 
   async function hideSubtree(defId: string) {
     const ids = getSubtreeIds(docDefs, defId);
@@ -56,9 +58,10 @@ export default function DokumentationTab({ projectId, data }: { projectId: strin
         <>
           <div className="section-title">Erledigte Aufgaben zur Dokumentation ({dokuTasks.length})</div>
           {dokuTasks.map((t) => (
-            <div className="doku-list-row" key={t.id} onClick={() => openTaskFromDoku(t.id)}>
+            <div className={`doku-list-row${t.farbe ? ` task-color-border-${t.farbe}` : ''}`} key={t.id} onClick={() => openTaskFromDoku(t.id)}>
               <div style={{ flex: 1 }}>
                 <div className="doku-list-title">
+                  {t.farbe && <span className={`task-color-swatch task-color-${t.farbe}`} />}
                   <span className="task-nr">{t.nr || '—'}</span>
                   <strong>{t.titel}</strong>
                 </div>

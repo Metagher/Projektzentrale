@@ -7,7 +7,8 @@ import { commLinkLabel, slug } from '../../lib/format';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
-import type { Contact, ProjectCache, Task, TaskPrio, TaskStatus } from '../../types/entities';
+import TaskColorSelect from '../shared/TaskColorSelect';
+import type { Contact, ProjectCache, Task, TaskColor, TaskPrio, TaskStatus } from '../../types/entities';
 
 interface Props {
   task: Task;
@@ -26,6 +27,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
 
   const [titel, setTitel] = useState(task.titel);
   const [prioritaet, setPrioritaet] = useState<TaskPrio>(task.prioritaet || 'should');
+  const [farbe, setFarbe] = useState<TaskColor | ''>(task.farbe || '');
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [faelligAm, setFaelligAm] = useState(task.faelligAm || '');
   const [kontaktId, setKontaktId] = useState(task.kontaktId || '');
@@ -50,6 +52,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       ...task,
       titel: trimmed,
       prioritaet,
+      farbe,
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
       faelligAm,
@@ -80,6 +83,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       </div>
       <div className="task-inline-row">
         <span className={`prio-dot prio-${slug(prioritaet)}`} />
+        <TaskColorSelect value={farbe} onChange={setFarbe} />
         <input type="text" value={titel} onChange={(e) => setTitel(e.target.value)} />
         <select value={prioritaet} onChange={(e) => setPrioritaet(e.target.value as TaskPrio)}>
           {TASK_PRIO.map((pr) => (

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { sDelete, sGet, sSet } from '../lib/supabase';
 import { useConnectionStore } from './connectionStore';
 import { DEFAULT_DOC_SECTIONS } from '../lib/constants';
+import { DEFAULT_TASK_COLOR_ORDER, compareTaskColors, normalizeTaskColorOrder } from '../lib/taskColors';
 import { migratePrio } from '../lib/migrations';
 import { hasEchtlauf, todayStr, uid } from '../lib/format';
 import type {
@@ -15,6 +16,7 @@ import type {
   ProjectCache,
   ProjectTyp,
   Task,
+  TaskColor,
   UpdateEntry,
 } from '../types/entities';
 
@@ -60,6 +62,7 @@ interface DataStoreState {
   cache: Record<string, ProjectCache | undefined>;
   taskNrCounter: number | undefined;
   dashboardData: DashboardData | null;
+  taskColorOrder: TaskColor[];
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -89,6 +92,7 @@ interface DataStoreState {
 
   loadDocDefs: () => Promise<void>;
   saveDocDefs: (defs: DocSectionDef[]) => Promise<void>;
+  saveTaskColorOrder: (order: TaskColor[]) => Promise<void>;
 
   /** Keeps task.commIds in sync after a comm's linked-tasks selection changed; persists tasks if anything changed. */
   syncTaskLinksForComm: (projectId: string, commId: string, oldTaskIds: string[], newTaskIds: string[]) => Promise<void>;
@@ -123,6 +127,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   cache: {},
   taskNrCounter: undefined,
   dashboardData: null,
+  taskColorOrder: DEFAULT_TASK_COLOR_ORDER,
 
   loadAll: async () => {
     const sb = client();
@@ -131,7 +136,8 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    set({ projects });
+    const taskColorOrder = normalizeTaskColorOrder(await sGet<TaskColor[]>(sb, 'task-color-order'));
+    set({ projects, taskColorOrder });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
     await get().loadDashboardData();
@@ -150,6 +156,13 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   saveDocDefs: async (defs) => {
     set({ docDefs: defs });
     await sSet(client(), 'doc-section-defs', defs);
+  },
+
+  saveTaskColorOrder: async (order) => {
+    const normalized = normalizeTaskColorOrder(order);
+    set({ taskColorOrder: normalized });
+    await sSet(client(), 'task-color-order', normalized);
+    await get().loadDashboardData();
   },
 
   ensureProjectData: async (id) => {
@@ -213,9 +226,10 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
         });
       }
     }
-    allTasks.sort((a, b) => (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
-    waitingTasks.sort((a, b) => (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
-    completedTasks.sort((a, b) => (b.faelligAm || '').localeCompare(a.faelligAm || ''));
+    const colorOrder = get().taskColorOrder;
+    allTasks.sort((a, b) => compareTaskColors(a, b, colorOrder) || (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
+    waitingTasks.sort((a, b) => compareTaskColors(a, b, colorOrder) || (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
+    completedTasks.sort((a, b) => compareTaskColors(a, b, colorOrder) || (b.faelligAm || '').localeCompare(a.faelligAm || ''));
     allMilestones.sort((a, b) => (a.datum || '9999').localeCompare(b.datum || '9999'));
     allContacts.sort((a, b) => a.name.localeCompare(b.name));
     const withDate = allTasks.filter((t) => t.faelligAm);
@@ -223,7 +237,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const today = todayStr();
     const overdueTasks = [...allTasks, ...waitingTasks]
       .filter((t) => t.faelligAm && t.faelligAm < today)
-      .sort((a, b) => (a.faelligAm || '').localeCompare(b.faelligAm || ''));
+      .sort((a, b) => compareTaskColors(a, b, colorOrder) || (a.faelligAm || '').localeCompare(b.faelligAm || ''));
     set({
       dashboardData: {
         openTasks: allTasks,
@@ -381,6 +395,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const cache = { ...get().cache, [projectId]: { ...data, contacts } };
     set({ cache });
     await sSet(client(), 'contacts:' + projectId, contacts);
+    await get().loadDashboardData();
   },
 
   deleteContact: async (projectId, contactId) => {
@@ -389,6 +404,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const cache = { ...get().cache, [projectId]: { ...data, contacts } };
     set({ cache });
     await sSet(client(), 'contacts:' + projectId, contacts);
+    await get().loadDashboardData();
   },
 
   saveComm: async (projectId, comm) => {

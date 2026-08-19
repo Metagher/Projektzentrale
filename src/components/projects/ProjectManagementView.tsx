@@ -3,6 +3,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { useUiStore } from '../../store/uiStore';
 import RtfField from '../shared/RtfField';
+import ContactsManager from './ContactsManager';
 import type { Project, ProjectStatus, ProjectTyp } from '../../types/entities';
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
@@ -15,12 +16,18 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
   const updateProject = useDataStore((state) => state.updateProject);
   const deleteProject = useDataStore((state) => state.deleteProject);
   const confirm = useModalStore((state) => state.confirm);
+  const data = useDataStore((state) => state.cache[project.id]);
+  const ensureProjectData = useDataStore((state) => state.ensureProjectData);
   const [name, setName] = useState(project.name);
   const [kunde, setKunde] = useState(project.kunde || '');
   const [typ, setTyp] = useState<ProjectTyp>(project.typ);
   const [status, setStatus] = useState<ProjectStatus>(project.status);
   const [beschreibung, setBeschreibung] = useState(project.beschreibung || '');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    ensureProjectData(project.id);
+  }, [ensureProjectData, project.id]);
 
   async function save() {
     setSaving(true);
@@ -71,7 +78,32 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
         <button className="btn secondary" onClick={onClose}>Abbrechen</button>
         <button className="btn danger project-delete-btn" onClick={remove}>Projekt löschen</button>
       </div>
+      {data ? <ContactsManager projectId={project.id} data={data} /> : <div className="loading-note">Ansprechpartner werden geladen…</div>}
     </section>
+  );
+}
+
+function QuickVersion({ project }: { project: Project }) {
+  const updateProject = useDataStore((state) => state.updateProject);
+  const [version, setVersion] = useState(project.aktuelleVersion || '');
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => setVersion(project.aktuelleVersion || ''), [project.aktuelleVersion]);
+
+  async function save() {
+    const next = version.trim();
+    if (next === (project.aktuelleVersion || '')) return;
+    await updateProject(project.id, { aktuelleVersion: next });
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1400);
+  }
+
+  return (
+    <div className="quick-version">
+      <label htmlFor={`version-${project.id}`}>Version</label>
+      <input id={`version-${project.id}`} value={version} placeholder="z. B. 4.12.3" onChange={(event) => setVersion(event.target.value)} onBlur={save} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
+      <span className="quick-version-state" aria-live="polite">{saved ? 'Gespeichert' : ''}</span>
+    </div>
   );
 }
 
@@ -111,6 +143,7 @@ export default function ProjectManagementView() {
         {sorted.map((project) => (
           <article className="project-admin-row" key={project.id}>
             <div className="project-admin-main"><span className={`status-dot ${project.status}`} /><div><strong>{project.name}</strong><div className="meta">{project.kunde || 'Kein Kunde'} · {project.typ}</div></div></div>
+            <QuickVersion project={project} />
             <span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span>
             <div className="project-admin-actions">
               <button className="btn secondary small" onClick={() => setEditingId(project.id)}>Stammdaten</button>

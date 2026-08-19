@@ -1,10 +1,13 @@
 import { useUiStore } from '../../store/uiStore';
 import { buildCalendarWeeks, dateKey, MONTH_NAMES, WEEKDAY_LABELS } from '../../lib/calendar';
+import { openTaskInDashboard } from '../../lib/navigation';
 import { slug } from '../../lib/format';
 import type { TaskWithMeta } from '../../store/dataStore';
 
+const MAX_VISIBLE_PER_DAY = 2;
+
 export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: TaskWithMeta[] }) {
-  const { calendarMonth, setCalendarMonth, setDashboardEditingTaskId, setDashboardTab } = useUiStore();
+  const { calendarMonth, setCalendarMonth } = useUiStore();
   const now = new Date();
   const { year, month } = calendarMonth || { year: now.getFullYear(), month: now.getMonth() };
 
@@ -59,23 +62,23 @@ export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: TaskWit
           const key = dateKey(cell.date);
           const dayTasks = tasksByDate[key] || [];
           const isToday = key === todayKey;
+          const hiddenCount = dayTasks.length - MAX_VISIBLE_PER_DAY;
           return (
             <div key={i} className={`cal-cell${cell.inMonth ? '' : ' other-month'}${isToday ? ' today' : ''}`}>
               <div className="cal-daynum">{cell.date.getDate()}</div>
-              {dayTasks.slice(0, 3).map((t) => (
-                <div
-                  key={t.id}
-                  className={`cal-task prio-${slug(t.prioritaet || 'should')}`}
-                  title={`#${t.nr || '?'} · ${t.projectName}: ${t.titel}`}
-                  onClick={() => {
-                    setDashboardEditingTaskId(t.id);
-                    setDashboardTab('liste');
-                  }}
-                >
-                  {t.titel}
-                </div>
-              ))}
-              {dayTasks.length > 3 && <div className="cal-more">+{dayTasks.length - 3} weitere</div>}
+              <div className="cal-tasks">
+                {dayTasks.slice(0, MAX_VISIBLE_PER_DAY).map((t) => (
+                  <div
+                    key={t.id}
+                    className={`cal-task prio-${slug(t.prioritaet || 'should')}${t.farbe ? ` task-color-border-${t.farbe}` : ''}`}
+                    title={`#${t.nr || '?'} · ${t.projectName}: ${t.titel}`}
+                    onClick={() => openTaskInDashboard(t.id)}
+                  >
+                    {t.titel}
+                  </div>
+                ))}
+              </div>
+              {hiddenCount > 0 && <div className="cal-more">+{hiddenCount} weitere</div>}
             </div>
           );
         })}

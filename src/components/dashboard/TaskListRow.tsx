@@ -12,7 +12,8 @@ export default function TaskListRow({ task, onClick }: Props) {
   const prio = task.prioritaet || 'should';
 
   return (
-    <div className="agg-row" style={{ cursor: 'pointer' }} onClick={onClick}>
+    <div className={`agg-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} style={{ cursor: 'pointer' }} onClick={onClick}>
+      {task.farbe && <span className={`task-color-swatch task-color-${task.farbe}`} />}
       <span className={`prio-badge prio-${slug(prio)}`} title={prioLabel(prio)}>
         {prioAbbr(prio)}
       </span>

@@ -1,4 +1,5 @@
-import { useProjectUiStore, type TaskFilterTab } from '../../../store/projectUiStore';
+import { useState, type DragEvent } from 'react';
+import { useProjectUiStore } from '../../../store/projectUiStore';
 import { useDataStore } from '../../../store/dataStore';
 import { useModalStore } from '../../../store/modalStore';
 import { applyProjectTaskFilters } from '../../../lib/filters';
@@ -7,108 +8,129 @@ import ProjectTaskFilterBar from '../ProjectTaskFilterBar';
 import ProjectTaskRow from '../ProjectTaskRow';
 import ProjectTaskEditRow from '../ProjectTaskEditRow';
 import AiSummaryCard from '../AiSummaryCard';
-import type { Project, ProjectCache, TaskStatus } from '../../../types/entities';
+import type { Project, ProjectCache, Task, TaskStatus } from '../../../types/entities';
+import { compareTaskColors } from '../../../lib/taskColors';
 
-const STATUS_ORDER: Record<TaskStatus, number> = { offen: 0, 'in Arbeit': 1, wartet: 2, erledigt: 3 };
+type BoardColumn = 'offen' | 'wartet' | 'erledigt';
 
-const TABS: { key: TaskFilterTab; label: (n: number) => string }[] = [
-  { key: 'offen', label: (n) => `Offen (${n})` },
-  { key: 'wartet', label: (n) => `Wartet auf andere (${n})` },
-  { key: 'erledigt', label: (n) => `Erledigt (${n})` },
+const COLUMNS: { key: BoardColumn; label: string; hint: string }[] = [
+  { key: 'offen', label: 'Offen', hint: 'Offen und in Arbeit' },
+  { key: 'wartet', label: 'Wartet auf andere', hint: 'Externe Rückmeldung ausstehend' },
+  { key: 'erledigt', label: 'Erledigt', hint: 'Abgeschlossene Aufgaben' },
 ];
 
-const EMPTY_LABELS: Record<TaskFilterTab, string> = {
-  erledigt: 'Noch keine erledigten Aufgaben',
-  wartet: 'Keine Aufgaben, bei denen du auf jemanden wartest',
-  offen: 'Keine offenen Aufgaben',
-};
+function columnForStatus(status: TaskStatus): BoardColumn {
+  if (status === 'wartet') return 'wartet';
+  if (status === 'erledigt') return 'erledigt';
+  return 'offen';
+}
 
 export default function AufgabenTab({ project, data }: { project: Project; data: ProjectCache }) {
-  const deleteTask = useDataStore((s) => s.deleteTask);
-  const syncCommLinksForTask = useDataStore((s) => s.syncCommLinksForTask);
-  const confirm = useModalStore((s) => s.confirm);
-  const {
-    showNewTaskForm,
-    setShowNewTaskForm,
-    showTaskFilters,
-    toggleShowTaskFilters,
-    taskFilterTab,
-    setTaskFilterTab,
-    projectTaskFilter,
-    editingTaskId,
-  } = useProjectUiStore();
+  const deleteTask = useDataStore((state) => state.deleteTask);
+  const saveTask = useDataStore((state) => state.saveTask);
+  const taskColorOrder = useDataStore((state) => state.taskColorOrder);
+  const syncCommLinksForTask = useDataStore((state) => state.syncCommLinksForTask);
+  const confirm = useModalStore((state) => state.confirm);
+  const prompt = useModalStore((state) => state.prompt);
+  const { showNewTaskForm, setShowNewTaskForm, showTaskFilters, toggleShowTaskFilters, projectTaskFilter, editingTaskId } = useProjectUiStore();
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<BoardColumn | null>(null);
 
-  const openTasks = data.tasks.filter((t) => t.status === 'offen' || t.status === 'in Arbeit');
-  const waitingTasks = data.tasks.filter((t) => t.status === 'wartet');
-  const doneTasks = data.tasks.filter((t) => t.status === 'erledigt');
-  const counts: Record<TaskFilterTab, number> = { offen: openTasks.length, wartet: waitingTasks.length, erledigt: doneTasks.length };
-
-  const listSource = taskFilterTab === 'erledigt' ? doneTasks : taskFilterTab === 'wartet' ? waitingTasks : openTasks;
-  const listForTab = applyProjectTaskFilters(listSource, projectTaskFilter);
-  const sorted = listForTab.slice().sort((a, b) => {
-    const so = (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3);
-    if (so !== 0) return so;
-    return (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999');
-  });
+  const filteredTasks = applyProjectTaskFilters(data.tasks, projectTaskFilter);
+  const tasksByColumn = COLUMNS.reduce<Record<BoardColumn, Task[]>>((groups, column) => {
+    groups[column.key] = filteredTasks
+      .filter((task) => columnForStatus(task.status) === column.key)
+      .sort((a, b) => compareTaskColors(a, b, taskColorOrder) || (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
+    return groups;
+  }, { offen: [], wartet: [], erledigt: [] });
+  const editingTask = editingTaskId ? data.tasks.find((task) => task.id === editingTaskId) : undefined;
   const filterActive = !!(projectTaskFilter.prioritaet || projectTaskFilter.kontaktId || projectTaskFilter.von || projectTaskFilter.bis);
 
   async function handleDelete(taskId: string) {
-    const sure = await confirm('Diese Aufgabe löschen?');
-    if (!sure) return;
-    const task = data.tasks.find((t) => t.id === taskId);
+    if (!(await confirm('Diese Aufgabe löschen?'))) return;
+    const task = data.tasks.find((item) => item.id === taskId);
     await deleteTask(project.id, taskId);
     if (task) await syncCommLinksForTask(project.id, taskId, task.commIds || [], []);
+  }
+
+  async function moveTask(targetColumn: BoardColumn) {
+    const task = data.tasks.find((item) => item.id === draggedTaskId);
+    setDraggedTaskId(null);
+    setDragOverColumn(null);
+    if (!task || columnForStatus(task.status) === targetColumn) return;
+
+    const nextStatus: TaskStatus = targetColumn === 'offen' ? 'offen' : targetColumn;
+    let wartetAuf = nextStatus === 'wartet' ? task.wartetAuf : '';
+    if (nextStatus === 'wartet') {
+      const person = await prompt({
+        title: 'Auf wen wird gewartet?',
+        message: `Die Aufgabe „${task.titel}“ wird in „Wartet auf andere“ verschoben.`,
+        label: 'Person oder Stelle',
+        placeholder: 'z. B. Frau Müller, IT-Abteilung oder Kunde',
+        initialValue: task.wartetAuf,
+        confirmLabel: 'Aufgabe verschieben',
+      });
+      if (!person) return;
+      wartetAuf = person;
+    }
+    await saveTask(project.id, {
+      ...task,
+      status: nextStatus,
+      wartetAuf,
+      abgeschlossenAm: nextStatus === 'erledigt' ? (task.abgeschlossenAm || new Date().toISOString()) : null,
+    });
+  }
+
+  function allowDrop(event: DragEvent, column: BoardColumn) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setDragOverColumn(column);
   }
 
   return (
     <>
       <AiSummaryCard project={project} data={data} />
-      {showNewTaskForm ? (
-        <ProjectNewTaskForm projectId={project.id} data={data} />
-      ) : (
-        <button className="btn secondary" style={{ marginBottom: 14 }} onClick={() => setShowNewTaskForm(true)}>
-          + Neue Aufgabe
-        </button>
-      )}
-      <div className="tabs" style={{ justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex' }}>
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              className={`tab-btn${taskFilterTab === t.key ? ' active' : ''}`}
-              onClick={() => setTaskFilterTab(t.key)}
-            >
-              {t.label(counts[t.key])}
-            </button>
-          ))}
-        </div>
-        <button className="icon-btn" style={{ alignSelf: 'center' }} onClick={toggleShowTaskFilters}>
-          {showTaskFilters ? 'Filter ausblenden' : '🔍 Filter'}
-        </button>
+      <div className="task-board-toolbar">
+        {showNewTaskForm ? <ProjectNewTaskForm projectId={project.id} data={data} /> : <button className="btn" onClick={() => setShowNewTaskForm(true)}>＋ Neue Aufgabe</button>}
+        {!showNewTaskForm && <button className="btn secondary" onClick={toggleShowTaskFilters}>{showTaskFilters ? 'Filter ausblenden' : 'Filter'}</button>}
       </div>
       {showTaskFilters && <ProjectTaskFilterBar contacts={data.contacts} />}
-      {sorted.length === 0 ? (
-        <div className="empty-state">
-          <h3>
-            {EMPTY_LABELS[taskFilterTab]}
-            {filterActive ? ' (mit aktuellem Filter)' : ''}
-          </h3>
+      {editingTask && (
+        <div className="kanban-edit-panel">
+          <div className="section-title">Aufgabe bearbeiten</div>
+          <ProjectTaskEditRow task={editingTask} projectId={project.id} data={data} contacts={data.contacts} />
         </div>
-      ) : (
-        sorted.map((t) =>
-          t.id === editingTaskId ? (
-            <ProjectTaskEditRow key={t.id} task={t} projectId={project.id} data={data} contacts={data.contacts} />
-          ) : (
-            <ProjectTaskRow
-              key={t.id}
-              task={t}
-              contact={data.contacts.find((c) => c.id === t.kontaktId)}
-              data={data}
-              onDelete={() => handleDelete(t.id)}
-            />
-          ),
-        )
       )}
+      <div className="kanban-board">
+        {COLUMNS.map((column) => (
+          <section
+            className={`kanban-column${dragOverColumn === column.key ? ' drag-over' : ''}`}
+            key={column.key}
+            onDragOver={(event) => allowDrop(event, column.key)}
+            onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverColumn(null); }}
+            onDrop={(event) => { event.preventDefault(); moveTask(column.key); }}
+          >
+            <header className="kanban-column-head">
+              <div><h3>{column.label}</h3><span>{column.hint}</span></div>
+              <strong>{tasksByColumn[column.key].length}</strong>
+            </header>
+            <div className="kanban-column-body">
+              {tasksByColumn[column.key].length === 0 && <div className="kanban-empty">{filterActive ? 'Keine Treffer' : 'Keine Aufgaben'}</div>}
+              {tasksByColumn[column.key].map((task) => (
+                <div
+                  className={`kanban-task${task.farbe ? ` marked task-color-border-${task.farbe}` : ''}${draggedTaskId === task.id ? ' dragging' : ''}`}
+                  key={task.id}
+                  draggable
+                  onDragStart={(event) => { setDraggedTaskId(task.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', task.id); }}
+                  onDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
+                >
+                  <ProjectTaskRow task={task} contact={data.contacts.find((contact) => contact.id === task.kontaktId)} data={data} onDelete={() => handleDelete(task.id)} />
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
     </>
   );
 }

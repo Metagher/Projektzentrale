@@ -5,8 +5,9 @@ import { TASK_PRIO, TASK_STATUS, prioLabel } from '../../lib/constants';
 import { slug } from '../../lib/format';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
+import TaskColorSelect from '../shared/TaskColorSelect';
 import type { TaskWithMeta } from '../../store/dataStore';
-import type { TaskPrio, TaskStatus } from '../../types/entities';
+import type { TaskColor, TaskPrio, TaskStatus } from '../../types/entities';
 
 interface Props {
   task: TaskWithMeta;
@@ -24,6 +25,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
 
   const [titel, setTitel] = useState(task.titel);
   const [prioritaet, setPrioritaet] = useState<TaskPrio>(task.prioritaet || 'should');
+  const [farbe, setFarbe] = useState<TaskColor | ''>(task.farbe || '');
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [faelligAm, setFaelligAm] = useState(task.faelligAm || '');
   const [kontaktId, setKontaktId] = useState(task.kontaktId || '');
@@ -49,6 +51,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       ...base,
       titel: trimmed,
       prioritaet,
+      farbe,
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
       faelligAm,
@@ -77,6 +80,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       </div>
       <div className="task-inline-row">
         <span className={`prio-dot prio-${slug(prioritaet)}`} />
+        <TaskColorSelect value={farbe} onChange={setFarbe} />
         <input type="text" value={titel} onChange={(e) => setTitel(e.target.value)} />
         <select value={prioritaet} onChange={(e) => setPrioritaet(e.target.value as TaskPrio)}>
           {TASK_PRIO.map((pr) => (

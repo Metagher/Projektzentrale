@@ -9,14 +9,11 @@ import AfnChipsView from '../../shared/AfnChipsView';
 import type { Project, ProjectCache, UpdateEntry } from '../../../types/entities';
 
 export default function UpdateTab({ project, data }: { project: Project; data: ProjectCache }) {
-  const updateProject = useDataStore((s) => s.updateProject);
   const saveUpdateEntry = useDataStore((s) => s.saveUpdateEntry);
   const deleteUpdateEntry = useDataStore((s) => s.deleteUpdateEntry);
   const { showNewUpdateForm, setShowNewUpdateForm, editingUpdateId, setEditingUpdateId } = useProjectUiStore();
   const confirm = useModalStore((s) => s.confirm);
   const alert = useModalStore((s) => s.alert);
-
-  const [versionInput, setVersionInput] = useState(project.aktuelleVersion || '');
 
   const [titel, setTitel] = useState('');
   const [datum, setDatum] = useState(todayStr());
@@ -38,10 +35,6 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
     setEditRevision(u.revision || '');
     setEditBeschreibung(u.beschreibung || '');
     setEditAfns(u.afns || []);
-  }
-
-  async function saveVersion() {
-    await updateProject(project.id, { aktuelleVersion: versionInput.trim() });
   }
 
   async function handleAddNew() {
@@ -97,24 +90,6 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
 
   return (
     <>
-      <div className="current-version-card">
-        <div>
-          <div className="cv-label">Aktuelle Programmversion</div>
-          <div className="cv-value">{project.aktuelleVersion || '— nicht gesetzt —'}</div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            placeholder="z.B. 4.12.3"
-            value={versionInput}
-            onChange={(e) => setVersionInput(e.target.value)}
-            style={{ width: 160 }}
-          />
-          <button className="btn small" onClick={saveVersion}>
-            Speichern
-          </button>
-        </div>
-      </div>
-
       {showNewUpdateForm ? (
         <div className="card">
           <div className="top-row" style={{ marginBottom: 10 }}>

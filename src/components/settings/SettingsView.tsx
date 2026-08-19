@@ -4,6 +4,7 @@ import { useModalStore } from '../../store/modalStore';
 import { computeDocLabels, getSubtreeIds, moveSubtreeTo } from '../../lib/docOutline';
 import { defLevel, uid } from '../../lib/format';
 import type { DocSectionDef } from '../../types/entities';
+import TaskColorSettings from './TaskColorSettings';
 
 export default function SettingsView() {
   const docDefs = useDataStore((s) => s.docDefs) || [];
@@ -68,7 +69,7 @@ export default function SettingsView() {
 
   return (
     <div className="main-inner">
-      <h2>Oberpunkte verwalten</h2>
+      <h2>Einstellungen</h2>
       <div className="sub" style={{ color: 'var(--ink-soft)', margin: '4px 0 22px', maxWidth: 620 }}>
         Diese Oberpunkte gelten für die Projektdokumentation aller Projekte. Mit ⬅/➡ legst du bis zu 3
         Hierarchie-Ebenen fest (jede Ebene wird eingerückt dargestellt). Zum Umsortieren am Griff{' '}
@@ -77,6 +78,8 @@ export default function SettingsView() {
         Ebene-2-Punkt. Einzelne Punkte können pro Projekt im Reiter „Dokumentation" ausgeblendet werden, ohne sie
         hier zu löschen.
       </div>
+      <TaskColorSettings />
+      <div className="section-title">Dokumentationsstruktur</div>
       <div className="card">
         <h3 style={{ marginBottom: 10, fontSize: 15 }}>Neuen Oberpunkt hinzufügen</h3>
         <div style={{ display: 'flex', gap: 8 }}>

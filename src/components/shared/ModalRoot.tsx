@@ -70,6 +70,38 @@ function NewProjectForm({ resolve }: { resolve: (v: { name: string; kunde: strin
   );
 }
 
+function PromptForm({ modal }: { modal: Extract<ReturnType<typeof useModalStore.getState>['modal'], { kind: 'prompt' }> }) {
+  const close = useModalStore((state) => state.close);
+  const [value, setValue] = useState(modal.initialValue);
+  const [invalid, setInvalid] = useState(false);
+
+  function submit() {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setInvalid(true);
+      return;
+    }
+    close();
+    modal.resolve(trimmed);
+  }
+
+  return (
+    <div className="modal-box">
+      <h3>{modal.title}</h3>
+      <p>{modal.message}</p>
+      <div className="field">
+        <label>{modal.label}</label>
+        <input autoFocus value={value} placeholder={modal.placeholder} aria-invalid={invalid} style={invalid ? { borderColor: 'var(--ink)' } : undefined} onChange={(event) => { setValue(event.target.value); setInvalid(false); }} onKeyDown={(event) => { if (event.key === 'Enter') submit(); }} />
+        {invalid && <span className="field-error">Bitte eine Person oder Stelle angeben.</span>}
+      </div>
+      <div className="modal-actions">
+        <button className="btn secondary" onClick={() => { close(); modal.resolve(null); }}>Abbrechen</button>
+        <button className="btn" onClick={submit}>{modal.confirmLabel}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function ModalRoot() {
   const modal = useModalStore((s) => s.modal);
   const close = useModalStore((s) => s.close);
@@ -134,6 +166,10 @@ export default function ModalRoot() {
         <NewProjectForm resolve={modal.resolve} />
       </div>
     );
+  }
+
+  if (modal.kind === 'prompt') {
+    return <div className="modal-overlay"><PromptForm modal={modal} /></div>;
   }
 
   return (
