@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
 import { useUiStore, type View } from '../../store/uiStore';
+import ProjectQuickBar from './ProjectQuickBar';
 
 const VIEW_COMPONENTS = {
   dashboard: lazy(() => import('../dashboard/Dashboard')),
@@ -18,11 +19,5 @@ export default function MainShell() {
   const view = useUiStore((state) => state.view);
   const ViewComponent = VIEW_COMPONENTS[view];
 
-  return (
-    <main id="main">
-      <Suspense fallback={<div className="main-inner"><div className="loading-note">Ansicht wird geladen…</div></div>}>
-        <ViewComponent />
-      </Suspense>
-    </main>
-  );
+  return <div className="workspace"><ProjectQuickBar /><main id="main"><Suspense fallback={<div className="main-inner"><div className="loading-note">Ansicht wird geladen…</div></div>}><ViewComponent /></Suspense></main></div>;
 }
