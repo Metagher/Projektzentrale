@@ -24,6 +24,7 @@ interface ProjectUiState {
   showNewTaskForm: boolean;
   showNewUpdateForm: boolean;
   showTaskFilters: boolean;
+  showCompletedKanban: boolean;
   taskFilterTab: TaskFilterTab;
   projectTaskFilter: ProjectTaskFilter;
 
@@ -37,6 +38,7 @@ interface ProjectUiState {
   setShowNewTaskForm: (v: boolean) => void;
   setShowNewUpdateForm: (v: boolean) => void;
   toggleShowTaskFilters: () => void;
+  toggleShowCompletedKanban: () => void;
   setTaskFilterTab: (tab: TaskFilterTab) => void;
   setProjectTaskFilter: (patch: Partial<ProjectTaskFilter>) => void;
   resetProjectTaskFilter: () => void;
@@ -56,6 +58,7 @@ export const useProjectUiStore = create<ProjectUiState>((set) => ({
   showNewTaskForm: false,
   showNewUpdateForm: false,
   showTaskFilters: false,
+  showCompletedKanban: false,
   taskFilterTab: 'offen',
   projectTaskFilter: EMPTY_PROJECT_TASK_FILTER,
 
@@ -69,6 +72,7 @@ export const useProjectUiStore = create<ProjectUiState>((set) => ({
   setShowNewTaskForm: (v) => set({ showNewTaskForm: v }),
   setShowNewUpdateForm: (v) => set({ showNewUpdateForm: v }),
   toggleShowTaskFilters: () => set((s) => ({ showTaskFilters: !s.showTaskFilters })),
+  toggleShowCompletedKanban: () => set((s) => ({ showCompletedKanban: !s.showCompletedKanban })),
   setTaskFilterTab: (tab) => set({ taskFilterTab: tab }),
   setProjectTaskFilter: (patch) => set((s) => ({ projectTaskFilter: { ...s.projectTaskFilter, ...patch } })),
   resetProjectTaskFilter: () => set({ projectTaskFilter: EMPTY_PROJECT_TASK_FILTER }),

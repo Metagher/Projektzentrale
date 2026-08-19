@@ -9,7 +9,7 @@ import ProjectTaskRow from '../ProjectTaskRow';
 import ProjectTaskEditRow from '../ProjectTaskEditRow';
 import AiSummaryCard from '../AiSummaryCard';
 import type { Project, ProjectCache, Task, TaskStatus } from '../../../types/entities';
-import { compareTaskColors } from '../../../lib/taskColors';
+import { compareTaskColors, compareWaitingPerson } from '../../../lib/taskColors';
 
 type BoardColumn = 'offen' | 'wartet' | 'erledigt';
 
@@ -32,7 +32,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
   const syncCommLinksForTask = useDataStore((state) => state.syncCommLinksForTask);
   const confirm = useModalStore((state) => state.confirm);
   const prompt = useModalStore((state) => state.prompt);
-  const { showNewTaskForm, setShowNewTaskForm, showTaskFilters, toggleShowTaskFilters, projectTaskFilter, editingTaskId } = useProjectUiStore();
+  const { showNewTaskForm, setShowNewTaskForm, showTaskFilters, toggleShowTaskFilters, showCompletedKanban, toggleShowCompletedKanban, projectTaskFilter, editingTaskId } = useProjectUiStore();
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<BoardColumn | null>(null);
 
@@ -40,11 +40,12 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
   const tasksByColumn = COLUMNS.reduce<Record<BoardColumn, Task[]>>((groups, column) => {
     groups[column.key] = filteredTasks
       .filter((task) => columnForStatus(task.status) === column.key)
-      .sort((a, b) => compareTaskColors(a, b, taskColorOrder) || (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
+      .sort((a, b) => (column.key === 'wartet' ? compareWaitingPerson(a, b) : 0) || compareTaskColors(a, b, taskColorOrder) || (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
     return groups;
   }, { offen: [], wartet: [], erledigt: [] });
   const editingTask = editingTaskId ? data.tasks.find((task) => task.id === editingTaskId) : undefined;
   const filterActive = !!(projectTaskFilter.prioritaet || projectTaskFilter.kontaktId || projectTaskFilter.von || projectTaskFilter.bis);
+  const visibleColumns = showCompletedKanban ? COLUMNS : COLUMNS.filter((column) => column.key !== 'erledigt');
 
   async function handleDelete(taskId: string) {
     if (!(await confirm('Diese Aufgabe löschen?'))) return;
@@ -92,7 +93,12 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
       <AiSummaryCard project={project} data={data} />
       <div className="task-board-toolbar">
         {showNewTaskForm ? <ProjectNewTaskForm projectId={project.id} data={data} /> : <button className="btn" onClick={() => setShowNewTaskForm(true)}>＋ Neue Aufgabe</button>}
-        {!showNewTaskForm && <button className="btn secondary" onClick={toggleShowTaskFilters}>{showTaskFilters ? 'Filter ausblenden' : 'Filter'}</button>}
+        {!showNewTaskForm && <div className="task-board-toolbar-actions">
+          <button className={`btn secondary${showCompletedKanban ? ' active' : ''}`} onClick={toggleShowCompletedKanban}>
+            {showCompletedKanban ? 'Erledigte ausblenden' : `Erledigte einblenden (${tasksByColumn.erledigt.length})`}
+          </button>
+          <button className="btn secondary" onClick={toggleShowTaskFilters}>{showTaskFilters ? 'Filter ausblenden' : 'Filter'}</button>
+        </div>}
       </div>
       {showTaskFilters && <ProjectTaskFilterBar contacts={data.contacts} />}
       {editingTask && (
@@ -101,8 +107,8 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
           <ProjectTaskEditRow task={editingTask} projectId={project.id} data={data} contacts={data.contacts} />
         </div>
       )}
-      <div className="kanban-board">
-        {COLUMNS.map((column) => (
+      <div className={`kanban-board${showCompletedKanban ? '' : ' without-completed'}`}>
+        {visibleColumns.map((column) => (
           <section
             className={`kanban-column${dragOverColumn === column.key ? ' drag-over' : ''}`}
             key={column.key}

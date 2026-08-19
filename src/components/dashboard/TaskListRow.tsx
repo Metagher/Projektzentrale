@@ -1,6 +1,6 @@
 import { prioAbbr, prioLabel } from '../../lib/constants';
 import { fmtDate, slug, todayStr } from '../../lib/format';
-import type { TaskWithMeta } from '../../store/dataStore';
+import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 
 interface Props {
   task: TaskWithMeta;
@@ -8,12 +8,13 @@ interface Props {
 }
 
 export default function TaskListRow({ task, onClick }: Props) {
+  const colorLabels = useDataStore((state) => state.taskColorLabels);
   const overdue = !!task.faelligAm && task.faelligAm < todayStr();
   const prio = task.prioritaet || 'should';
 
   return (
     <div className={`agg-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} style={{ cursor: 'pointer' }} onClick={onClick}>
-      {task.farbe && <span className={`task-color-swatch task-color-${task.farbe}`} />}
+      {task.farbe && <span className={`task-color-swatch task-color-${task.farbe}`} title={colorLabels[task.farbe]} />}
       <span className={`prio-badge prio-${slug(prio)}`} title={prioLabel(prio)}>
         {prioAbbr(prio)}
       </span>

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { sDelete, sGet, sSet } from '../lib/supabase';
 import { useConnectionStore } from './connectionStore';
 import { DEFAULT_DOC_SECTIONS } from '../lib/constants';
-import { DEFAULT_TASK_COLOR_ORDER, compareTaskColors, normalizeTaskColorOrder } from '../lib/taskColors';
+import { DEFAULT_TASK_COLOR_LABELS, DEFAULT_TASK_COLOR_ORDER, compareTaskColors, compareWaitingPerson, normalizeTaskColorLabels, normalizeTaskColorOrder, type TaskColorLabels } from '../lib/taskColors';
 import { migratePrio } from '../lib/migrations';
 import { hasEchtlauf, todayStr, uid } from '../lib/format';
 import type {
@@ -63,6 +63,7 @@ interface DataStoreState {
   taskNrCounter: number | undefined;
   dashboardData: DashboardData | null;
   taskColorOrder: TaskColor[];
+  taskColorLabels: TaskColorLabels;
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -93,6 +94,7 @@ interface DataStoreState {
   loadDocDefs: () => Promise<void>;
   saveDocDefs: (defs: DocSectionDef[]) => Promise<void>;
   saveTaskColorOrder: (order: TaskColor[]) => Promise<void>;
+  saveTaskColorLabels: (labels: TaskColorLabels) => Promise<void>;
 
   /** Keeps task.commIds in sync after a comm's linked-tasks selection changed; persists tasks if anything changed. */
   syncTaskLinksForComm: (projectId: string, commId: string, oldTaskIds: string[], newTaskIds: string[]) => Promise<void>;
@@ -128,6 +130,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   taskNrCounter: undefined,
   dashboardData: null,
   taskColorOrder: DEFAULT_TASK_COLOR_ORDER,
+  taskColorLabels: DEFAULT_TASK_COLOR_LABELS,
 
   loadAll: async () => {
     const sb = client();
@@ -136,8 +139,13 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const taskColorOrder = normalizeTaskColorOrder(await sGet<TaskColor[]>(sb, 'task-color-order'));
-    set({ projects, taskColorOrder });
+    const [storedColorOrder, storedColorLabels] = await Promise.all([
+      sGet<TaskColor[]>(sb, 'task-color-order'),
+      sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
+    ]);
+    const taskColorOrder = normalizeTaskColorOrder(storedColorOrder);
+    const taskColorLabels = normalizeTaskColorLabels(storedColorLabels);
+    set({ projects, taskColorOrder, taskColorLabels });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
     await get().loadDashboardData();
@@ -163,6 +171,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     set({ taskColorOrder: normalized });
     await sSet(client(), 'task-color-order', normalized);
     await get().loadDashboardData();
+  },
+
+  saveTaskColorLabels: async (labels) => {
+    const normalized = normalizeTaskColorLabels(labels);
+    set({ taskColorLabels: normalized });
+    await sSet(client(), 'task-color-labels', normalized);
   },
 
   ensureProjectData: async (id) => {
@@ -228,7 +242,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     }
     const colorOrder = get().taskColorOrder;
     allTasks.sort((a, b) => compareTaskColors(a, b, colorOrder) || (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
-    waitingTasks.sort((a, b) => compareTaskColors(a, b, colorOrder) || (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
+    waitingTasks.sort((a, b) => compareWaitingPerson(a, b) || compareTaskColors(a, b, colorOrder) || (a.faelligAm || '9999').localeCompare(b.faelligAm || '9999'));
     completedTasks.sort((a, b) => compareTaskColors(a, b, colorOrder) || (b.faelligAm || '').localeCompare(a.faelligAm || ''));
     allMilestones.sort((a, b) => (a.datum || '9999').localeCompare(b.datum || '9999'));
     allContacts.sort((a, b) => a.name.localeCompare(b.name));

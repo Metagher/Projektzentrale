@@ -1,4 +1,5 @@
 import { useProjectUiStore } from '../../store/projectUiStore';
+import { useDataStore } from '../../store/dataStore';
 import { fmtDate, isEmptyHtml, slug } from '../../lib/format';
 import { commLinkLabel } from '../../lib/format';
 import LinkChipsView from '../shared/LinkChipsView';
@@ -14,6 +15,7 @@ interface Props {
 
 export default function ProjectTaskRow({ task, contact, data, onDelete }: Props) {
   const { setEditingTaskId, jumpToComm } = useProjectUiStore();
+  const colorLabels = useDataStore((state) => state.taskColorLabels);
 
   return (
     <div
@@ -25,7 +27,7 @@ export default function ProjectTaskRow({ task, contact, data, onDelete }: Props)
     >
       <div className="top-row">
         <div>
-          {task.farbe && <span className={`task-color-swatch task-color-${task.farbe}`} title={`Farbmarkierung: ${task.farbe}`} />}
+          {task.farbe && <span className={`task-color-swatch task-color-${task.farbe}`} title={colorLabels[task.farbe]} />}
           <span className={`prio-dot prio-${slug(task.prioritaet || 'should')}`} style={{ display: 'inline-block', marginRight: 4 }} />
           <span className="task-nr">{task.nr || '—'}</span>
           <strong>{task.titel}</strong>
