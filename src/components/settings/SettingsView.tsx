@@ -6,8 +6,10 @@ import { defLevel, uid } from '../../lib/format';
 import type { DocSectionDef } from '../../types/entities';
 import TaskColorSettings from './TaskColorSettings';
 import WaitingOptionsSettings from './WaitingOptionsSettings';
+import { useUiStore } from '../../store/uiStore';
 
 export default function SettingsView() {
+  const goTo = useUiStore((s) => s.goTo);
   const docDefs = useDataStore((s) => s.docDefs) || [];
   const saveDocDefs = useDataStore((s) => s.saveDocDefs);
   const confirm = useModalStore((s) => s.confirm);
@@ -72,16 +74,19 @@ export default function SettingsView() {
     <div className="main-inner">
       <h2>Einstellungen</h2>
       <div className="sub" style={{ color: 'var(--ink-soft)', margin: '4px 0 22px', maxWidth: 620 }}>
-        Diese Oberpunkte gelten für die Projektdokumentation aller Projekte. Mit ⬅/➡ legst du bis zu 3
-        Hierarchie-Ebenen fest (jede Ebene wird eingerückt dargestellt). Zum Umsortieren am Griff{' '}
-        <span className="mono">⠿</span> ziehen und an der gewünschten Stelle ablegen — Unterpunkte werden dabei
-        automatisch mitgenommen. Ebene 2 gehört immer zum vorausgehenden Ebene-1-Punkt, Ebene 3 zum vorausgehenden
-        Ebene-2-Punkt. Einzelne Punkte können pro Projekt im Reiter „Dokumentation" ausgeblendet werden, ohne sie
-        hier zu löschen.
+        Zentrale Übersicht für Grunddaten, Dokumentationsstruktur, Datenaustausch und KI-Konfiguration.
       </div>
+      <div className="settings-hub">
+        <button onClick={() => document.getElementById('task-settings')?.scrollIntoView({ behavior: 'smooth' })}><span>◆</span><strong>Aufgaben & Grunddaten</strong><small>Farben und „Wartet auf“</small></button>
+        <button onClick={() => document.getElementById('doc-settings')?.scrollIntoView({ behavior: 'smooth' })}><span>≡</span><strong>Dokumentationsstruktur</strong><small>Oberpunkte und Hierarchie</small></button>
+        <button onClick={() => goTo('data')}><span>⇄</span><strong>Daten</strong><small>CSV Import und Export</small></button>
+        <button onClick={() => goTo('ai-settings')}><span>✦</span><strong>KI-Einstellungen</strong><small>Zugang und Konfiguration</small></button>
+      </div>
+      <div id="task-settings" className="settings-anchor" />
       <TaskColorSettings />
       <WaitingOptionsSettings />
-      <div className="section-title">Dokumentationsstruktur</div>
+      <div id="doc-settings" className="section-title settings-anchor">Dokumentationsstruktur</div>
+      <p className="settings-explanation">Die Oberpunkte gelten für alle Projekte. Sie können über den Griff verschoben und mit den Pfeilen auf bis zu drei Ebenen eingerückt werden.</p>
       <div className="card">
         <h3 style={{ marginBottom: 10, fontSize: 15 }}>Neuen Oberpunkt hinzufügen</h3>
         <div style={{ display: 'flex', gap: 8 }}>

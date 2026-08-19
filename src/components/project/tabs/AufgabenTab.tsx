@@ -134,9 +134,11 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
       </div>
       {showTaskFilters && <ProjectTaskFilterBar contacts={data.contacts} />}
       {editingTask && (
-        <div className="kanban-edit-panel">
-          <div className="section-title">Aufgabe bearbeiten</div>
-          <ProjectTaskEditRow task={editingTask} projectId={project.id} data={data} contacts={data.contacts} />
+        <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten">
+          <div className="task-edit-dialog">
+            <div className="task-edit-dialog-head"><div><span>Aufgabe bearbeiten</span><strong>#{editingTask.nr} · {editingTask.titel}</strong></div></div>
+            <ProjectTaskEditRow task={editingTask} projectId={project.id} data={data} contacts={data.contacts} />
+          </div>
         </div>
       )}
       <div className={`kanban-board${showCompletedKanban ? '' : ' without-completed'}`}>

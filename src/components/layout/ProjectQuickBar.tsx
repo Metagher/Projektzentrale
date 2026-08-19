@@ -1,5 +1,7 @@
 import { useDataStore } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
+import { useAiStore } from '../../store/aiStore';
+import { useModalStore } from '../../store/modalStore';
 
 const STATUS_ORDER = { aktiv: 0, pausiert: 1, abgeschlossen: 2 } as const;
 
@@ -7,6 +9,16 @@ export default function ProjectQuickBar() {
   const projects = useDataStore((state) => state.projects);
   const view = useUiStore((state) => state.view);
   const selectedId = useUiStore((state) => state.selectedId);
+  const aiAvailable = useAiStore((state) => state.keyPresent);
+  const newProjectForm = useModalStore((state) => state.newProjectForm);
+  const createProject = useDataStore((state) => state.createProject);
+
+  async function create() {
+    const result = await newProjectForm();
+    if (!result) return;
+    const id = await createProject(result);
+    useUiStore.setState({ view: 'project-management', selectedId: id });
+  }
 
   const sorted = (projects || []).slice().sort((a, b) =>
     (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3) ||
@@ -23,6 +35,14 @@ export default function ProjectQuickBar() {
 
   return (
     <nav className="project-quickbar" aria-label="Projektschnellwahl">
+      <button className="top-brand" onClick={() => useUiStore.getState().goTo('dashboard')} title="Projektzentrale">PZ</button>
+      <div className="top-primary-nav" aria-label="Hauptbereiche">
+        <button className={view === 'dashboard' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('dashboard')} title="Dashboard" aria-label="Dashboard">⌂</button>
+        <button className={view === 'calendar' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('calendar')} title="Kalender" aria-label="Kalender">▤</button>
+        <button className={view === 'knowledge' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('knowledge')} title="Wissensdatenbank" aria-label="Wissensdatenbank">◇</button>
+        <button className={view === 'analytics' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('analytics')} title="Auswertung" aria-label="Auswertung">↗</button>
+        {aiAvailable && <button className={view === 'ai' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('ai')} title="KI-Suche" aria-label="KI-Suche">✦</button>}
+      </div>
       <span className="project-quickbar-label">Projekte</span>
       <div className="project-quickbar-scroll">
         {sorted.length === 0 && <span className="project-quickbar-empty">Noch keine Projekte</span>}
@@ -41,7 +61,11 @@ export default function ProjectQuickBar() {
           ))}</div>
         </div>)}
       </div>
-      <button className="project-quickbar-manage" onClick={() => useUiStore.getState().goTo('project-management')} title="Projektverwaltung öffnen">Verwalten</button>
+      <div className="top-admin-nav">
+        <button onClick={create} title="Neues Projekt" aria-label="Neues Projekt">＋</button>
+        <button className={view === 'project-management' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('project-management')} title="Projektverwaltung" aria-label="Projektverwaltung">▦</button>
+        <button className={view === 'settings' || view === 'data' || view === 'ai-settings' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('settings')} title="Einstellungen" aria-label="Einstellungen">⚙</button>
+      </div>
     </nav>
   );
 }
