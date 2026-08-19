@@ -42,7 +42,7 @@ export default function Sidebar() {
     const result = await newProjectForm();
     if (!result) return;
     const id = await createProject(result);
-    useUiStore.setState({ view: 'project', selectedId: id, activeTab: 'uebersicht', sidebarOpen: false });
+    useUiStore.setState({ view: 'project-management', selectedId: id, sidebarOpen: false });
   }
 
   const query = search.trim().toLowerCase();

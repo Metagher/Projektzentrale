@@ -3,7 +3,6 @@ import { useDataStore } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
 import { useAiStore } from '../../store/aiStore';
 import { hasEchtlauf, projectCode } from '../../lib/format';
-import UebersichtTab from './tabs/UebersichtTab';
 import AnsprechpartnerTab from './tabs/AnsprechpartnerTab';
 import KommunikationTab from './tabs/KommunikationTab';
 import DokumentationTab from './tabs/DokumentationTab';
@@ -51,8 +50,7 @@ export default function ProjectView() {
   const echtlauf = hasEchtlauf(project);
 
   let tabContent = null;
-  if (activeTab === 'uebersicht') tabContent = <UebersichtTab project={project} />;
-  else if (activeTab === 'ansprechpartner') tabContent = <AnsprechpartnerTab projectId={project.id} data={data} />;
+  if (activeTab === 'ansprechpartner') tabContent = <AnsprechpartnerTab projectId={project.id} data={data} />;
   else if (activeTab === 'kommunikation') tabContent = <KommunikationTab projectId={project.id} data={data} />;
   else if (activeTab === 'dokumentation') tabContent = <DokumentationTab projectId={project.id} data={data} />;
   else if (activeTab === 'zeitplan') tabContent = <EchtlaufTab projectId={project.id} data={data} />;
@@ -67,12 +65,7 @@ export default function ProjectView() {
         <div>
           <div className="code">{projectCode(project)}</div>
           <h2>{project.name}</h2>
-          <div className="sub">
-            {project.kunde || '—'} · {project.typ} ·{' '}
-            <span className={`stamp ${project.status}`} style={{ color: 'inherit' }}>
-              {STATUS_LABELS[project.status]}
-            </span>
-          </div>
+          <div className="sub"><span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span></div>
         </div>
       </div>
       <div className="tabs">
@@ -90,13 +83,6 @@ export default function ProjectView() {
           onClick={() => setActiveTab('kommunikation')}
         >
           Kommunikation
-        </button>
-        <span className="tab-sep" />
-        <button
-          className={`tab-btn${activeTab === 'uebersicht' ? ' active' : ''}`}
-          onClick={() => setActiveTab('uebersicht')}
-        >
-          Übersicht
         </button>
         <button
           className={`tab-btn${activeTab === 'ansprechpartner' ? ' active' : ''}`}

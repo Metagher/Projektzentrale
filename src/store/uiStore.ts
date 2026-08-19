@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 export type View =
   | 'dashboard'
+  | 'project-management'
   | 'project'
   | 'settings'
   | 'data'

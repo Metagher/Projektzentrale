@@ -9,6 +9,7 @@ export interface NavigationItem {
 
 export const PRIMARY_NAVIGATION: NavigationItem[] = [
   { view: 'dashboard', label: 'Dashboard', icon: '⌂' },
+  { view: 'project-management', label: 'Projektverwaltung', icon: '▦' },
   { view: 'knowledge', label: 'Wissensdatenbank', icon: '◇' },
   { view: 'analytics', label: 'Auswertung', icon: '↗' },
   { view: 'ai', label: 'KI-Suche', icon: '✦', requiresAi: true },

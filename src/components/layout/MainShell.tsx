@@ -3,6 +3,7 @@ import { useUiStore, type View } from '../../store/uiStore';
 
 const VIEW_COMPONENTS = {
   dashboard: lazy(() => import('../dashboard/Dashboard')),
+  'project-management': lazy(() => import('../projects/ProjectManagementView')),
   project: lazy(() => import('../project/ProjectView')),
   settings: lazy(() => import('../settings/SettingsView')),
   data: lazy(() => import('../data/DataView')),
