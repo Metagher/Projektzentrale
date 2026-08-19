@@ -2,6 +2,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
 import { useAiStore } from '../../store/aiStore';
 import { useModalStore } from '../../store/modalStore';
+import { todayStr } from '../../lib/format';
 
 const STATUS_ORDER = { aktiv: 0, pausiert: 1, abgeschlossen: 2 } as const;
 
@@ -14,6 +15,7 @@ export default function ProjectQuickBar() {
   const aiAvailable = useAiStore((state) => state.keyPresent);
   const newProjectForm = useModalStore((state) => state.newProjectForm);
   const createProject = useDataStore((state) => state.createProject);
+  const dashboardData = useDataStore((state) => state.dashboardData);
 
   async function create() {
     const result = await newProjectForm();
@@ -39,6 +41,13 @@ export default function ProjectQuickBar() {
     else groups.push({ key, label, projects: [project] });
     return groups;
   }, []);
+  const todayTasks = dashboardData ? [...dashboardData.tasksWithDate, ...dashboardData.waitingTasks]
+    .filter((task, index, list) => task.faelligAm === todayStr() && list.findIndex((item) => item.id === task.id) === index)
+    .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr) : [];
+  const projectTodayRanks = todayTasks.slice(0, 3).reduce<Record<string, number[]>>((ranks, task, index) => {
+    (ranks[task.projectId] ||= []).push(index + 1);
+    return ranks;
+  }, {});
 
   return (
     <nav className="project-quickbar" aria-label="Projektschnellwahl">
@@ -66,6 +75,7 @@ export default function ProjectQuickBar() {
             >
               <span className={`status-dot ${project.status}`} />
               <span>{project.name}</span>
+              {projectTodayRanks[project.id]?.map((rank) => <b className="project-today-rank" key={rank}>#{rank}</b>)}
             </button>
           ))}</div>
         </div>)}

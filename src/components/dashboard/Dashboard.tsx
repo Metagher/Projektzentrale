@@ -10,6 +10,7 @@ import OverdueBanner from './OverdueBanner';
 import DashboardFilterBar from './DashboardFilterBar';
 import TaskRows from './TaskRows';
 import MilestonesList from './MilestonesList';
+import DailyPlanner from './DailyPlanner';
 
 const TABS: { key: DashboardTab; label: (n: number) => string }[] = [
   { key: 'liste', label: () => 'Liste' },
@@ -113,6 +114,7 @@ export default function Dashboard() {
         <p>Alle Projekte, offenen Aufgaben und anstehenden Echtläufe an einem Ort.</p>
       </header>
       <DailyBriefingCard />
+      <DailyPlanner />
       <div className="stat-row">
         <div className="stat-card">
           <div className="stat-icon">◆</div><div className="num">{summary.activeProjects}</div>

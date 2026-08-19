@@ -63,6 +63,7 @@ export interface Task {
   faelligAm: string;
   prioritaet: TaskPrio;
   farbe?: TaskColor | '';
+  tagesSortierung?: number;
   status: TaskStatus;
   wartetAuf: string;
   kontaktId: string;

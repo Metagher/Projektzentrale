@@ -80,6 +80,7 @@ interface DataStoreState {
   deleteTask: (projectId: string, taskId: string) => Promise<void>;
   setAllOverdueTasksToToday: () => Promise<void>;
   setAllNoDateTasksToToday: () => Promise<void>;
+  reorderDailyTasks: (date: string, orderedTasks: TaskWithMeta[]) => Promise<void>;
 
   saveContact: (projectId: string, contact: Contact) => Promise<void>;
   deleteContact: (projectId: string, contactId: string) => Promise<void>;
@@ -360,7 +361,8 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   saveTask: async (projectId, task) => {
     const data = await get().ensureProjectData(projectId);
     const idx = data.tasks.findIndex((t) => t.id === task.id);
-    const tasks = idx >= 0 ? data.tasks.map((t, i) => (i === idx ? task : t)) : [...data.tasks, task];
+    const normalizedTask = idx >= 0 && data.tasks[idx].faelligAm !== task.faelligAm ? { ...task, tagesSortierung: 999 } : task;
+    const tasks = idx >= 0 ? data.tasks.map((t, i) => (i === idx ? normalizedTask : t)) : [...data.tasks, normalizedTask];
     await persistTasks(get, set, projectId, tasks);
     await get().loadDashboardData();
   },
@@ -373,6 +375,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       nr,
       erstelltAm: new Date().toISOString(),
       abgeschlossenAm: null,
+      tagesSortierung: 999,
     };
     const data = await get().ensureProjectData(projectId);
     await persistTasks(get, set, projectId, [...data.tasks, task]);
@@ -412,6 +415,21 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       const data = await get().ensureProjectData(projectId);
       const ids = byProject[projectId];
       const tasks = data.tasks.map((t) => (ids.includes(t.id) ? { ...t, faelligAm: today } : t));
+      await persistTasks(get, set, projectId, tasks);
+    }
+    await get().loadDashboardData();
+  },
+
+  reorderDailyTasks: async (date, orderedTasks) => {
+    const byProject = new Map<string, Map<string, number>>();
+    orderedTasks.forEach((task, index) => {
+      if (task.faelligAm !== date) return;
+      if (!byProject.has(task.projectId)) byProject.set(task.projectId, new Map());
+      byProject.get(task.projectId)!.set(task.id, index + 1);
+    });
+    for (const [projectId, ranks] of byProject) {
+      const data = await get().ensureProjectData(projectId);
+      const tasks = data.tasks.map((task) => ranks.has(task.id) ? { ...task, tagesSortierung: ranks.get(task.id) } : task);
       await persistTasks(get, set, projectId, tasks);
     }
     await get().loadDashboardData();

@@ -65,7 +65,7 @@ export async function buildExportCsv(): Promise<string> {
     });
     data.tasks.forEach((t) => {
       rows.push({
-        Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '', Farbe: t.farbe || '',
+        Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '', Farbe: t.farbe || '', TagesSortierung: t.tagesSortierung ?? 999,
         Status: t.status || '', KontaktId: t.kontaktId || '', Beschreibung: t.beschreibung || '', ErstelltAm: t.erstelltAm || '',
         AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '',
         Notiz: t.notizen || '', Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'),
@@ -178,7 +178,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         kontaktId: String(r.KontaktId || ''), beschreibung: String(r.Beschreibung || ''),
         erstelltAm: (r.ErstelltAm as string) || '', abgeschlossenAm: (r.AbgeschlossenAm as string) || null,
         afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), notizen: String(r.Notiz || ''),
-        nr: Number.isFinite(nrRaw) ? nrRaw : 0, commIds: splitList(r.VerknuepfteKommIds as string),
+        nr: Number.isFinite(nrRaw) ? nrRaw : 0, tagesSortierung: Number(r.TagesSortierung) || 999, commIds: splitList(r.VerknuepfteKommIds as string),
         doku: false, dokuErledigt: false,
       });
     });
