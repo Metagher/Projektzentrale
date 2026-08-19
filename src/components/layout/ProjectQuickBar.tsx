@@ -4,8 +4,10 @@ import { useAiStore } from '../../store/aiStore';
 import { useModalStore } from '../../store/modalStore';
 import { todayStr } from '../../lib/format';
 import { groupProjectsByCustomer, orderCustomerGroups } from '../../lib/projectGroups';
+import { useInstallApp } from '../../hooks/useInstallApp';
 
 export default function ProjectQuickBar() {
+  const { canInstall, install } = useInstallApp();
   const projects = useDataStore((state) => state.projects);
   const view = useUiStore((state) => state.view);
   const selectedId = useUiStore((state) => state.selectedId);
@@ -71,6 +73,7 @@ export default function ProjectQuickBar() {
         </div>)}
       </div>
       <div className="top-admin-nav">
+        {canInstall && <button onClick={install} title="App auf diesem Gerät installieren" aria-label="App installieren">⇩</button>}
         <button className={secondaryPane ? 'active' : ''} onClick={() => secondaryPane ? useUiStore.getState().closeSecondaryPane() : setSecondaryPane({ view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} title={secondaryPane ? 'Geteilte Ansicht schließen' : 'Bildschirm teilen'} aria-label="Bildschirm teilen">◫</button>
         <button onClick={create} title="Neues Projekt" aria-label="Neues Projekt">＋</button>
         <button className={view === 'project-management' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('project-management')} title="Projektverwaltung" aria-label="Projektverwaltung">▦</button>

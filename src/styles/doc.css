@@ -12,6 +12,30 @@
 .doc-report-row:hover{border-color:var(--line);background:var(--paper-raised);}
 .doc-report-row .doc-report-empty{color:var(--ink-soft);font-style:italic;font-size:13px;}
 .doc-report-row .doc-report-afns{margin-bottom:6px;}
+.project-status-doc{display:grid;gap:18px;}
+.project-status-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:14px;border-bottom:2px solid #111;}
+.project-status-intro h3{margin:2px 0 5px;font-size:24px;}
+.project-status-intro p,.project-status-history-head p{max-width:720px;margin:0;color:var(--ink-soft);font-size:12px;line-height:1.5;}
+.current-state-card,.current-state-editor,.status-entry-editor{padding:18px;background:#fff;border:2px solid #111;border-radius:12px;}
+.current-state-card{min-height:130px;cursor:pointer;}
+.current-state-card:hover{box-shadow:0 0 0 2px #111;}
+.current-state-card .doc-report-empty{padding:22px 0;color:var(--ink-soft);font-style:italic;}
+.project-status-history-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-top:6px;}
+.project-status-history-head .section-title{margin:0 0 3px;}
+.project-status-timeline{display:grid;gap:0;}
+.project-status-entry{display:grid;grid-template-columns:105px minmax(0,1fr);gap:18px;position:relative;padding:0 0 18px;}
+.project-status-entry::before{content:"";position:absolute;left:98px;top:8px;bottom:-8px;width:2px;background:#111;}
+.project-status-entry:last-child::before{bottom:18px;}
+.project-status-entry time{padding-top:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;}
+.project-status-entry-body{position:relative;padding:14px 16px;background:#fff;border:1px solid #bbb;border-radius:10px;}
+.project-status-entry-body::before{content:"";position:absolute;left:-13px;top:10px;width:10px;height:10px;background:#111;border:2px solid #fff;border-radius:50%;}
+.project-status-entry-body h3{font-size:15px;}
+.doc-inbox{padding:0 14px 14px;background:#eee;border:1px solid #bbb;border-radius:10px;}
+.doku-inbox-copy{display:grid;gap:3px;min-width:0;}
+.doku-inbox-copy small{color:var(--ink-soft);font-size:10px;}
+.legacy-doc-archive{padding-top:14px;border-top:1px solid #ccc;}
+.legacy-doc-archive .doc-report-row{margin-top:10px;}
+@media(max-width:700px){.project-status-intro{display:grid}.project-status-entry{grid-template-columns:72px minmax(0,1fr)}.project-status-entry::before{left:65px}}
 .lvl-1{margin-left:0;}
 .lvl-2{margin-left:26px;border-left:2px solid var(--line);padding-left:14px;}
 .lvl-3{margin-left:52px;border-left:2px solid var(--line-soft);padding-left:14px;}

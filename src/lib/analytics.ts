@@ -1,5 +1,3 @@
-import { TASK_PRIO } from './constants';
-import type { TaskPrio } from '../types/entities';
 import type { TaskWithMeta } from '../store/dataStore';
 
 export function isoWeekInfo(dateStr: string): { year: number; week: number } {
@@ -65,7 +63,6 @@ export interface TaskAnalyticsData {
   avgDuration: number | null;
   medianDuration: number | null;
   byProject: { name: string; durations: number[] }[];
-  byPrio: { key: TaskPrio; durations: number[] }[];
   sortedYears: number[];
   year: number;
   weeksInYear: number;
@@ -91,13 +88,6 @@ export function computeTaskAnalytics(allTasks: TaskWithMeta[], analyticsYear: nu
   const byProject = Object.keys(byProjectMap)
     .sort((a, b) => a.localeCompare(b))
     .map((name) => ({ name, durations: byProjectMap[name] }));
-
-  const byPrioMap: Partial<Record<TaskPrio, number[]>> = {};
-  withDuration.forEach((t) => {
-    const key = (t.prioritaet || 'should') as TaskPrio;
-    (byPrioMap[key] = byPrioMap[key] || []).push(t.duration);
-  });
-  const byPrio = TASK_PRIO.filter((k) => byPrioMap[k]).map((key) => ({ key, durations: byPrioMap[key] as number[] }));
 
   const weeklyCounts: Record<string, number> = {};
   const years = new Set<number>([analyticsYear]);
@@ -127,7 +117,6 @@ export function computeTaskAnalytics(allTasks: TaskWithMeta[], analyticsYear: nu
     avgDuration: avg(withDuration.map((t) => t.duration)),
     medianDuration: median(withDuration.map((t) => t.duration)),
     byProject,
-    byPrio,
     sortedYears,
     year,
     weeksInYear,

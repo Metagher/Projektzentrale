@@ -49,8 +49,18 @@ export interface DocEntryValue {
   afns: string[];
 }
 
+export interface ProjectStatusEntry {
+  id: string;
+  datum: string;
+  titel: string;
+  content: string;
+  afns: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Keyed by DocSectionDef id, plus a special `_hidden` key (string[]) for per-project hidden section ids. */
-export type DocData = Record<string, DocEntryValue | string[] | undefined>;
+export type DocData = Record<string, DocEntryValue | string[] | ProjectStatusEntry[] | undefined>;
 
 export type TaskStatus = 'offen' | 'in Arbeit' | 'wartet' | 'erledigt';
 export type TaskPrio = 'must' | 'should' | 'could' | 'wont';
@@ -61,7 +71,8 @@ export interface Task {
   nr: number;
   titel: string;
   faelligAm: string;
-  prioritaet: TaskPrio;
+  /** @deprecated Legacy value retained for import compatibility. */
+  prioritaet?: TaskPrio;
   farbe?: TaskColor | '';
   tagesSortierung?: number;
   status: TaskStatus;
@@ -71,6 +82,7 @@ export interface Task {
   notizen: string; // RTF html
   afns: string[];
   commIds: string[];
+  fremdverknuepfung?: string;
   erstelltAm: string; // ISO datetime
   abgeschlossenAm: string | null; // ISO datetime
   doku: boolean;

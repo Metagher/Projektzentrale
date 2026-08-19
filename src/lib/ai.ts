@@ -76,7 +76,6 @@ export interface ExtractedTask {
   titel: string;
   beschreibung: string;
   faelligAm: string;
-  prioritaet: 'must' | 'should' | 'could' | 'wont';
 }
 
 export async function extractTasksFromComm(
@@ -92,8 +91,7 @@ export async function extractTasksFromComm(
     'Ignoriere Aufgaben oder Zusagen, die andere Personen (Kunde, Kollegen, Dritte) zu erledigen haben. ' +
     'Antworte AUSSCHLIESSLICH mit einem validen JSON-Array, ohne Erklärung, ohne Markdown-Codeblock, ohne führenden oder folgenden Text. ' +
     'Format je Element: {"titel": string (kurz, max. ca. 80 Zeichen), "beschreibung": string (kurzer Kontext, oder leerer String), ' +
-    '"faelligAm": string im Format JJJJ-MM-TT falls im Text ein konkretes oder eindeutig relatives Datum genannt wird, sonst leerer String, ' +
-    '"prioritaet": "must" (Must have) oder "should" (Should have) oder "could" (Could have) oder "wont" (Won\'t have), nach der MoSCoW-Methode}. ' +
+    '"faelligAm": string im Format JJJJ-MM-TT falls im Text ein konkretes oder eindeutig relatives Datum genannt wird, sonst leerer String}. ' +
     'Wenn keine Aufgaben für Fabian erkennbar sind, antworte mit [].';
   const userContent =
     `Heutiges Datum: ${todayStr}\n` +
@@ -109,13 +107,11 @@ export async function extractTasksFromComm(
   } catch {
     throw new Error('Antwort der KI konnte nicht gelesen werden');
   }
-  const TASK_PRIO_VALUES = ['must', 'should', 'could', 'wont'];
   return (parsed as Record<string, unknown>[])
     .filter((t) => t && t.titel)
     .map((t) => ({
       titel: String(t.titel).slice(0, 200),
       beschreibung: t.beschreibung ? String(t.beschreibung) : '',
       faelligAm: /^\d{4}-\d{2}-\d{2}$/.test(String(t.faelligAm)) ? String(t.faelligAm) : '',
-      prioritaet: (TASK_PRIO_VALUES.includes(t.prioritaet as string) ? t.prioritaet : 'should') as ExtractedTask['prioritaet'],
     }));
 }

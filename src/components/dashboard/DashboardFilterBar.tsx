@@ -1,6 +1,5 @@
 import { useDataStore } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
-import { TASK_PRIO, prioLabel } from '../../lib/constants';
 
 export default function DashboardFilterBar({ showDateFilter }: { showDateFilter: boolean }) {
   const projects = useDataStore((s) => s.projects) || [];
@@ -16,17 +15,6 @@ export default function DashboardFilterBar({ showDateFilter }: { showDateFilter:
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="filter-field">
-        <label>Priorität</label>
-        <select value={dashFilter.prioritaet} onChange={(e) => setDashFilter({ prioritaet: e.target.value })}>
-          <option value="">Alle</option>
-          {TASK_PRIO.map((pr) => (
-            <option key={pr} value={pr}>
-              {prioLabel(pr)}
             </option>
           ))}
         </select>

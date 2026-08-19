@@ -1,234 +1,103 @@
 import { useState } from 'react';
 import { useDataStore } from '../../../store/dataStore';
 import { useProjectUiStore } from '../../../store/projectUiStore';
-import { computeDocLabels, getSubtreeIds } from '../../../lib/docOutline';
-import { defLevel, fmtDate, fmtDateTime, isEmptyHtml } from '../../../lib/format';
+import { useModalStore } from '../../../store/modalStore';
+import { fmtDate, fmtDateTime, isEmptyHtml, todayStr, uid } from '../../../lib/format';
 import RtfField from '../../shared/RtfField';
 import AfnChipsField from '../../shared/AfnChipsField';
 import AfnChipsView from '../../shared/AfnChipsView';
-import type { DocEntryValue, ProjectCache } from '../../../types/entities';
+import type { DocEntryValue, ProjectCache, ProjectStatusEntry } from '../../../types/entities';
 import { compareTaskColors } from '../../../lib/taskColors';
 
+const CURRENT_STATE_KEY = '_currentProjectState';
+
 export default function DokumentationTab({ projectId, data }: { projectId: string; data: ProjectCache }) {
-  const docDefs = useDataStore((s) => s.docDefs) || [];
-  const saveDocEntry = useDataStore((s) => s.saveDocEntry);
-  const setDocHidden = useDataStore((s) => s.setDocHidden);
-  const saveTask = useDataStore((s) => s.saveTask);
-  const taskColorOrder = useDataStore((s) => s.taskColorOrder);
-  const { editingDocSectionId, setEditingDocSectionId, jumpToTask } = useProjectUiStore();
+  const docDefs = useDataStore((state) => state.docDefs) || [];
+  const saveDocEntry = useDataStore((state) => state.saveDocEntry);
+  const saveStatusEntry = useDataStore((state) => state.saveProjectStatusEntry);
+  const deleteStatusEntry = useDataStore((state) => state.deleteProjectStatusEntry);
+  const saveTask = useDataStore((state) => state.saveTask);
+  const taskColorOrder = useDataStore((state) => state.taskColorOrder);
+  const confirm = useModalStore((state) => state.confirm);
+  const { jumpToTask } = useProjectUiStore();
+  const [editingCurrent, setEditingCurrent] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<ProjectStatusEntry | 'new' | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
 
-  const labels = computeDocLabels(docDefs);
-  const hidden = (data.doc._hidden as string[] | undefined) || [];
-  const visibleDefs = docDefs.filter((d) => !hidden.includes(d.id));
-  const hiddenDefs = docDefs.filter((d) => hidden.includes(d.id));
-  const dokuTasks = data.tasks
-    .filter((t) => t.status === 'erledigt' && t.doku && !t.dokuErledigt)
-    .slice()
-    .sort((a, b) => compareTaskColors(a, b, taskColorOrder) || (b.abgeschlossenAm || '').localeCompare(a.abgeschlossenAm || ''));
+  const current = (data.doc[CURRENT_STATE_KEY] as DocEntryValue | undefined) || { content: '', updatedAt: null, afns: [] };
+  const history = ((data.doc._statusHistory as ProjectStatusEntry[] | undefined) || []).slice().sort((a, b) => b.datum.localeCompare(a.datum) || b.updatedAt.localeCompare(a.updatedAt));
+  const legacyEntries = docDefs.flatMap((definition) => {
+    const entry = data.doc[definition.id];
+    return entry && !Array.isArray(entry) && (entry.content || entry.afns?.length) ? [{ definition, entry }] : [];
+  });
+  const dokuTasks = data.tasks.filter((task) => task.status === 'erledigt' && task.doku && !task.dokuErledigt).slice().sort((a, b) => compareTaskColors(a, b, taskColorOrder) || (b.abgeschlossenAm || '').localeCompare(a.abgeschlossenAm || ''));
 
-  async function hideSubtree(defId: string) {
-    const ids = getSubtreeIds(docDefs, defId);
-    const next = Array.from(new Set([...hidden, ...ids]));
-    if (editingDocSectionId && ids.includes(editingDocSectionId)) setEditingDocSectionId(null);
-    await setDocHidden(projectId, next);
-  }
-
-  async function showSubtree(defId: string) {
-    const ids = getSubtreeIds(docDefs, defId);
-    await setDocHidden(projectId, hidden.filter((id) => !ids.includes(id)));
-  }
-
-  async function markDokuDone(taskId: string) {
-    const task = data.tasks.find((t) => t.id === taskId);
+  async function moveTaskToHistory(taskId: string) {
+    const task = data.tasks.find((item) => item.id === taskId);
     if (!task) return;
+    const now = new Date().toISOString();
+    await saveStatusEntry(projectId, {
+      id: uid(),
+      datum: task.abgeschlossenAm?.slice(0, 10) || todayStr(),
+      titel: task.titel,
+      content: task.beschreibung || '',
+      afns: task.afns || [],
+      createdAt: now,
+      updatedAt: now,
+    });
     await saveTask(projectId, { ...task, dokuErledigt: true });
   }
 
-  function openTaskFromDoku(taskId: string) {
-    jumpToTask(taskId);
+  async function removeEntry(entry: ProjectStatusEntry) {
+    if (await confirm(`Standseintrag „${entry.titel}“ wirklich löschen?`)) await deleteStatusEntry(projectId, entry.id);
   }
 
-  return (
-    <>
-      {dokuTasks.length > 0 && (
-        <>
-          <div className="section-title">Erledigte Aufgaben zur Dokumentation ({dokuTasks.length})</div>
-          {dokuTasks.map((t) => (
-            <div className={`doku-list-row${t.farbe ? ` task-color-border-${t.farbe}` : ''}`} key={t.id} onClick={() => openTaskFromDoku(t.id)}>
-              <div style={{ flex: 1 }}>
-                <div className="doku-list-title">
-                  {t.farbe && <span className={`task-color-swatch task-color-${t.farbe}`} />}
-                  <span className="task-nr">{t.nr || '—'}</span>
-                  <strong>{t.titel}</strong>
-                </div>
-                <div className="doku-list-meta">{t.abgeschlossenAm ? 'Erledigt: ' + fmtDate(t.abgeschlossenAm.slice(0, 10)) : ''}</div>
-                {!isEmptyHtml(t.beschreibung) ? (
-                  <div className="rtf-content rtf-field-preview-compact" style={{ marginTop: 6 }} dangerouslySetInnerHTML={{ __html: t.beschreibung }} />
-                ) : (
-                  <div className="doc-report-empty" style={{ marginTop: 6 }}>
-                    Keine Beschreibung erfasst.
-                  </div>
-                )}
-              </div>
-              <button
-                className="btn secondary small"
-                style={{ flexShrink: 0 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  markDokuDone(t.id);
-                }}
-              >
-                Doku abgeschlossen
-              </button>
-            </div>
-          ))}
-        </>
-      )}
+  return <div className="project-status-doc">
+    <header className="project-status-intro">
+      <div><span className="eyebrow">Lebende Projektdokumentation</span><h3>Aktueller Projektstand</h3><p>Hier steht nur, was für den gegenwärtigen Stand relevant ist. Änderungen und Entscheidungen werden darunter chronologisch festgehalten.</p></div>
+      {!editingCurrent && <button className="btn small" onClick={() => setEditingCurrent(true)}>{isEmptyHtml(current.content) ? 'Projektstand erfassen' : 'Projektstand bearbeiten'}</button>}
+    </header>
 
-      {docDefs.length === 0 && (
-        <div className="empty-state">
-          <h3>Noch keine Oberpunkte definiert</h3>
-          <div>Lege sie unter „⚙ Oberpunkte verwalten" in der Seitenleiste an — sie gelten dann für alle Projekte.</div>
-        </div>
-      )}
+    {editingCurrent ? <CurrentStateEditor projectId={projectId} entry={current} onSave={saveDocEntry} onClose={() => setEditingCurrent(false)} /> :
+      <section className="current-state-card" onClick={() => setEditingCurrent(true)}>
+        <div className="doc-section-head"><strong>Stand heute</strong><span className="doc-updated">{current.updatedAt ? `aktualisiert ${fmtDateTime(current.updatedAt)}` : 'noch nicht erfasst'}</span></div>
+        {!!current.afns?.length && <AfnChipsView afns={current.afns} />}
+        {isEmptyHtml(current.content) ? <div className="doc-report-empty">Umgesetztes, Entscheidungen, Risiken und nächste Schritte hier zusammenfassen.</div> : <div className="rtf-content" dangerouslySetInnerHTML={{ __html: current.content }} />}
+      </section>}
 
-      {visibleDefs.map((s) => {
-        const entry: DocEntryValue = (data.doc[s.id] as DocEntryValue) || { content: '', updatedAt: null, afns: [] };
-        if (s.id === editingDocSectionId) {
-          return (
-            <DocSectionEditor
-              key={s.id}
-              projectId={projectId}
-              defId={s.id}
-              title={s.title}
-              level={defLevel(s.level)}
-              label={labels[s.id]}
-              entry={entry}
-              onHide={() => hideSubtree(s.id)}
-              onSave={saveDocEntry}
-              onCancel={() => setEditingDocSectionId(null)}
-              onSaved={() => setEditingDocSectionId(null)}
-            />
-          );
-        }
-        return (
-          <div
-            className={`doc-report-row lvl-${defLevel(s.level)}`}
-            key={s.id}
-            onClick={() => setEditingDocSectionId(s.id)}
-          >
-            <div className="doc-section-head">
-              <h3>
-                {labels[s.id]} {s.title}
-              </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="doc-updated">{entry.updatedAt ? 'zuletzt aktualisiert: ' + fmtDateTime(entry.updatedAt) : 'noch nicht bearbeitet'}</span>
-                <button
-                  className="icon-btn"
-                  title="Für dieses Projekt ausblenden (inkl. Unterpunkte)"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    hideSubtree(s.id);
-                  }}
-                >
-                  Ausblenden
-                </button>
-              </div>
-            </div>
-            {entry.afns && entry.afns.length > 0 && (
-              <div className="doc-report-afns">
-                <AfnChipsView afns={entry.afns} />
-              </div>
-            )}
-            {!isEmptyHtml(entry.content) ? (
-              <div className="rtf-content" dangerouslySetInnerHTML={{ __html: entry.content }} />
-            ) : (
-              <div className="doc-report-empty">Noch kein Text erfasst — klicken zum Bearbeiten.</div>
-            )}
-          </div>
-        );
-      })}
+    {dokuTasks.length > 0 && <section className="doc-inbox">
+      <div className="section-title">Zur Dokumentation vorgemerkt ({dokuTasks.length})</div>
+      {dokuTasks.map((task) => <div className={`doku-list-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} key={task.id} onClick={() => jumpToTask(task.id)}>
+        <div className="doku-inbox-copy"><strong><span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong><small>{task.abgeschlossenAm ? `Erledigt: ${fmtDate(task.abgeschlossenAm.slice(0, 10))}` : ''}</small></div>
+        <button className="btn secondary small" onClick={(event) => { event.stopPropagation(); moveTaskToHistory(task.id); }}>In Verlauf übernehmen</button>
+      </div>)}
+    </section>}
 
-      {hiddenDefs.length > 0 && (
-        <>
-          <div className="section-title">Ausgeblendete Punkte für dieses Projekt ({hiddenDefs.length})</div>
-          {hiddenDefs.map((s) => (
-            <div
-              className={`list-item def-row lvl-${defLevel(s.level)}`}
-              key={s.id}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            >
-              <span className="meta">
-                {labels[s.id]} {s.title}
-              </span>
-              <button className="icon-btn edit" onClick={() => showSubtree(s.id)}>
-                Einblenden
-              </button>
-            </div>
-          ))}
-        </>
-      )}
-    </>
-  );
+    <div className="project-status-history-head"><div><div className="section-title">Verlauf</div><p>Entscheidungen, Änderungen und erreichte Zwischenstände.</p></div><button className="btn small" onClick={() => setEditingEntry('new')}>+ Standseintrag</button></div>
+    {editingEntry && <StatusEntryEditor projectId={projectId} entry={editingEntry === 'new' ? undefined : editingEntry} onSave={saveStatusEntry} onClose={() => setEditingEntry(null)} />}
+    {history.length === 0 && !editingEntry && <div className="empty-state"><h3>Noch kein Verlauf</h3><div>Lege den ersten Eintrag an, sobald sich im Projekt etwas Wesentliches ändert.</div></div>}
+    <div className="project-status-timeline">{history.map((entry) => <article className="project-status-entry" key={entry.id}>
+      <time>{fmtDate(entry.datum)}</time><div className="project-status-entry-body"><div className="doc-section-head"><h3>{entry.titel}</h3><div className="actions"><button className="icon-btn" onClick={() => setEditingEntry(entry)}>Bearbeiten</button><button className="icon-btn" onClick={() => removeEntry(entry)}>Löschen</button></div></div>
+      {!!entry.afns.length && <AfnChipsView afns={entry.afns} />}{!isEmptyHtml(entry.content) && <div className="rtf-content" dangerouslySetInnerHTML={{ __html: entry.content }} />}</div>
+    </article>)}</div>
+
+    {legacyEntries.length > 0 && <section className="legacy-doc-archive"><button className="btn secondary small" onClick={() => setShowArchive((value) => !value)}>{showArchive ? 'Bisherige Dokumentation ausblenden' : `Bisherige Dokumentation anzeigen (${legacyEntries.length})`}</button>
+      {showArchive && legacyEntries.map(({ definition, entry }) => <article className="doc-report-row" key={definition.id}><div className="doc-section-head"><h3>{definition.title}</h3><span className="doc-updated">Archiv</span></div>{!!entry.afns?.length && <AfnChipsView afns={entry.afns} />}<div className="rtf-content" dangerouslySetInnerHTML={{ __html: entry.content }} /></article>)}</section>}
+  </div>;
 }
 
-function DocSectionEditor({
-  projectId,
-  defId,
-  title,
-  level,
-  label,
-  entry,
-  onHide,
-  onSave,
-  onCancel,
-  onSaved,
-}: {
-  projectId: string;
-  defId: string;
-  title: string;
-  level: number;
-  label: string;
-  entry: DocEntryValue;
-  onHide: () => void;
-  onSave: (projectId: string, defId: string, value: DocEntryValue) => Promise<void>;
-  onCancel: () => void;
-  onSaved: () => void;
-}) {
+function CurrentStateEditor({ projectId, entry, onSave, onClose }: { projectId: string; entry: DocEntryValue; onSave: (projectId: string, key: string, value: DocEntryValue) => Promise<void>; onClose: () => void }) {
   const [content, setContent] = useState(entry.content || '');
   const [afns, setAfns] = useState(entry.afns || []);
+  async function save() { await onSave(projectId, CURRENT_STATE_KEY, { content, afns, updatedAt: new Date().toISOString() }); onClose(); }
+  return <section className="doc-section current-state-editor"><RtfField value={content} onChange={setContent} title="Aktueller Projektstand" placeholder="Was ist umgesetzt? Was wurde entschieden? Was ist kritisch? Was sind die nächsten Schritte?" /><AfnChipsField value={afns} onChange={setAfns} /><div className="btn-row"><button className="btn small" onClick={save}>Projektstand speichern</button><button className="btn secondary small" onClick={onClose}>Abbrechen</button></div></section>;
+}
 
-  async function handleSave() {
-    const contentChanged = content !== (entry.content || '');
-    await onSave(projectId, defId, {
-      content,
-      updatedAt: contentChanged ? new Date().toISOString() : entry.updatedAt || null,
-      afns,
-    });
-    onSaved();
-  }
-
-  return (
-    <div className={`doc-section lvl-${level}`}>
-      <div className="doc-section-head">
-        <h3>
-          {label} {title}
-        </h3>
-        <span className="doc-updated">{entry.updatedAt ? 'zuletzt aktualisiert: ' + fmtDateTime(entry.updatedAt) : 'noch nicht bearbeitet'}</span>
-      </div>
-      <RtfField value={content} onChange={setContent} title={title} placeholder="Klicken, um Text einzugeben…" />
-      <AfnChipsField value={afns} onChange={setAfns} />
-      <div className="btn-row" style={{ marginTop: 8 }}>
-        <button className="btn small" onClick={handleSave}>
-          Speichern
-        </button>
-        <button className="btn secondary small" onClick={onCancel}>
-          Abbrechen
-        </button>
-        <button className="icon-btn" style={{ marginLeft: 'auto' }} title="Für dieses Projekt ausblenden (inkl. Unterpunkte)" onClick={onHide}>
-          Ausblenden
-        </button>
-      </div>
-    </div>
-  );
+function StatusEntryEditor({ projectId, entry, onSave, onClose }: { projectId: string; entry?: ProjectStatusEntry; onSave: (projectId: string, entry: ProjectStatusEntry) => Promise<void>; onClose: () => void }) {
+  const [datum, setDatum] = useState(entry?.datum || todayStr());
+  const [titel, setTitel] = useState(entry?.titel || '');
+  const [content, setContent] = useState(entry?.content || '');
+  const [afns, setAfns] = useState(entry?.afns || []);
+  async function save() { if (!titel.trim()) return; const now = new Date().toISOString(); await onSave(projectId, { id: entry?.id || uid(), datum, titel: titel.trim(), content, afns, createdAt: entry?.createdAt || now, updatedAt: now }); onClose(); }
+  return <section className="doc-section status-entry-editor"><div className="field-grid"><div className="field"><label>Datum</label><input type="date" value={datum} onChange={(event) => setDatum(event.target.value)} /></div><div className="field"><label>Titel</label><input value={titel} onChange={(event) => setTitel(event.target.value)} placeholder="z. B. Schnittstelle freigegeben" /></div></div><RtfField value={content} onChange={setContent} title="Eintrag" placeholder="Was hat sich geändert und warum ist es relevant?" /><AfnChipsField value={afns} onChange={setAfns} /><div className="btn-row"><button className="btn small" disabled={!titel.trim()} onClick={save}>Eintrag speichern</button><button className="btn secondary small" onClick={onClose}>Abbrechen</button></div></section>;
 }

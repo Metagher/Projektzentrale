@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
-import { TASK_PRIO, TASK_STATUS, prioLabel } from '../../lib/constants';
+import { TASK_STATUS } from '../../lib/constants';
 import { slug } from '../../lib/format';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
 import type { TaskWithMeta } from '../../store/dataStore';
-import type { TaskColor, TaskPrio, TaskStatus } from '../../types/entities';
+import type { TaskColor, TaskStatus } from '../../types/entities';
 
 interface Props {
   task: TaskWithMeta;
@@ -25,7 +25,6 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const alert = useModalStore((s) => s.alert);
 
   const [titel, setTitel] = useState(task.titel);
-  const [prioritaet, setPrioritaet] = useState<TaskPrio>(task.prioritaet || 'should');
   const [farbe, setFarbe] = useState<TaskColor | ''>(task.farbe || '');
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [faelligAm, setFaelligAm] = useState(task.faelligAm || '');
@@ -35,6 +34,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const [beschreibung, setBeschreibung] = useState(task.beschreibung || '');
   const [notizen, setNotizen] = useState(task.notizen || '');
   const [afns, setAfns] = useState(task.afns || []);
+  const [fremdverknuepfung, setFremdverknuepfung] = useState(task.fremdverknuepfung || '');
 
   async function handleSave() {
     const trimmed = titel.trim();
@@ -52,7 +52,6 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
     await saveTask(task.projectId, {
       ...base,
       titel: trimmed,
-      prioritaet,
       farbe,
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
@@ -61,6 +60,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       beschreibung,
       notizen,
       afns,
+      fremdverknuepfung: fremdverknuepfung.trim(),
       abgeschlossenAm,
       doku,
     });
@@ -81,16 +81,8 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
         {task.projectName}
       </div>
       <div className="task-inline-row">
-        <span className={`prio-dot prio-${slug(prioritaet)}`} />
         <TaskColorSelect value={farbe} onChange={setFarbe} />
         <input type="text" value={titel} onChange={(e) => setTitel(e.target.value)} />
-        <select value={prioritaet} onChange={(e) => setPrioritaet(e.target.value as TaskPrio)}>
-          {TASK_PRIO.map((pr) => (
-            <option key={pr} value={pr}>
-              {prioLabel(pr)}
-            </option>
-          ))}
-        </select>
         <select
           className={`task-status-select ${slug(status)}`}
           value={status}
@@ -122,6 +114,10 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
           <select value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)}><option value="">Bitte auswählen</option>{wartetAuf && !waitingOptions.includes(wartetAuf) && <option value={wartetAuf}>{wartetAuf} (Bestand)</option>}{waitingOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
         </div>
       )}
+      <div className="field">
+        <label>Fremdverknüpfung</label>
+        <input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://app.asana.com/…" />
+      </div>
       <div className="field">
         <label>Beschreibung</label>
         <RtfField value={beschreibung} onChange={setBeschreibung} title="Beschreibung" placeholder="Klicken, um eine Beschreibung zu erfassen…" />

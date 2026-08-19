@@ -1,7 +1,6 @@
 import { useUiStore } from '../../store/uiStore';
 import { buildCalendarWeeks, dateKey, MONTH_NAMES, WEEKDAY_LABELS } from '../../lib/calendar';
 import { openTaskInDashboard } from '../../lib/navigation';
-import { slug } from '../../lib/format';
 import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import { isWorkday } from '../../lib/workdays';
 
@@ -74,8 +73,8 @@ export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: TaskWit
                 {dayTasks.slice(0, MAX_VISIBLE_PER_DAY).map((t) => (
                   <div
                     key={t.id}
-                    className={`cal-task prio-${slug(t.prioritaet || 'should')}${t.farbe ? ` task-color-border-${t.farbe}` : ''}`}
-                    title={`#${t.nr || '?'} · ${t.projectName}: ${t.titel}`}
+                    className={`cal-task${t.farbe ? ` task-color-border-${t.farbe}` : ''}`}
+                    title={`ID ${t.nr || '?'} · ${t.projectName}: ${t.titel}`}
                     onClick={() => openTaskInDashboard(t.id)}
                   >
                     {t.titel}

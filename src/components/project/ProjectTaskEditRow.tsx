@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
-import { TASK_PRIO, TASK_STATUS, prioLabel } from '../../lib/constants';
+import { TASK_STATUS } from '../../lib/constants';
 import { commLinkLabel, slug } from '../../lib/format';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
-import type { Contact, ProjectCache, Task, TaskColor, TaskPrio, TaskStatus } from '../../types/entities';
+import type { Contact, ProjectCache, Task, TaskColor, TaskStatus } from '../../types/entities';
 
 interface Props {
   task: Task;
@@ -27,7 +27,6 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const alert = useModalStore((s) => s.alert);
 
   const [titel, setTitel] = useState(task.titel);
-  const [prioritaet, setPrioritaet] = useState<TaskPrio>(task.prioritaet || 'should');
   const [farbe, setFarbe] = useState<TaskColor | ''>(task.farbe || '');
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [faelligAm, setFaelligAm] = useState(task.faelligAm || '');
@@ -38,6 +37,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const [notizen, setNotizen] = useState(task.notizen || '');
   const [afns, setAfns] = useState(task.afns || []);
   const [commIds, setCommIds] = useState(task.commIds || []);
+  const [fremdverknuepfung, setFremdverknuepfung] = useState(task.fremdverknuepfung || '');
 
   async function handleSave() {
     const trimmed = titel.trim();
@@ -53,7 +53,6 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
     await saveTask(projectId, {
       ...task,
       titel: trimmed,
-      prioritaet,
       farbe,
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
@@ -63,6 +62,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       notizen,
       afns,
       commIds,
+      fremdverknuepfung: fremdverknuepfung.trim(),
       abgeschlossenAm,
       doku,
     });
@@ -84,16 +84,8 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
         <span className="task-nr">{task.nr || '—'}</span>
       </div>
       <div className="task-inline-row">
-        <span className={`prio-dot prio-${slug(prioritaet)}`} />
         <TaskColorSelect value={farbe} onChange={setFarbe} />
         <input type="text" value={titel} onChange={(e) => setTitel(e.target.value)} />
-        <select value={prioritaet} onChange={(e) => setPrioritaet(e.target.value as TaskPrio)}>
-          {TASK_PRIO.map((pr) => (
-            <option key={pr} value={pr}>
-              {prioLabel(pr)}
-            </option>
-          ))}
-        </select>
         <select className={`task-status-select ${slug(status)}`} value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
           {TASK_STATUS.map((st) => (
             <option key={st} value={st}>
@@ -121,6 +113,10 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
           <select value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)}><option value="">Bitte auswählen</option>{wartetAuf && !waitingOptions.includes(wartetAuf) && <option value={wartetAuf}>{wartetAuf} (Bestand)</option>}{waitingOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
         </div>
       )}
+      <div className="field">
+        <label>Fremdverknüpfung</label>
+        <input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://app.asana.com/…" />
+      </div>
       <div className="field">
         <label>Beschreibung</label>
         <RtfField value={beschreibung} onChange={setBeschreibung} title="Beschreibung" placeholder="Klicken, um eine Beschreibung zu erfassen…" />

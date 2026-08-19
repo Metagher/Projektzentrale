@@ -15,6 +15,7 @@ import type {
   DocSectionDef,
   Milestone,
   Project,
+  ProjectStatusEntry,
   ProjectCache,
   ProjectTyp,
   Task,
@@ -87,6 +88,7 @@ interface DataStoreState {
   setAllOverdueTasksToToday: () => Promise<void>;
   setAllNoDateTasksToToday: () => Promise<void>;
   reorderDailyTasks: (date: string, orderedTasks: TaskWithMeta[]) => Promise<void>;
+  moveTaskToDailyDate: (projectId: string, taskId: string, date: string) => Promise<void>;
 
   saveContact: (projectId: string, contact: Contact) => Promise<void>;
   deleteContact: (projectId: string, contactId: string) => Promise<void>;
@@ -97,6 +99,8 @@ interface DataStoreState {
   saveUpdateEntry: (projectId: string, u: UpdateEntry) => Promise<void>;
   deleteUpdateEntry: (projectId: string, id: string) => Promise<void>;
   saveDocEntry: (projectId: string, defId: string, value: DocEntryValue) => Promise<void>;
+  saveProjectStatusEntry: (projectId: string, entry: ProjectStatusEntry) => Promise<void>;
+  deleteProjectStatusEntry: (projectId: string, entryId: string) => Promise<void>;
   setDocHidden: (projectId: string, hidden: string[]) => Promise<void>;
 
   loadDocDefs: () => Promise<void>;
@@ -480,6 +484,15 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await get().loadDashboardData();
   },
 
+  moveTaskToDailyDate: async (projectId, taskId, date) => {
+    const data = await get().ensureProjectData(projectId);
+    const tasks = data.tasks.map((task) => task.id === taskId
+      ? { ...task, faelligAm: date, tagesSortierung: 999 }
+      : task);
+    await persistTasks(get, set, projectId, tasks);
+    await get().loadDashboardData();
+  },
+
   saveContact: async (projectId, contact) => {
     const data = await get().ensureProjectData(projectId);
     const idx = data.contacts.findIndex((c) => c.id === contact.id);
@@ -555,6 +568,26 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   saveDocEntry: async (projectId, defId, value) => {
     const data = await get().ensureProjectData(projectId);
     const doc = { ...data.doc, [defId]: value };
+    const cache = { ...get().cache, [projectId]: { ...data, doc } };
+    set({ cache });
+    await sSet(client(), 'doc:' + projectId, doc);
+  },
+
+  saveProjectStatusEntry: async (projectId, entry) => {
+    const data = await get().ensureProjectData(projectId);
+    const current = (data.doc._statusHistory as ProjectStatusEntry[] | undefined) || [];
+    const index = current.findIndex((item) => item.id === entry.id);
+    const history = index >= 0 ? current.map((item, i) => i === index ? entry : item) : [...current, entry];
+    const doc = { ...data.doc, _statusHistory: history };
+    const cache = { ...get().cache, [projectId]: { ...data, doc } };
+    set({ cache });
+    await sSet(client(), 'doc:' + projectId, doc);
+  },
+
+  deleteProjectStatusEntry: async (projectId, entryId) => {
+    const data = await get().ensureProjectData(projectId);
+    const history = ((data.doc._statusHistory as ProjectStatusEntry[] | undefined) || []).filter((item) => item.id !== entryId);
+    const doc = { ...data.doc, _statusHistory: history };
     const cache = { ...get().cache, [projectId]: { ...data, doc } };
     set({ cache });
     await sSet(client(), 'doc:' + projectId, doc);

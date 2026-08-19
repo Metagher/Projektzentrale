@@ -95,6 +95,18 @@ export const useKnowledgeStore = create<KnowledgeStoreState>((set, get) => ({
         const hidden = (data.doc._hidden as string[] | undefined) || [];
         const visibleDefs = (docDefs || []).filter((d) => !hidden.includes(d.id));
         const lines: string[] = [];
+        const currentState = data.doc._currentProjectState;
+        if (currentState && !Array.isArray(currentState)) {
+          const text = htmlToPlainText(currentState.content);
+          if (text) lines.push(`Aktueller Projektstand: ${text}`);
+        }
+        const statusHistory = data.doc._statusHistory;
+        if (Array.isArray(statusHistory)) statusHistory.forEach((entry) => {
+          if (typeof entry === 'object' && 'titel' in entry) {
+            const text = htmlToPlainText(entry.content);
+            lines.push(`${entry.datum} – ${entry.titel}${text ? `: ${text}` : ''}`);
+          }
+        });
         visibleDefs.forEach((d) => {
           const entry = data.doc[d.id];
           const text = entry && !Array.isArray(entry) ? htmlToPlainText(entry.content) : '';

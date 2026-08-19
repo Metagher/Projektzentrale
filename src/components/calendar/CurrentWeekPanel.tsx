@@ -1,12 +1,9 @@
 import { dateKey, getWeekDates, startOfWeek, WEEKDAY_LABELS } from '../../lib/calendar';
 import { isoWeekInfo } from '../../lib/analytics';
 import { openTaskInDashboard } from '../../lib/navigation';
-import { slug } from '../../lib/format';
 import type { TaskWithMeta } from '../../store/dataStore';
 import { useDataStore } from '../../store/dataStore';
 import { compareTaskColors } from '../../lib/taskColors';
-
-const PRIO_ORDER: Record<string, number> = { must: 0, should: 1, could: 2, wont: 3 };
 
 export default function CurrentWeekPanel({ tasksWithDate }: { tasksWithDate: TaskWithMeta[] }) {
   const colorOrder = useDataStore((state) => state.taskColorOrder);
@@ -34,7 +31,7 @@ export default function CurrentWeekPanel({ tasksWithDate }: { tasksWithDate: Tas
           const key = dateKey(d);
           const dayTasks = (byDay[key] || [])
             .slice()
-            .sort((a, b) => compareTaskColors(a, b, colorOrder) || (PRIO_ORDER[a.prioritaet || 'should'] ?? 1) - (PRIO_ORDER[b.prioritaet || 'should'] ?? 1));
+            .sort((a, b) => compareTaskColors(a, b, colorOrder));
           const isToday = key === todayKey;
           return (
             <div className={`current-week-day${isToday ? ' today' : ''}`} key={key}>
@@ -55,7 +52,6 @@ export default function CurrentWeekPanel({ tasksWithDate }: { tasksWithDate: Tas
                       title={`${t.projectName}: ${t.titel}`}
                       onClick={() => openTaskInDashboard(t.id)}
                     >
-                      <span className={`prio-dot prio-${slug(t.prioritaet || 'should')}`} />
                       <span className="current-week-task-title">{t.titel}</span>
                     </div>
                   ))}

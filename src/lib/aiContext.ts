@@ -1,9 +1,8 @@
 import { fmtDate, htmlToPlainText, todayStr, truncateText } from './format';
-import { prioLabel } from './constants';
 import { computeDocLabels } from './docOutline';
 import { hasEchtlauf } from './format';
 import { useDataStore, type DashboardData } from '../store/dataStore';
-import type { Project, ProjectCache } from '../types/entities';
+import type { DocEntryValue, Project, ProjectCache, ProjectStatusEntry } from '../types/entities';
 
 export function buildDailyBriefingContext(dashboardData: DashboardData | null): string {
   const lines: string[] = [];
@@ -15,7 +14,7 @@ export function buildDailyBriefingContext(dashboardData: DashboardData | null): 
       const overdue = t.faelligAm && t.faelligAm < todayStr();
       const desc = htmlToPlainText(t.beschreibung);
       lines.push(
-        `- [${t.projectName}] ${t.titel} | Priorität: ${prioLabel(t.prioritaet || 'should')} | Fällig: ${t.faelligAm ? fmtDate(t.faelligAm) : 'kein Datum'}${overdue ? ' (ÜBERFÄLLIG)' : ''}${desc ? ' — ' + desc : ''}`,
+        `- [${t.projectName}] ${t.titel} | Fällig: ${t.faelligAm ? fmtDate(t.faelligAm) : 'kein Datum'}${overdue ? ' (ÜBERFÄLLIG)' : ''}${desc ? ' — ' + desc : ''}`,
       );
     });
   } else {
@@ -81,6 +80,14 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
   const hidden = (data.doc._hidden as string[] | undefined) || [];
   const visibleDefs = docDefs.filter((d) => !hidden.includes(d.id));
   const docLines: string[] = [];
+  const currentState = data.doc._currentProjectState as DocEntryValue | undefined;
+  const currentStateText = currentState ? htmlToPlainText(currentState.content) : '';
+  if (currentStateText) docLines.push(`Aktueller Projektstand: ${currentStateText}`);
+  const statusHistory = (data.doc._statusHistory as ProjectStatusEntry[] | undefined) || [];
+  statusHistory.slice().sort((a, b) => b.datum.localeCompare(a.datum)).forEach((entry) => {
+    const text = htmlToPlainText(entry.content);
+    docLines.push(`${fmtDate(entry.datum)} – ${entry.titel}${text ? `: ${text}` : ''}`);
+  });
   visibleDefs.forEach((d) => {
     const entry = data.doc[d.id];
     const contentText = entry && !Array.isArray(entry) ? htmlToPlainText(entry.content) : '';
@@ -100,7 +107,7 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
       const afnText = t.afns && t.afns.length ? ` [AFN: ${t.afns.join(', ')}]` : '';
       const wartetText = t.status === 'wartet' && t.wartetAuf ? `, wartet auf: ${t.wartetAuf}` : '';
       lines.push(
-        `- [${t.status}] ${t.titel}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}, Priorität: ${prioLabel(t.prioritaet)}${wartetText}${contact ? `, Ansprechpartner: ${contact.name}` : ''}${beschreibungText ? ' — ' + beschreibungText : ''}${notizenText ? ` [Interne Notiz: ${notizenText}]` : ''}`,
+        `- [${t.status}] ${t.titel}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${wartetText}${contact ? `, Ansprechpartner: ${contact.name}` : ''}${beschreibungText ? ' — ' + beschreibungText : ''}${notizenText ? ` [Interne Notiz: ${notizenText}]` : ''}`,
       );
     });
   }

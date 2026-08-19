@@ -84,7 +84,7 @@ export function isEmptyHtml(html: string | null | undefined): boolean {
 }
 
 export function taskLinkLabel(t: { nr: number; titel: string }): string {
-  return `#${t.nr || '?'} ${t.titel}`;
+  return `ID ${t.nr || '?'} ${t.titel}`;
 }
 
 export function commLinkLabel(c: { datum: string; kanal: string; betreff: string }): string {

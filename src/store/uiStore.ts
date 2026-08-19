@@ -17,13 +17,12 @@ export interface WorkspacePane { view: 'dashboard' | 'calendar' | 'knowledge' | 
 
 export interface DashFilter {
   projectId: string;
-  prioritaet: string;
   kontaktId: string;
   von: string;
   bis: string;
 }
 
-const EMPTY_DASH_FILTER: DashFilter = { projectId: '', prioritaet: '', kontaktId: '', von: '', bis: '' };
+const EMPTY_DASH_FILTER: DashFilter = { projectId: '', kontaktId: '', von: '', bis: '' };
 
 interface UiState {
   view: View;

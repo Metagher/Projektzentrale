@@ -95,7 +95,6 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
           const newId = await createTask(projectId, {
             titel: t.titel,
             faelligAm: t.faelligAm,
-            prioritaet: t.prioritaet,
             status: 'offen',
             wartetAuf: '',
             kontaktId: c.kontaktId || '',

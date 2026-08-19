@@ -1,7 +1,6 @@
 import { useAnalyticsStore } from '../../store/analyticsStore';
 import { avg, computeTaskAnalytics, dailyCountKey, fmtDays, median } from '../../lib/analytics';
-import { prioLabel } from '../../lib/constants';
-import { fmtDate, slug, todayStr } from '../../lib/format';
+import { fmtDate, todayStr } from '../../lib/format';
 import type { TaskWithMeta } from '../../store/dataStore';
 
 export default function TaskAnalytics({ allTasks, showProjectBreakdown }: { allTasks: TaskWithMeta[]; showProjectBreakdown: boolean }) {
@@ -55,35 +54,6 @@ export default function TaskAnalytics({ allTasks, showProjectBreakdown }: { allT
             </table>
           )}
         </>
-      )}
-
-      <div className="section-title">Durchlaufzeit nach Priorität</div>
-      {data.byPrio.length === 0 ? (
-        <div className="empty-state">
-          <h3>Noch keine Daten</h3>
-        </div>
-      ) : (
-        <table className="an-table">
-          <tbody>
-            <tr>
-              <th>Priorität</th>
-              <th>Anzahl</th>
-              <th>Ø Tage</th>
-              <th>Median Tage</th>
-            </tr>
-            {data.byPrio.map((p) => (
-              <tr key={p.key}>
-                <td>
-                  <span className={`prio-dot prio-${slug(p.key)}`} style={{ display: 'inline-block', marginRight: 6 }} />
-                  {prioLabel(p.key)}
-                </td>
-                <td>{p.durations.length}</td>
-                <td>{fmtDays(avg(p.durations))}</td>
-                <td>{fmtDays(median(p.durations))}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       )}
 
       <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

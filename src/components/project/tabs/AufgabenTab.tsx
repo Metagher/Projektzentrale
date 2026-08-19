@@ -47,7 +47,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
     return groups;
   }, { offen: [], wartet: [], erledigt: [] });
   const editingTask = editingTaskId ? data.tasks.find((task) => task.id === editingTaskId) : undefined;
-  const filterActive = !!(projectTaskFilter.prioritaet || projectTaskFilter.kontaktId || projectTaskFilter.von || projectTaskFilter.bis);
+  const filterActive = !!(projectTaskFilter.kontaktId || projectTaskFilter.von || projectTaskFilter.bis);
   const visibleColumns = showCompletedKanban ? COLUMNS : COLUMNS.filter((column) => column.key !== 'erledigt');
   const waitingGroups = tasksByColumn.wartet.reduce<{ key: string; label: string; person: string; tasks: Task[] }[]>((groups, task) => {
     const person = (task.wartetAuf || '').trim();
@@ -136,7 +136,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
       {editingTask && (
         <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten">
           <div className="task-edit-dialog">
-            <div className="task-edit-dialog-head"><div><span>Aufgabe bearbeiten</span><strong>#{editingTask.nr} · {editingTask.titel}</strong></div></div>
+            <div className="task-edit-dialog-head"><div><span>Aufgabe bearbeiten</span><strong>ID {editingTask.nr} · {editingTask.titel}</strong></div></div>
             <ProjectTaskEditRow task={editingTask} projectId={project.id} data={data} contacts={data.contacts} />
           </div>
         </div>

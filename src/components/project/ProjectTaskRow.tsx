@@ -6,6 +6,7 @@ import { commLinkLabel } from '../../lib/format';
 import LinkChipsView from '../shared/LinkChipsView';
 import AfnChipsView from '../shared/AfnChipsView';
 import type { Contact, ProjectCache, Task } from '../../types/entities';
+import { toExternalHref } from '../../lib/externalLinks';
 
 interface Props {
   task: Task;
@@ -25,6 +26,7 @@ export default function ProjectTaskRow({ task, contact, data, onDelete }: Props)
     .filter((item) => item.faelligAm === task.faelligAm)
     .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr) : [];
   const dailyRank = dayTasks.findIndex((item) => item.id === task.id) + 1;
+  const externalHref = toExternalHref(task.fremdverknuepfung);
 
   return (
     <div
@@ -37,7 +39,6 @@ export default function ProjectTaskRow({ task, contact, data, onDelete }: Props)
       <div className="top-row">
         <div>
           {task.farbe && <span className={`task-color-swatch task-color-${task.farbe}`} title={colorLabels[task.farbe]} />}
-          <span className={`prio-dot prio-${slug(task.prioritaet || 'should')}`} style={{ display: 'inline-block', marginRight: 4 }} />
           {dailyRank > 0 && <span className={`project-task-rank${task.faelligAm === todayStr() ? '' : ' next-workday'}`} title={task.faelligAm === todayStr() ? 'Tagesrang heute' : `Tagesrang am ${fmtDate(task.faelligAm)}`}>#{dailyRank}</span>}
           <span className="task-nr">{task.nr || '—'}</span>
           <strong>{task.titel}</strong>
@@ -57,6 +58,11 @@ export default function ProjectTaskRow({ task, contact, data, onDelete }: Props)
           </div>
           {!isEmptyHtml(task.beschreibung) && (
             <div className="rtf-content rtf-field-preview-compact" style={{ marginTop: 4 }} dangerouslySetInnerHTML={{ __html: task.beschreibung }} />
+          )}
+          {externalHref && (
+            <div className="task-external-link" data-no-open>
+              <a href={externalHref} target="_blank" rel="noreferrer">↗ Fremdverknüpfung öffnen</a>
+            </div>
           )}
           {!isEmptyHtml(task.notizen) && (
             <>

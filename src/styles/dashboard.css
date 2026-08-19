@@ -33,7 +33,7 @@
 .prio-badge.prio-could{color:var(--sage);background:none;}
 .prio-badge.prio-wont{color:var(--ink-soft);background:none;}
 .task-nr{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);margin-right:6px;white-space:nowrap;}
-.task-nr::before{content:"#";}
+.task-nr::before{content:"ID ";}
 
 /* Dashboard calendar */
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}

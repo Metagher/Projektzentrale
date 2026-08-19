@@ -6,8 +6,8 @@ import { useDataStore } from './dataStore';
 export type TaskFilterTab = 'offen' | 'wartet' | 'erledigt';
 export type ProjectUiScope = 'primary' | 'secondary';
 
-export interface ProjectTaskFilter { prioritaet: string; kontaktId: string; von: string; bis: string; }
-const EMPTY_PROJECT_TASK_FILTER: ProjectTaskFilter = { prioritaet: '', kontaktId: '', von: '', bis: '' };
+export interface ProjectTaskFilter { kontaktId: string; von: string; bis: string; }
+const EMPTY_PROJECT_TASK_FILTER: ProjectTaskFilter = { kontaktId: '', von: '', bis: '' };
 
 export interface ProjectUiState {
   editingContact: string | null;

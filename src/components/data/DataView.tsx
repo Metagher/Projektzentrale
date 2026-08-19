@@ -20,14 +20,14 @@ export default function DataView() {
       return;
     }
     const sure = await confirm(
-      'Der Import ersetzt ALLE aktuellen Daten (Projekte, Ansprechpartner, Kommunikation, Dokumentation, Aufgaben, Zeitpläne, Updates, Oberpunkte) durch den Inhalt dieser Datei. Dieser Schritt kann nicht rückgängig gemacht werden. Fortfahren?',
+      'Der Import ersetzt ALLE aktuellen Daten (Projekte, Ansprechpartner, Kommunikation, Dokumentation, Aufgaben, Zeitpläne und Updates) durch den Inhalt dieser Datei. Dieser Schritt kann nicht rückgängig gemacht werden. Fortfahren?',
     );
     if (!sure) return;
     setImporting(true);
     await importAllData(result.data);
     setImporting(false);
     goTo('dashboard');
-    await alert(`Import abgeschlossen: ${result.data.projects.length} Projekt(e) und ${result.data.docDefs.length} Oberpunkt(e) geladen.`);
+    await alert(`Import abgeschlossen: ${result.data.projects.length} Projekt(e) geladen.`);
   }
 
   return (

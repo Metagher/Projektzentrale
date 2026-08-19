@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
-import { TASK_PRIO, TASK_STATUS, prioLabel } from '../../lib/constants';
+import { TASK_STATUS } from '../../lib/constants';
 import { commLinkLabel } from '../../lib/format';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
-import type { ProjectCache, Task, TaskColor, TaskPrio, TaskStatus } from '../../types/entities';
+import type { ProjectCache, Task, TaskColor, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const createTask = useDataStore((s) => s.createTask);
@@ -19,7 +19,6 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
 
   const [titel, setTitel] = useState('');
   const [faelligAm, setFaelligAm] = useState('');
-  const [prioritaet, setPrioritaet] = useState<TaskPrio>('should');
   const [farbe, setFarbe] = useState<TaskColor | ''>('');
   const [status, setStatus] = useState<TaskStatus>('offen');
   const [kontaktId, setKontaktId] = useState('');
@@ -29,6 +28,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [notizen, setNotizen] = useState('');
   const [afns, setAfns] = useState<string[]>([]);
   const [commIds, setCommIds] = useState<string[]>([]);
+  const [fremdverknuepfung, setFremdverknuepfung] = useState('');
 
   async function handleSave() {
     const trimmed = titel.trim();
@@ -40,7 +40,6 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
     const partial: Omit<Task, 'id' | 'nr' | 'erstelltAm' | 'abgeschlossenAm'> = {
       titel: trimmed,
       faelligAm,
-      prioritaet,
       farbe,
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
@@ -49,6 +48,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       notizen,
       afns,
       commIds,
+      fremdverknuepfung: fremdverknuepfung.trim(),
       doku,
       dokuErledigt: false,
     };
@@ -73,16 +73,6 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
         <div className="field">
           <label>Fällig am</label>
           <input type="date" value={faelligAm} onChange={(e) => setFaelligAm(e.target.value)} />
-        </div>
-        <div className="field">
-          <label>Priorität</label>
-          <select value={prioritaet} onChange={(e) => setPrioritaet(e.target.value as TaskPrio)}>
-            {TASK_PRIO.map((pr) => (
-              <option key={pr} value={pr}>
-                {prioLabel(pr)}
-              </option>
-            ))}
-          </select>
         </div>
         <div className="field">
           <label>Status</label>
@@ -119,6 +109,10 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
           <input type="checkbox" checked={doku} onChange={(e) => setDoku(e.target.checked)} /> Für Dokumentation
           vormerken (erscheint nach Erledigung im Reiter „Dokumentation")
         </label>
+      </div>
+      <div className="field">
+        <label>Fremdverknüpfung</label>
+        <input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://app.asana.com/…" />
       </div>
       <div className="field">
         <label>Beschreibung</label>

@@ -1,5 +1,4 @@
 import { useProjectUiStore } from '../../store/projectUiStore';
-import { TASK_PRIO, prioLabel } from '../../lib/constants';
 import type { Contact } from '../../types/entities';
 
 export default function ProjectTaskFilterBar({ contacts }: { contacts: Contact[] }) {
@@ -7,17 +6,6 @@ export default function ProjectTaskFilterBar({ contacts }: { contacts: Contact[]
 
   return (
     <div className="filter-bar">
-      <div className="filter-field">
-        <label>Priorität</label>
-        <select value={projectTaskFilter.prioritaet} onChange={(e) => setProjectTaskFilter({ prioritaet: e.target.value })}>
-          <option value="">Alle</option>
-          {TASK_PRIO.map((pr) => (
-            <option key={pr} value={pr}>
-              {prioLabel(pr)}
-            </option>
-          ))}
-        </select>
-      </div>
       <div className="filter-field">
         <label>Ansprechpartner</label>
         <select value={projectTaskFilter.kontaktId} onChange={(e) => setProjectTaskFilter({ kontaktId: e.target.value })}>

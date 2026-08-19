@@ -237,7 +237,7 @@ function TaskExtractionReview({
             />
             <div style={{ flex: 1 }}>
               <div>
-                <strong>{t.titel}</strong> <span className={`badge ${t.prioritaet}`}>{t.prioritaet}</span>
+                <strong>{t.titel}</strong>
               </div>
               <div className="meta">{t.faelligAm ? `Fällig: ${fmtDate(t.faelligAm)}` : 'Kein Datum erkannt'}</div>
               {t.beschreibung && <div className="meta" style={{ marginTop: 3 }}>{t.beschreibung}</div>}

@@ -1,0 +1,26 @@
+{
+  "id": "/Projektzentrale/",
+  "name": "Projektzentrale",
+  "short_name": "Projektzentrale",
+  "description": "Projekte, Aufgaben, Tagesplanung und Wissen zentral verwalten.",
+  "lang": "de-DE",
+  "start_url": "/Projektzentrale/",
+  "scope": "/Projektzentrale/",
+  "display": "standalone",
+  "background_color": "#f4f4f4",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
