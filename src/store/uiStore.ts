@@ -13,7 +13,7 @@ export type View =
   | 'ai-settings';
 
 export type DashboardTab = 'liste' | 'ohne-datum' | 'wartet' | 'erledigt';
-export interface WorkspacePane { view: 'dashboard' | 'project'; selectedId: string | null; activeTab: string; }
+export interface WorkspacePane { view: 'dashboard' | 'calendar' | 'knowledge' | 'project'; selectedId: string | null; activeTab: string; }
 
 export interface DashFilter {
   projectId: string;

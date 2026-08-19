@@ -4,15 +4,17 @@ import ProjectQuickBar from './ProjectQuickBar';
 
 const DashboardView = lazy(() => import('../dashboard/Dashboard'));
 const ProjectView = lazy(() => import('../project/ProjectView'));
+const CalendarView = lazy(() => import('../calendar/CalendarView'));
+const KnowledgeView = lazy(() => import('../knowledge/KnowledgeView'));
 const VIEW_COMPONENTS = {
   dashboard: DashboardView,
-  calendar: lazy(() => import('../calendar/CalendarView')),
+  calendar: CalendarView,
   'project-management': lazy(() => import('../projects/ProjectManagementView')),
   project: ProjectView,
   settings: lazy(() => import('../settings/SettingsView')),
   data: lazy(() => import('../data/DataView')),
   ai: lazy(() => import('../ai/GlobalAiSearch')),
-  knowledge: lazy(() => import('../knowledge/KnowledgeView')),
+  knowledge: KnowledgeView,
   analytics: lazy(() => import('../analytics/AnalyticsView')),
   'ai-settings': lazy(() => import('../ai/AiSettingsView')),
 } satisfies Record<View, LazyExoticComponent<ComponentType>>;
@@ -20,13 +22,14 @@ const VIEW_COMPONENTS = {
 function readPaneDrop(event: DragEvent): WorkspacePane | null {
   try {
     const value = JSON.parse(event.dataTransfer.getData('application/x-projectzentrale-pane')) as WorkspacePane;
-    return value.view === 'dashboard' || value.view === 'project' ? value : null;
+    return ['dashboard', 'calendar', 'knowledge', 'project'].includes(value.view) ? value : null;
   } catch { return null; }
 }
 
 export default function MainShell() {
   const { view, secondaryPane, setSecondaryPane, setSecondaryTab, closeSecondaryPane } = useUiStore();
   const ViewComponent = VIEW_COMPONENTS[view];
+  const SecondaryComponent = secondaryPane && secondaryPane.view !== 'project' ? VIEW_COMPONENTS[secondaryPane.view] : null;
 
   function dropLeft(event: DragEvent) {
     event.preventDefault();
@@ -51,7 +54,7 @@ export default function MainShell() {
         </section>
         {secondaryPane && <section className="workspace-pane" onDragOver={(event) => event.preventDefault()} onDrop={dropRight}>
           <div className="workspace-pane-head"><span>Rechts</span><small>Projekt oder Dashboard hier ablegen</small><button onClick={closeSecondaryPane} aria-label="Geteilte Ansicht schließen">×</button></div>
-          <main className="pane-main"><Suspense fallback={<div className="main-inner"><div className="loading-note">Ansicht wird geladen…</div></div>}>{secondaryPane.view === 'dashboard' ? <DashboardView /> : <ProjectView projectId={secondaryPane.selectedId} paneTab={secondaryPane.activeTab} onPaneTabChange={setSecondaryTab} />}</Suspense></main>
+          <main className="pane-main"><Suspense fallback={<div className="main-inner"><div className="loading-note">Ansicht wird geladen…</div></div>}>{secondaryPane.view === 'project' ? <ProjectView projectId={secondaryPane.selectedId} paneTab={secondaryPane.activeTab} onPaneTabChange={setSecondaryTab} /> : SecondaryComponent ? <SecondaryComponent /> : null}</Suspense></main>
         </section>}
       </div>
     </div>

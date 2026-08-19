@@ -22,7 +22,7 @@ export default function ProjectQuickBar() {
     useUiStore.setState({ view: 'project-management', selectedId: id });
   }
 
-  function dragPane(event: DragEvent, pane: { view: 'dashboard' | 'project'; selectedId: string | null; activeTab: string }) {
+  function dragPane(event: DragEvent, pane: { view: 'dashboard' | 'calendar' | 'knowledge' | 'project'; selectedId: string | null; activeTab: string }) {
     event.dataTransfer.effectAllowed = 'copy';
     event.dataTransfer.setData('application/x-projectzentrale-pane', JSON.stringify(pane));
   }
@@ -45,8 +45,8 @@ export default function ProjectQuickBar() {
       <button className="top-brand" onClick={() => useUiStore.getState().goTo('dashboard')} title="Projektzentrale">PZ</button>
       <div className="top-primary-nav" aria-label="Hauptbereiche">
         <button draggable className={view === 'dashboard' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('dashboard')} title="Dashboard – ziehen oder öffnen" aria-label="Dashboard">⌂</button>
-        <button className={view === 'calendar' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('calendar')} title="Kalender" aria-label="Kalender">▤</button>
-        <button className={view === 'knowledge' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('knowledge')} title="Wissensdatenbank" aria-label="Wissensdatenbank">◇</button>
+        <button draggable className={view === 'calendar' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'calendar', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('calendar')} title="Kalender – ziehen oder öffnen" aria-label="Kalender">▤</button>
+        <button draggable className={view === 'knowledge' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'knowledge', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('knowledge')} title="Wissensdatenbank – ziehen oder öffnen" aria-label="Wissensdatenbank">◇</button>
         <button className={view === 'analytics' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('analytics')} title="Auswertung" aria-label="Auswertung">↗</button>
         {aiAvailable && <button className={view === 'ai' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('ai')} title="KI-Suche" aria-label="KI-Suche">✦</button>}
       </div>
