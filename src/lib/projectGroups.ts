@@ -21,10 +21,11 @@ export function customerKey(kunde: string): { key: string; label: string } {
 }
 
 /**
- * Groups projects by customer, in the same order used by the quick-access bar: projects
- * are first ordered by status then sortIndex, and each customer group appears at the
- * position of its first project in that order — so reordering projects (which only ever
- * changes sortIndex) keeps both views in sync automatically.
+ * Groups projects by customer. Without an explicit customerOrder, each group falls back
+ * to appearing at the position of its first project in the status+sortIndex order (so
+ * reordering projects alone still keeps both views in sync automatically). Pass the
+ * persisted customerOrder through orderCustomerGroups to make group order explicit and
+ * independently draggable.
  */
 export function groupProjectsByCustomer(projects: Project[]): ProjectGroup[] {
   const sorted = sortProjectsByStatusAndOrder(projects);
@@ -35,4 +36,25 @@ export function groupProjectsByCustomer(projects: Project[]): ProjectGroup[] {
     else groups.push({ key, label, projects: [project] });
     return groups;
   }, []);
+}
+
+/**
+ * The full, current list of customer keys in display order: previously stored order first
+ * (dropping keys whose customer no longer has any project), then any new/unlisted
+ * customers appended in their groupProjectsByCustomer fallback order. Always a permutation
+ * of the current groups' keys, so it's safe to persist directly after a reorder.
+ */
+export function effectiveCustomerOrder(groups: ProjectGroup[], storedOrder: string[]): string[] {
+  const existingKeys = new Set(groups.map((g) => g.key));
+  const kept = storedOrder.filter((key) => existingKeys.has(key));
+  const known = new Set(kept);
+  const missing = groups.map((g) => g.key).filter((key) => !known.has(key));
+  return [...kept, ...missing];
+}
+
+/** Sorts groups by the persisted customer order, defaulting unlisted ones to the end. */
+export function orderCustomerGroups(groups: ProjectGroup[], storedOrder: string[]): ProjectGroup[] {
+  const order = effectiveCustomerOrder(groups, storedOrder);
+  const byKey = new Map(groups.map((g) => [g.key, g]));
+  return order.map((key) => byKey.get(key)).filter((g): g is ProjectGroup => !!g);
 }

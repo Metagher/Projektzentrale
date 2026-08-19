@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useDataStore } from '../../../store/dataStore';
 import { useProjectUiStore } from '../../../store/projectUiStore';
-import { useUiStore } from '../../../store/uiStore';
 import { computeDocLabels, getSubtreeIds } from '../../../lib/docOutline';
 import { defLevel, fmtDate, fmtDateTime, isEmptyHtml } from '../../../lib/format';
 import RtfField from '../../shared/RtfField';
@@ -16,8 +15,7 @@ export default function DokumentationTab({ projectId, data }: { projectId: strin
   const setDocHidden = useDataStore((s) => s.setDocHidden);
   const saveTask = useDataStore((s) => s.saveTask);
   const taskColorOrder = useDataStore((s) => s.taskColorOrder);
-  const { editingDocSectionId, setEditingDocSectionId, setEditingTaskId, setTaskFilterTab } = useProjectUiStore();
-  const setActiveTab = useUiStore((s) => s.setActiveTab);
+  const { editingDocSectionId, setEditingDocSectionId, jumpToTask } = useProjectUiStore();
 
   const labels = computeDocLabels(docDefs);
   const hidden = (data.doc._hidden as string[] | undefined) || [];
@@ -47,9 +45,7 @@ export default function DokumentationTab({ projectId, data }: { projectId: strin
   }
 
   function openTaskFromDoku(taskId: string) {
-    setActiveTab('aufgaben');
-    setTaskFilterTab('erledigt');
-    setEditingTaskId(taskId);
+    jumpToTask(taskId);
   }
 
   return (

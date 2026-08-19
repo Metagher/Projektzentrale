@@ -10,12 +10,13 @@ import EchtlaufTab from './tabs/EchtlaufTab';
 import UpdateTab from './tabs/UpdateTab';
 import KiSucheTab from './tabs/KiSucheTab';
 import AuswertungTab from './tabs/AuswertungTab';
+import { ProjectUiScopeProvider, type ProjectUiScope } from '../../store/projectUiStore';
 
 const STATUS_LABELS: Record<string, string> = { aktiv: 'Aktiv', pausiert: 'Pausiert', abgeschlossen: 'Abgeschlossen' };
 
-interface Props { projectId?: string | null; paneTab?: string; onPaneTabChange?: (tab: string) => void; }
+interface Props { projectId?: string | null; paneTab?: string; onPaneTabChange?: (tab: string) => void; scopeKey?: ProjectUiScope; }
 
-export default function ProjectView({ projectId, paneTab, onPaneTabChange }: Props = {}) {
+export default function ProjectView({ projectId, paneTab, onPaneTabChange, scopeKey = 'primary' }: Props = {}) {
   const globalSelectedId = useUiStore((s) => s.selectedId);
   const globalActiveTab = useUiStore((s) => s.activeTab);
   const setGlobalActiveTab = useUiStore((s) => s.setActiveTab);
@@ -63,7 +64,7 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange }: Pro
   else tabContent = <AufgabenTab project={project} data={data} />;
 
   return (
-    <div className="main-inner">
+    <ProjectUiScopeProvider scope={scopeKey}><div className="main-inner">
       <div className="project-header">
         <div>
           <div className="code">{projectCode(project)}</div>
@@ -108,6 +109,6 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange }: Pro
         )}
       </div>
       <div>{tabContent}</div>
-    </div>
+    </div></ProjectUiScopeProvider>
   );
 }

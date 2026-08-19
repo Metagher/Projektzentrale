@@ -1,6 +1,7 @@
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useDataStore } from '../../store/dataStore';
-import { fmtDate, isEmptyHtml, slug } from '../../lib/format';
+import { fmtDate, isEmptyHtml, slug, todayStr } from '../../lib/format';
+import { localDateKey, nextWorkday } from '../../lib/workdays';
 import { commLinkLabel } from '../../lib/format';
 import LinkChipsView from '../shared/LinkChipsView';
 import AfnChipsView from '../shared/AfnChipsView';
@@ -16,6 +17,14 @@ interface Props {
 export default function ProjectTaskRow({ task, contact, data, onDelete }: Props) {
   const { setEditingTaskId, jumpToComm } = useProjectUiStore();
   const colorLabels = useDataStore((state) => state.taskColorLabels);
+  const dashboardData = useDataStore((state) => state.dashboardData);
+  const workdayOverrides = useDataStore((state) => state.workdayOverrides);
+  const nextWorkdayKey = localDateKey(nextWorkday(new Date(`${todayStr()}T12:00:00`), workdayOverrides));
+  const isPlannedDay = task.faelligAm === todayStr() || task.faelligAm === nextWorkdayKey;
+  const dayTasks = isPlannedDay ? (dashboardData?.tasksWithDate || [])
+    .filter((item) => item.faelligAm === task.faelligAm)
+    .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr) : [];
+  const dailyRank = dayTasks.findIndex((item) => item.id === task.id) + 1;
 
   return (
     <div
@@ -29,6 +38,7 @@ export default function ProjectTaskRow({ task, contact, data, onDelete }: Props)
         <div>
           {task.farbe && <span className={`task-color-swatch task-color-${task.farbe}`} title={colorLabels[task.farbe]} />}
           <span className={`prio-dot prio-${slug(task.prioritaet || 'should')}`} style={{ display: 'inline-block', marginRight: 4 }} />
+          {dailyRank > 0 && <span className={`project-task-rank${task.faelligAm === todayStr() ? '' : ' next-workday'}`} title={task.faelligAm === todayStr() ? 'Tagesrang heute' : `Tagesrang am ${fmtDate(task.faelligAm)}`}>#{dailyRank}</span>}
           <span className="task-nr">{task.nr || '—'}</span>
           <strong>{task.titel}</strong>
           <span className={`badge ${slug(task.status)}`} style={{ marginLeft: 6 }}>

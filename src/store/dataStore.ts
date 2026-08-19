@@ -6,6 +6,7 @@ import { DEFAULT_TASK_COLOR_LABELS, DEFAULT_TASK_COLOR_ORDER, compareTaskColors,
 import { isDefaultWorkday, type WorkdayOverrides } from '../lib/workdays';
 import { migratePrio } from '../lib/migrations';
 import { hasEchtlauf, todayStr, uid } from '../lib/format';
+import { effectiveCustomerOrder, groupProjectsByCustomer } from '../lib/projectGroups';
 import type {
   Comm,
   Contact,
@@ -67,6 +68,7 @@ interface DataStoreState {
   taskColorLabels: TaskColorLabels;
   waitingOptions: string[];
   workdayOverrides: WorkdayOverrides;
+  customerOrder: string[];
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -75,6 +77,8 @@ interface DataStoreState {
   updateProject: (id: string, patch: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   reorderProjects: (sourceId: string, targetId: string, placeAfter: boolean) => Promise<void>;
+  /** Reorders the customer groups themselves (independent of project order within a group). */
+  reorderCustomerGroups: (sourceKey: string, targetKey: string, placeAfter: boolean) => Promise<void>;
 
   nextTaskNr: () => Promise<number>;
   saveTask: (projectId: string, task: Task) => Promise<void>;
@@ -139,6 +143,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   taskColorLabels: DEFAULT_TASK_COLOR_LABELS,
   waitingOptions: [],
   workdayOverrides: {},
+  customerOrder: [],
 
   loadAll: async () => {
     const sb = client();
@@ -147,15 +152,21 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, workdayOverrides] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, workdayOverrides, storedCustomerOrder] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
       sGet<WorkdayOverrides>(sb, 'workday-overrides'),
+      sGet<string[]>(sb, 'customer-order'),
     ]);
     const taskColorOrder = normalizeTaskColorOrder(storedColorOrder);
     const taskColorLabels = normalizeTaskColorLabels(storedColorLabels);
-    set({ projects, taskColorOrder, taskColorLabels, waitingOptions: storedWaitingOptions || [], workdayOverrides: workdayOverrides || {} });
+    set({
+      projects, taskColorOrder, taskColorLabels,
+      waitingOptions: storedWaitingOptions || [],
+      workdayOverrides: workdayOverrides || {},
+      customerOrder: storedCustomerOrder || [],
+    });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
     await get().loadDashboardData();
@@ -365,6 +376,20 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     });
     set({ projects: sorted });
     await sSet(client(), 'projects', sorted);
+  },
+
+  reorderCustomerGroups: async (sourceKey, targetKey, placeAfter) => {
+    const groups = groupProjectsByCustomer(get().projects || []);
+    const order = effectiveCustomerOrder(groups, get().customerOrder);
+    const srcIdx = order.indexOf(sourceKey);
+    const tgtIdx = order.indexOf(targetKey);
+    if (srcIdx < 0 || tgtIdx < 0) return;
+    const next = order.slice();
+    const [moved] = next.splice(srcIdx, 1);
+    const newTgtIdx = next.indexOf(targetKey);
+    next.splice(placeAfter ? newTgtIdx + 1 : newTgtIdx, 0, moved);
+    set({ customerOrder: next });
+    await sSet(client(), 'customer-order', next);
   },
 
   nextTaskNr: async () => {

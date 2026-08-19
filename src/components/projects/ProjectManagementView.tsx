@@ -3,7 +3,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { useUiStore } from '../../store/uiStore';
 import { useDragReorder } from '../../hooks/useDragReorder';
-import { groupProjectsByCustomer } from '../../lib/projectGroups';
+import { groupProjectsByCustomer, orderCustomerGroups } from '../../lib/projectGroups';
 import RtfField from '../shared/RtfField';
 import ContactsManager from './ContactsManager';
 import type { Project, ProjectStatus, ProjectTyp } from '../../types/entities';
@@ -114,6 +114,8 @@ export default function ProjectManagementView() {
   const newProjectForm = useModalStore((state) => state.newProjectForm);
   const createProject = useDataStore((state) => state.createProject);
   const reorderProjects = useDataStore((state) => state.reorderProjects);
+  const reorderCustomerGroups = useDataStore((state) => state.reorderCustomerGroups);
+  const customerOrder = useDataStore((state) => state.customerOrder);
   const selectedId = useUiStore((state) => state.selectedId);
   const goTo = useUiStore((state) => state.goTo);
   const [editingId, setEditingId] = useState<string | null>(selectedId);
@@ -130,11 +132,14 @@ export default function ProjectManagementView() {
   }
 
   const all = projects || [];
-  const groups = groupProjectsByCustomer(all);
+  const groups = orderCustomerGroups(groupProjectsByCustomer(all), customerOrder);
   const editingProject = all.find((project) => project.id === editingId);
   const { getItemProps } = useDragReorder({
     getGroupKey: (id) => groups.find((g) => g.projects.some((p) => p.id === id))?.key || '',
     onDrop: (sourceId, targetId, placeAfter) => reorderProjects(sourceId, targetId, placeAfter),
+  });
+  const { getItemProps: getGroupProps } = useDragReorder({
+    onDrop: (sourceKey, targetKey, placeAfter) => reorderCustomerGroups(sourceKey, targetKey, placeAfter),
   });
 
   return (
@@ -144,12 +149,31 @@ export default function ProjectManagementView() {
         <button className="btn" onClick={create}>＋ Neues Projekt</button>
       </header>
       {editingProject && <ProjectEditor key={editingProject.id} project={editingProject} onClose={() => setEditingId(null)} />}
-      <div className="section-title">Alle Projekte ({all.length}) — nach Kunde gruppiert, per Griff ziehbar</div>
+      <div className="section-title">Alle Projekte ({all.length}) — nach Kunde gruppiert, Kunden und Projekte per Griff ziehbar</div>
       {projects === null && <div className="loading-note">Projekte werden geladen…</div>}
       {projects !== null && all.length === 0 && <div className="empty-state"><h3>Noch keine Projekte</h3><div>Lege dein erstes Projekt über die Schaltfläche oben an.</div></div>}
-      {groups.map((group) => (
-        <section className="project-admin-group" key={group.key}>
-          <div className="project-admin-group-label">{group.label} <span>({group.projects.length})</span></div>
+      {groups.map((group) => {
+        const groupDragProps = getGroupProps(group.key);
+        return (
+        <section
+          className={`project-admin-group${groupDragProps.className ? ` ${groupDragProps.className}` : ''}`}
+          key={group.key}
+          onDragOver={groupDragProps.onDragOver}
+          onDragLeave={groupDragProps.onDragLeave}
+          onDrop={groupDragProps.onDrop}
+        >
+          <div className="project-admin-group-label">
+            <span
+              className="drag-handle"
+              draggable={groupDragProps.draggable}
+              onDragStart={groupDragProps.onDragStart}
+              onDragEnd={groupDragProps.onDragEnd}
+              title="Ziehen zum Umsortieren der Kundengruppe"
+            >
+              ⠿
+            </span>
+            {group.label} <span>({group.projects.length})</span>
+          </div>
           <div className="project-admin-list">
             {group.projects.map((project) => {
               const dragProps = getItemProps(project.id);
@@ -182,7 +206,8 @@ export default function ProjectManagementView() {
             })}
           </div>
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 }

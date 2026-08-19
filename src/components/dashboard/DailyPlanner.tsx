@@ -2,7 +2,7 @@ import { useState, type DragEvent } from 'react';
 import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import { fmtDate, todayStr } from '../../lib/format';
 import { useUiStore } from '../../store/uiStore';
-import { useProjectUiStore } from '../../store/projectUiStore';
+import { getProjectUiStore } from '../../store/projectUiStore';
 import { localDateKey, nextWorkday } from '../../lib/workdays';
 
 export default function DailyPlanner() {
@@ -33,7 +33,7 @@ export default function DailyPlanner() {
 
   function openTask(task: TaskWithMeta) {
     useUiStore.setState({ view: 'project', selectedId: task.projectId, activeTab: 'aufgaben' });
-    useProjectUiStore.getState().setEditingTaskId(task.id);
+    getProjectUiStore('primary').getState().setEditingTaskId(task.id);
   }
 
   return (

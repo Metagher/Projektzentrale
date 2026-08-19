@@ -3,7 +3,7 @@ import { useUiStore } from '../../store/uiStore';
 import { useAiStore } from '../../store/aiStore';
 import { useModalStore } from '../../store/modalStore';
 import { todayStr } from '../../lib/format';
-import { groupProjectsByCustomer } from '../../lib/projectGroups';
+import { groupProjectsByCustomer, orderCustomerGroups } from '../../lib/projectGroups';
 
 export default function ProjectQuickBar() {
   const projects = useDataStore((state) => state.projects);
@@ -29,7 +29,8 @@ export default function ProjectQuickBar() {
   }
 
   const sorted = projects || [];
-  const customerGroups = groupProjectsByCustomer(sorted);
+  const customerOrder = useDataStore((state) => state.customerOrder);
+  const customerGroups = orderCustomerGroups(groupProjectsByCustomer(sorted), customerOrder);
   const todayTasks = dashboardData ? dashboardData.tasksWithDate
     .filter((task, index, list) => task.faelligAm === todayStr() && list.findIndex((item) => item.id === task.id) === index)
     .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr) : [];

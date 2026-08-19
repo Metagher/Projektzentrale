@@ -55,7 +55,7 @@ export default function MainShell() {
         </section>
         {secondaryPane && <section className="workspace-pane" onDragOver={(event) => event.preventDefault()} onDrop={dropRight}>
           <div className="workspace-pane-head"><span>Rechts</span><small>Projekt oder Dashboard hier ablegen</small><button onClick={closeSecondaryPane} aria-label="Geteilte Ansicht schließen">×</button></div>
-          <main className="pane-main"><Suspense fallback={<div className="main-inner"><div className="loading-note">Ansicht wird geladen…</div></div>}>{secondaryPane.view === 'project' ? <ProjectView projectId={secondaryPane.selectedId} paneTab={secondaryPane.activeTab} onPaneTabChange={setSecondaryTab} /> : SecondaryComponent ? <SecondaryComponent /> : null}</Suspense></main>
+          <main className="pane-main"><Suspense fallback={<div className="main-inner"><div className="loading-note">Ansicht wird geladen…</div></div>}>{secondaryPane.view === 'project' ? <ProjectView projectId={secondaryPane.selectedId} paneTab={secondaryPane.activeTab} onPaneTabChange={setSecondaryTab} scopeKey="secondary" /> : SecondaryComponent ? <SecondaryComponent /> : null}</Suspense></main>
         </section>}
       </div>
     </div>
