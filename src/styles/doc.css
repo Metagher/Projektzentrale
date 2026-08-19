@@ -13,6 +13,12 @@
 .doc-report-row .doc-report-empty{color:var(--ink-soft);font-style:italic;font-size:13px;}
 .doc-report-row .doc-report-afns{margin-bottom:6px;}
 .project-status-doc{display:grid;gap:18px;}
+.documentation-areas{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px;background:#111;border-radius:11px;}
+.documentation-area-tabs,.documentation-area-actions{display:flex;align-items:center;flex-wrap:wrap;gap:5px;}
+.documentation-area-tabs button{padding:7px 11px;color:#fff;background:#292929;border:1px solid #555;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;}
+.documentation-area-tabs button:hover,.documentation-area-tabs button.active{color:#111;background:#fff;border-color:#fff;}
+.documentation-area-actions .icon-btn{color:#111;background:#fff;border-color:#fff;}
+.documentation-area-actions .icon-btn:hover{color:#fff;background:#111;}
 .project-status-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:14px;border-bottom:2px solid #111;}
 .project-status-intro h3{margin:2px 0 5px;font-size:24px;}
 .project-status-intro p,.project-status-history-head p{max-width:720px;margin:0;color:var(--ink-soft);font-size:12px;line-height:1.5;}
@@ -35,7 +41,7 @@
 .doku-inbox-copy small{color:var(--ink-soft);font-size:10px;}
 .legacy-doc-archive{padding-top:14px;border-top:1px solid #ccc;}
 .legacy-doc-archive .doc-report-row{margin-top:10px;}
-@media(max-width:700px){.project-status-intro{display:grid}.project-status-entry{grid-template-columns:72px minmax(0,1fr)}.project-status-entry::before{left:65px}}
+@media(max-width:700px){.documentation-areas{align-items:stretch;flex-direction:column}.project-status-intro{display:grid}.project-status-entry{grid-template-columns:72px minmax(0,1fr)}.project-status-entry::before{left:65px}}
 .lvl-1{margin-left:0;}
 .lvl-2{margin-left:26px;border-left:2px solid var(--line);padding-left:14px;}
 .lvl-3{margin-left:52px;border-left:2px solid var(--line-soft);padding-left:14px;}

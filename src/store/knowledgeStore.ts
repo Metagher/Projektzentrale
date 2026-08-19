@@ -95,8 +95,17 @@ export const useKnowledgeStore = create<KnowledgeStoreState>((set, get) => ({
         const hidden = (data.doc._hidden as string[] | undefined) || [];
         const visibleDefs = (docDefs || []).filter((d) => !hidden.includes(d.id));
         const lines: string[] = [];
+        const documentationAreas = data.doc._documentationAreas;
+        const areaNames = new Map<string, string>();
+        if (Array.isArray(documentationAreas)) documentationAreas.forEach((area) => {
+          if (typeof area === 'object' && 'name' in area && 'current' in area) {
+            areaNames.set(area.id, area.name);
+            const text = htmlToPlainText(area.current.content);
+            if (text) lines.push(`Bereich ${area.name} – aktueller Stand: ${text}`);
+          }
+        });
         const currentState = data.doc._currentProjectState;
-        if (currentState && !Array.isArray(currentState)) {
+        if (areaNames.size === 0 && currentState && !Array.isArray(currentState)) {
           const text = htmlToPlainText(currentState.content);
           if (text) lines.push(`Aktueller Projektstand: ${text}`);
         }
@@ -104,7 +113,7 @@ export const useKnowledgeStore = create<KnowledgeStoreState>((set, get) => ({
         if (Array.isArray(statusHistory)) statusHistory.forEach((entry) => {
           if (typeof entry === 'object' && 'titel' in entry) {
             const text = htmlToPlainText(entry.content);
-            lines.push(`${entry.datum} – ${entry.titel}${text ? `: ${text}` : ''}`);
+            lines.push(`${entry.datum} – Bereich ${areaNames.get(entry.bereichId || 'general') || 'Allgemein'} – ${entry.titel}${text ? `: ${text}` : ''}`);
           }
         });
         visibleDefs.forEach((d) => {

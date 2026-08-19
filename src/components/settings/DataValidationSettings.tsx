@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { toExternalHref } from '../../lib/externalLinks';
-import type { ProjectStatusEntry } from '../../types/entities';
+import type { ProjectDocumentationArea, ProjectStatusEntry } from '../../types/entities';
 
 interface Finding {
   id: string;
@@ -74,8 +74,14 @@ export default function DataValidationSettings() {
         if (!entry.titel?.trim() || !validDate(entry.datum)) add({ ...prefix, area: 'Update', problem: !entry.titel?.trim() ? 'Titel fehlt' : `Ungültiges Datum: ${entry.datum || 'leer'}`, detail: entry.titel || entry.id, actionLabel: 'Löschen', run: () => store.deleteUpdateEntry(project.id, entry.id) });
       });
       const history = (data.doc._statusHistory as ProjectStatusEntry[] | undefined) || [];
+      const documentationAreas = (data.doc._documentationAreas as ProjectDocumentationArea[] | undefined) || [];
+      const areaIds = new Set(documentationAreas.map((area) => area.id));
+      documentationAreas.forEach((area) => {
+        if (!area.name?.trim()) add({ ...prefix, area: 'Dokumentation', problem: 'Dokumentationsbereich ohne Namen', detail: area.id, actionLabel: 'Löschen', run: () => store.saveProjectDocumentationAreas(project.id, documentationAreas.filter((item) => item.id !== area.id)) });
+      });
       history.forEach((entry) => {
         if (!entry.titel?.trim() || !validDate(entry.datum)) add({ ...prefix, area: 'Dokumentation', problem: !entry.titel?.trim() ? 'Titel fehlt' : `Ungültiges Datum: ${entry.datum || 'leer'}`, detail: entry.titel || entry.id, actionLabel: 'Löschen', run: () => store.deleteProjectStatusEntry(project.id, entry.id) });
+        else if (documentationAreas.length && !areaIds.has(entry.bereichId || 'general')) add({ ...prefix, area: 'Dokumentation', problem: 'Zugehöriger Dokumentationsbereich existiert nicht mehr', detail: entry.titel, actionLabel: 'Bereinigen', run: () => store.saveProjectStatusEntry(project.id, { ...entry, bereichId: documentationAreas[0].id }) });
       });
     }
     setFindings(next);

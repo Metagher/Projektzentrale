@@ -15,6 +15,7 @@ import type {
   DocSectionDef,
   Milestone,
   Project,
+  ProjectDocumentationArea,
   ProjectStatusEntry,
   ProjectCache,
   ProjectTyp,
@@ -101,6 +102,7 @@ interface DataStoreState {
   saveDocEntry: (projectId: string, defId: string, value: DocEntryValue) => Promise<void>;
   saveProjectStatusEntry: (projectId: string, entry: ProjectStatusEntry) => Promise<void>;
   deleteProjectStatusEntry: (projectId: string, entryId: string) => Promise<void>;
+  saveProjectDocumentationAreas: (projectId: string, areas: ProjectDocumentationArea[]) => Promise<void>;
   setDocHidden: (projectId: string, hidden: string[]) => Promise<void>;
 
   loadDocDefs: () => Promise<void>;
@@ -588,6 +590,14 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const data = await get().ensureProjectData(projectId);
     const history = ((data.doc._statusHistory as ProjectStatusEntry[] | undefined) || []).filter((item) => item.id !== entryId);
     const doc = { ...data.doc, _statusHistory: history };
+    const cache = { ...get().cache, [projectId]: { ...data, doc } };
+    set({ cache });
+    await sSet(client(), 'doc:' + projectId, doc);
+  },
+
+  saveProjectDocumentationAreas: async (projectId, areas) => {
+    const data = await get().ensureProjectData(projectId);
+    const doc = { ...data.doc, _documentationAreas: areas };
     const cache = { ...get().cache, [projectId]: { ...data, doc } };
     set({ cache });
     await sSet(client(), 'doc:' + projectId, doc);

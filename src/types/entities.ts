@@ -57,10 +57,17 @@ export interface ProjectStatusEntry {
   afns: string[];
   createdAt: string;
   updatedAt: string;
+  bereichId?: string;
+}
+
+export interface ProjectDocumentationArea {
+  id: string;
+  name: string;
+  current: DocEntryValue;
 }
 
 /** Keyed by DocSectionDef id, plus a special `_hidden` key (string[]) for per-project hidden section ids. */
-export type DocData = Record<string, DocEntryValue | string[] | ProjectStatusEntry[] | undefined>;
+export type DocData = Record<string, DocEntryValue | string[] | ProjectStatusEntry[] | ProjectDocumentationArea[] | undefined>;
 
 export type TaskStatus = 'offen' | 'in Arbeit' | 'wartet' | 'erledigt';
 export type TaskPrio = 'must' | 'should' | 'could' | 'wont';

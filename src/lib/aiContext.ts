@@ -2,7 +2,7 @@ import { fmtDate, htmlToPlainText, todayStr, truncateText } from './format';
 import { computeDocLabels } from './docOutline';
 import { hasEchtlauf } from './format';
 import { useDataStore, type DashboardData } from '../store/dataStore';
-import type { DocEntryValue, Project, ProjectCache, ProjectStatusEntry } from '../types/entities';
+import type { DocEntryValue, Project, ProjectCache, ProjectDocumentationArea, ProjectStatusEntry } from '../types/entities';
 
 export function buildDailyBriefingContext(dashboardData: DashboardData | null): string {
   const lines: string[] = [];
@@ -80,13 +80,19 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
   const hidden = (data.doc._hidden as string[] | undefined) || [];
   const visibleDefs = docDefs.filter((d) => !hidden.includes(d.id));
   const docLines: string[] = [];
+  const documentationAreas = (data.doc._documentationAreas as ProjectDocumentationArea[] | undefined) || [];
+  const areaNames = new Map(documentationAreas.map((area) => [area.id, area.name]));
+  documentationAreas.forEach((area) => {
+    const text = htmlToPlainText(area.current.content);
+    if (text) docLines.push(`Bereich ${area.name} – aktueller Stand: ${text}`);
+  });
   const currentState = data.doc._currentProjectState as DocEntryValue | undefined;
   const currentStateText = currentState ? htmlToPlainText(currentState.content) : '';
-  if (currentStateText) docLines.push(`Aktueller Projektstand: ${currentStateText}`);
+  if (!documentationAreas.length && currentStateText) docLines.push(`Bereich Allgemein – aktueller Stand: ${currentStateText}`);
   const statusHistory = (data.doc._statusHistory as ProjectStatusEntry[] | undefined) || [];
   statusHistory.slice().sort((a, b) => b.datum.localeCompare(a.datum)).forEach((entry) => {
     const text = htmlToPlainText(entry.content);
-    docLines.push(`${fmtDate(entry.datum)} – ${entry.titel}${text ? `: ${text}` : ''}`);
+    docLines.push(`${fmtDate(entry.datum)} – Bereich ${areaNames.get(entry.bereichId || 'general') || 'Allgemein'} – ${entry.titel}${text ? `: ${text}` : ''}`);
   });
   visibleDefs.forEach((d) => {
     const entry = data.doc[d.id];

@@ -3,7 +3,7 @@ import { CSV_COLUMNS } from './constants';
 import { migratePrio } from './migrations';
 import { defLevel, todayStr } from './format';
 import { useDataStore } from '../store/dataStore';
-import type { Comm, Contact, DocData, DocEntryValue, DocSectionDef, Milestone, Project, ProjectStatusEntry, ProjectTyp, Task, UpdateEntry } from '../types/entities';
+import type { Comm, Contact, DocData, DocEntryValue, DocSectionDef, Milestone, Project, ProjectDocumentationArea, ProjectStatusEntry, ProjectTyp, Task, UpdateEntry } from '../types/entities';
 
 type CsvRow = Record<string, string | number | undefined>;
 
@@ -67,8 +67,10 @@ export async function buildExportCsv(): Promise<string> {
     if (currentState && (currentState.content || currentState.updatedAt || currentState.afns?.length)) {
       rows.push({ Typ: 'projektstand', ProjektId: p.id, Inhalt: currentState.content || '', AktualisiertAm: currentState.updatedAt || '', AFN: (currentState.afns || []).join(';') });
     }
+    const documentationAreas = (data.doc._documentationAreas as ProjectDocumentationArea[] | undefined) || [];
+    documentationAreas.forEach((area) => rows.push({ Typ: 'dokumentationsbereich', ProjektId: p.id, Id: area.id, Titel: area.name, Inhalt: area.current.content, AktualisiertAm: area.current.updatedAt || '', AFN: area.current.afns.join(';') }));
     const statusHistory = (data.doc._statusHistory as ProjectStatusEntry[] | undefined) || [];
-    statusHistory.forEach((entry) => rows.push({ Typ: 'projektstandverlauf', ProjektId: p.id, Id: entry.id, Titel: entry.titel, Datum: entry.datum, Inhalt: entry.content, AFN: entry.afns.join(';'), ErstelltAm: entry.createdAt, AktualisiertAm: entry.updatedAt }));
+    statusHistory.forEach((entry) => rows.push({ Typ: 'projektstandverlauf', ProjektId: p.id, Id: entry.id, Titel: entry.titel, Datum: entry.datum, Inhalt: entry.content, AFN: entry.afns.join(';'), ErstelltAm: entry.createdAt, AktualisiertAm: entry.updatedAt, BereichId: entry.bereichId || 'general' }));
     data.tasks.forEach((t) => {
       rows.push({
         Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '', Farbe: t.farbe || '', TagesSortierung: t.tagesSortierung ?? 999,
@@ -177,11 +179,18 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
     if (!perProject[pid]) return;
     perProject[pid].doc._currentProjectState = { content: String(r.Inhalt || ''), updatedAt: (r.AktualisiertAm as string) || null, afns: splitList(r.AFN as string) };
   });
+  rows.filter((r) => r.Typ === 'dokumentationsbereich').forEach((r) => {
+    const pid = String(r.ProjektId);
+    if (!perProject[pid]) return;
+    const areas = (perProject[pid].doc._documentationAreas as ProjectDocumentationArea[] | undefined) || [];
+    areas.push({ id: String(r.Id), name: String(r.Titel || ''), current: { content: String(r.Inhalt || ''), updatedAt: (r.AktualisiertAm as string) || null, afns: splitList(r.AFN as string) } });
+    perProject[pid].doc._documentationAreas = areas;
+  });
   rows.filter((r) => r.Typ === 'projektstandverlauf').forEach((r) => {
     const pid = String(r.ProjektId);
     if (!perProject[pid]) return;
     const history = (perProject[pid].doc._statusHistory as ProjectStatusEntry[] | undefined) || [];
-    history.push({ id: String(r.Id), titel: String(r.Titel || ''), datum: String(r.Datum || ''), content: String(r.Inhalt || ''), afns: splitList(r.AFN as string), createdAt: String(r.ErstelltAm || ''), updatedAt: String(r.AktualisiertAm || '') });
+    history.push({ id: String(r.Id), titel: String(r.Titel || ''), datum: String(r.Datum || ''), content: String(r.Inhalt || ''), afns: splitList(r.AFN as string), createdAt: String(r.ErstelltAm || ''), updatedAt: String(r.AktualisiertAm || ''), bereichId: String(r.BereichId || 'general') });
     perProject[pid].doc._statusHistory = history;
   });
 
