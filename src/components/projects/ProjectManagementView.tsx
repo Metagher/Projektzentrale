@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { useUiStore } from '../../store/uiStore';
+import { useDragReorder } from '../../hooks/useDragReorder';
+import { groupProjectsByCustomer } from '../../lib/projectGroups';
 import RtfField from '../shared/RtfField';
 import ContactsManager from './ContactsManager';
 import type { Project, ProjectStatus, ProjectTyp } from '../../types/entities';
@@ -111,6 +113,7 @@ export default function ProjectManagementView() {
   const projects = useDataStore((state) => state.projects);
   const newProjectForm = useModalStore((state) => state.newProjectForm);
   const createProject = useDataStore((state) => state.createProject);
+  const reorderProjects = useDataStore((state) => state.reorderProjects);
   const selectedId = useUiStore((state) => state.selectedId);
   const goTo = useUiStore((state) => state.goTo);
   const [editingId, setEditingId] = useState<string | null>(selectedId);
@@ -126,8 +129,13 @@ export default function ProjectManagementView() {
     setEditingId(id);
   }
 
-  const sorted = (projects || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'de'));
-  const editingProject = sorted.find((project) => project.id === editingId);
+  const all = projects || [];
+  const groups = groupProjectsByCustomer(all);
+  const editingProject = all.find((project) => project.id === editingId);
+  const { getItemProps } = useDragReorder({
+    getGroupKey: (id) => groups.find((g) => g.projects.some((p) => p.id === id))?.key || '',
+    onDrop: (sourceId, targetId, placeAfter) => reorderProjects(sourceId, targetId, placeAfter),
+  });
 
   return (
     <div className="main-inner">
@@ -136,22 +144,45 @@ export default function ProjectManagementView() {
         <button className="btn" onClick={create}>＋ Neues Projekt</button>
       </header>
       {editingProject && <ProjectEditor key={editingProject.id} project={editingProject} onClose={() => setEditingId(null)} />}
-      <div className="section-title">Alle Projekte ({sorted.length})</div>
-      <div className="project-admin-list">
-        {projects === null && <div className="loading-note">Projekte werden geladen…</div>}
-        {projects !== null && sorted.length === 0 && <div className="empty-state"><h3>Noch keine Projekte</h3><div>Lege dein erstes Projekt über die Schaltfläche oben an.</div></div>}
-        {sorted.map((project) => (
-          <article className="project-admin-row" key={project.id}>
-            <div className="project-admin-main"><span className={`status-dot ${project.status}`} /><div><strong>{project.name}</strong><div className="meta">{project.kunde || 'Kein Kunde'} · {project.typ}</div></div></div>
-            <QuickVersion project={project} />
-            <span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span>
-            <div className="project-admin-actions">
-              <button className="btn secondary small" onClick={() => setEditingId(project.id)}>Stammdaten</button>
-              <button className="btn small" onClick={() => goTo('project', project.id)}>Projekt öffnen</button>
-            </div>
-          </article>
-        ))}
-      </div>
+      <div className="section-title">Alle Projekte ({all.length}) — nach Kunde gruppiert, per Griff ziehbar</div>
+      {projects === null && <div className="loading-note">Projekte werden geladen…</div>}
+      {projects !== null && all.length === 0 && <div className="empty-state"><h3>Noch keine Projekte</h3><div>Lege dein erstes Projekt über die Schaltfläche oben an.</div></div>}
+      {groups.map((group) => (
+        <section className="project-admin-group" key={group.key}>
+          <div className="project-admin-group-label">{group.label} <span>({group.projects.length})</span></div>
+          <div className="project-admin-list">
+            {group.projects.map((project) => {
+              const dragProps = getItemProps(project.id);
+              return (
+                <article
+                  className={`project-admin-row${dragProps.className ? ` ${dragProps.className}` : ''}`}
+                  key={project.id}
+                  onDragOver={dragProps.onDragOver}
+                  onDragLeave={dragProps.onDragLeave}
+                  onDrop={dragProps.onDrop}
+                >
+                  <span
+                    className="drag-handle"
+                    draggable={dragProps.draggable}
+                    onDragStart={dragProps.onDragStart}
+                    onDragEnd={dragProps.onDragEnd}
+                    title="Ziehen zum Umsortieren"
+                  >
+                    ⠿
+                  </span>
+                  <div className="project-admin-main"><span className={`status-dot ${project.status}`} /><div><strong>{project.name}</strong><div className="meta">{project.kunde || 'Kein Kunde'} · {project.typ}</div></div></div>
+                  <QuickVersion project={project} />
+                  <span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span>
+                  <div className="project-admin-actions">
+                    <button className="btn secondary small" onClick={() => setEditingId(project.id)}>Stammdaten</button>
+                    <button className="btn small" onClick={() => goTo('project', project.id)}>Projekt öffnen</button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

@@ -27,7 +27,8 @@ export default function CalendarView() {
       </header>
       {showDashFilters && <DashboardFilterBar showDateFilter={false} />}
       <CurrentWeekPanel tasksWithDate={tasks} />
-      <div className="section-title">Monatsübersicht</div>
+      <div className="section-title">Monatsübersicht & Arbeitstage</div>
+      <div className="workday-legend"><span><b>A</b> Arbeitstag</span><span><b>–</b> arbeitsfrei / Feiertag</span><small>Klicke im Kalendertag auf das Kennzeichen, um den Status umzuschalten.</small></div>
       <CalendarGrid tasksWithDate={tasks} />
     </div>
   );

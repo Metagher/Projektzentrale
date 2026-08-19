@@ -2,13 +2,16 @@ import { useUiStore } from '../../store/uiStore';
 import { buildCalendarWeeks, dateKey, MONTH_NAMES, WEEKDAY_LABELS } from '../../lib/calendar';
 import { openTaskInDashboard } from '../../lib/navigation';
 import { slug } from '../../lib/format';
-import type { TaskWithMeta } from '../../store/dataStore';
+import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
+import { isWorkday } from '../../lib/workdays';
 
 const MAX_VISIBLE_PER_DAY = 2;
 
 export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: TaskWithMeta[] }) {
   const { calendarMonth, setCalendarMonth } = useUiStore();
   const now = new Date();
+  const workdayOverrides = useDataStore((state) => state.workdayOverrides);
+  const toggleWorkday = useDataStore((state) => state.toggleWorkday);
   const { year, month } = calendarMonth || { year: now.getFullYear(), month: now.getMonth() };
 
   const tasksByDate: Record<string, TaskWithMeta[]> = {};
@@ -62,10 +65,11 @@ export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: TaskWit
           const key = dateKey(cell.date);
           const dayTasks = tasksByDate[key] || [];
           const isToday = key === todayKey;
+          const workday = isWorkday(cell.date, workdayOverrides);
           const hiddenCount = dayTasks.length - MAX_VISIBLE_PER_DAY;
           return (
-            <div key={i} className={`cal-cell${cell.inMonth ? '' : ' other-month'}${isToday ? ' today' : ''}`}>
-              <div className="cal-daynum">{cell.date.getDate()}</div>
+            <div key={i} className={`cal-cell${cell.inMonth ? '' : ' other-month'}${isToday ? ' today' : ''}${workday ? ' workday' : ' non-workday'}`}>
+              <div className="cal-day-head"><div className="cal-daynum">{cell.date.getDate()}</div><button className="workday-toggle" onClick={() => toggleWorkday(key)} title={workday ? 'Als arbeitsfrei markieren' : 'Als Arbeitstag markieren'} aria-label={`${key}: ${workday ? 'Arbeitstag' : 'Arbeitsfrei'}`}>{workday ? 'A' : '–'}</button></div>
               <div className="cal-tasks">
                 {dayTasks.slice(0, MAX_VISIBLE_PER_DAY).map((t) => (
                   <div

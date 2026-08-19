@@ -3,6 +3,7 @@ import { sDelete, sGet, sSet } from '../lib/supabase';
 import { useConnectionStore } from './connectionStore';
 import { DEFAULT_DOC_SECTIONS } from '../lib/constants';
 import { DEFAULT_TASK_COLOR_LABELS, DEFAULT_TASK_COLOR_ORDER, compareTaskColors, compareWaitingPerson, normalizeTaskColorLabels, normalizeTaskColorOrder, type TaskColorLabels } from '../lib/taskColors';
+import { isDefaultWorkday, type WorkdayOverrides } from '../lib/workdays';
 import { migratePrio } from '../lib/migrations';
 import { hasEchtlauf, todayStr, uid } from '../lib/format';
 import type {
@@ -65,6 +66,7 @@ interface DataStoreState {
   taskColorOrder: TaskColor[];
   taskColorLabels: TaskColorLabels;
   waitingOptions: string[];
+  workdayOverrides: WorkdayOverrides;
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -98,6 +100,7 @@ interface DataStoreState {
   saveTaskColorOrder: (order: TaskColor[]) => Promise<void>;
   saveTaskColorLabels: (labels: TaskColorLabels) => Promise<void>;
   saveWaitingOptions: (options: string[]) => Promise<void>;
+  toggleWorkday: (date: string) => Promise<void>;
 
   /** Keeps task.commIds in sync after a comm's linked-tasks selection changed; persists tasks if anything changed. */
   syncTaskLinksForComm: (projectId: string, commId: string, oldTaskIds: string[], newTaskIds: string[]) => Promise<void>;
@@ -135,6 +138,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   taskColorOrder: DEFAULT_TASK_COLOR_ORDER,
   taskColorLabels: DEFAULT_TASK_COLOR_LABELS,
   waitingOptions: [],
+  workdayOverrides: {},
 
   loadAll: async () => {
     const sb = client();
@@ -143,14 +147,15 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, workdayOverrides] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
+      sGet<WorkdayOverrides>(sb, 'workday-overrides'),
     ]);
     const taskColorOrder = normalizeTaskColorOrder(storedColorOrder);
     const taskColorLabels = normalizeTaskColorLabels(storedColorLabels);
-    set({ projects, taskColorOrder, taskColorLabels, waitingOptions: storedWaitingOptions || [] });
+    set({ projects, taskColorOrder, taskColorLabels, waitingOptions: storedWaitingOptions || [], workdayOverrides: workdayOverrides || {} });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
     await get().loadDashboardData();
@@ -193,6 +198,18 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const normalized = Array.from(new Set(options.map((option) => option.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de'));
     set({ waitingOptions: normalized });
     await sSet(client(), 'waiting-options', normalized);
+  },
+
+  toggleWorkday: async (date) => {
+    const current = get().workdayOverrides;
+    const parsed = new Date(`${date}T12:00:00`);
+    const defaultValue = isDefaultWorkday(parsed);
+    const nextValue = !(current[date] ?? defaultValue);
+    const next = { ...current };
+    if (nextValue === defaultValue) delete next[date];
+    else next[date] = nextValue;
+    set({ workdayOverrides: next });
+    await sSet(client(), 'workday-overrides', next);
   },
 
   ensureProjectData: async (id) => {
@@ -323,12 +340,15 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     set({ cache });
   },
 
+  /**
+   * Moves sourceId to sit directly before/after targetId in the flat sortIndex order, then
+   * renumbers all projects sequentially. Grouping (by status in the quickbar, by customer
+   * in Projektverwaltung) is a pure rendering concern — callers restrict which drags are
+   * valid via useDragReorder's getGroupKey, not this action, so the same reorder logic
+   * works for every grouped view without the two stepping on each other's ordering.
+   */
   reorderProjects: async (sourceId, targetId, placeAfter) => {
-    const order: Record<string, number> = { aktiv: 0, pausiert: 1, abgeschlossen: 2 };
     const sorted = (get().projects || []).slice().sort((a, b) => {
-      const oa = order[a.status] ?? 3;
-      const ob = order[b.status] ?? 3;
-      if (oa !== ob) return oa - ob;
       const ia = a.sortIndex ?? 0;
       const ib = b.sortIndex ?? 0;
       if (ia !== ib) return ia - ib;
@@ -336,7 +356,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     });
     const srcIdx = sorted.findIndex((p) => p.id === sourceId);
     const tgtIdx = sorted.findIndex((p) => p.id === targetId);
-    if (srcIdx < 0 || tgtIdx < 0 || sorted[srcIdx].status !== sorted[tgtIdx].status) return;
+    if (srcIdx < 0 || tgtIdx < 0) return;
     const [moved] = sorted.splice(srcIdx, 1);
     const newTgtIdx = sorted.findIndex((p) => p.id === targetId);
     sorted.splice(placeAfter ? newTgtIdx + 1 : newTgtIdx, 0, moved);

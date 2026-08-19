@@ -3,8 +3,7 @@ import { useUiStore } from '../../store/uiStore';
 import { useAiStore } from '../../store/aiStore';
 import { useModalStore } from '../../store/modalStore';
 import { todayStr } from '../../lib/format';
-
-const STATUS_ORDER = { aktiv: 0, pausiert: 1, abgeschlossen: 2 } as const;
+import { groupProjectsByCustomer } from '../../lib/projectGroups';
 
 export default function ProjectQuickBar() {
   const projects = useDataStore((state) => state.projects);
@@ -29,19 +28,9 @@ export default function ProjectQuickBar() {
     event.dataTransfer.setData('application/x-projectzentrale-pane', JSON.stringify(pane));
   }
 
-  const sorted = (projects || []).slice().sort((a, b) =>
-    (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3) ||
-    (a.sortIndex ?? 0) - (b.sortIndex ?? 0),
-  );
-  const customerGroups = sorted.reduce<{ key: string; label: string; projects: typeof sorted }[]>((groups, project) => {
-    const label = project.kunde.trim() || 'Ohne Kunde';
-    const key = label.toLocaleLowerCase('de');
-    const existing = groups.find((group) => group.key === key);
-    if (existing) existing.projects.push(project);
-    else groups.push({ key, label, projects: [project] });
-    return groups;
-  }, []);
-  const todayTasks = dashboardData ? [...dashboardData.tasksWithDate, ...dashboardData.waitingTasks]
+  const sorted = projects || [];
+  const customerGroups = groupProjectsByCustomer(sorted);
+  const todayTasks = dashboardData ? dashboardData.tasksWithDate
     .filter((task, index, list) => task.faelligAm === todayStr() && list.findIndex((item) => item.id === task.id) === index)
     .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr) : [];
   const projectTodayRanks = todayTasks.slice(0, 3).reduce<Record<string, number[]>>((ranks, task, index) => {

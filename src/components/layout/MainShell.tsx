@@ -1,11 +1,12 @@
 import { lazy, Suspense, type ComponentType, type DragEvent, type LazyExoticComponent } from 'react';
 import { useUiStore, type View, type WorkspacePane } from '../../store/uiStore';
 import ProjectQuickBar from './ProjectQuickBar';
+import CalendarView from '../calendar/CalendarView';
+import KnowledgeView from '../knowledge/KnowledgeView';
+import AnalyticsView from '../analytics/AnalyticsView';
 
 const DashboardView = lazy(() => import('../dashboard/Dashboard'));
 const ProjectView = lazy(() => import('../project/ProjectView'));
-const CalendarView = lazy(() => import('../calendar/CalendarView'));
-const KnowledgeView = lazy(() => import('../knowledge/KnowledgeView'));
 const VIEW_COMPONENTS = {
   dashboard: DashboardView,
   calendar: CalendarView,
@@ -15,9 +16,9 @@ const VIEW_COMPONENTS = {
   data: lazy(() => import('../data/DataView')),
   ai: lazy(() => import('../ai/GlobalAiSearch')),
   knowledge: KnowledgeView,
-  analytics: lazy(() => import('../analytics/AnalyticsView')),
+  analytics: AnalyticsView,
   'ai-settings': lazy(() => import('../ai/AiSettingsView')),
-} satisfies Record<View, LazyExoticComponent<ComponentType>>;
+} satisfies Record<View, ComponentType | LazyExoticComponent<ComponentType>>;
 
 function readPaneDrop(event: DragEvent): WorkspacePane | null {
   try {
