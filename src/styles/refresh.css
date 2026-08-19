@@ -41,7 +41,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .pane-main { flex: 1; min-height: 0; overflow-y: auto; position: relative; }
 .workspace-panes.split .main-inner { max-width: 100%; padding-right: 24px; padding-left: 24px; }
 #main { background: radial-gradient(circle at 85% 0%, rgba(0, 0, 0, .045), transparent 28%), var(--paper); }
-.project-quickbar { display: flex; align-items: center; gap: 10px; height: 66px; flex: 0 0 66px; min-width: 0; padding: 6px 14px; color: #111; background: #fff; border-bottom: 1px solid #d8d8d8; box-shadow: 0 2px 10px rgba(0,0,0,.035); }
+.project-quickbar { display: flex; align-items: flex-start; gap: 10px; min-height: 66px; flex: 0 0 auto; min-width: 0; padding: 6px 14px; color: #111; background: #fff; border-bottom: 1px solid #d8d8d8; box-shadow: 0 2px 10px rgba(0,0,0,.035); }
 .project-quickbar-label { flex: 0 0 auto; color: #777; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .top-brand { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; color: #fff; background: #000; border: 0; border-radius: 10px; cursor: pointer; font-size: 11px; font-weight: 900; letter-spacing: .05em; }
 .top-primary-nav, .top-admin-nav { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
@@ -50,11 +50,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .top-primary-nav button, .top-admin-nav button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; color: #333; background: #f4f4f4; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 16px; }
 .top-primary-nav button:hover, .top-admin-nav button:hover { color: #000; background: #fff; border-color: #777; }
 .top-primary-nav button.active, .top-admin-nav button.active { color: #fff; background: #000; border-color: #000; }
-.project-quickbar-scroll { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; overflow-x: auto; padding: 2px 1px; scrollbar-width: thin; }
-.project-quickbar-group { display: flex; align-items: flex-start; flex-direction: column; gap: 2px; flex: 0 0 auto; padding-right: 9px; border-right: 1px solid #ddd; }
+.project-quickbar-scroll { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 6px 5px; flex: 1; min-width: 0; overflow: visible; padding: 2px 1px; }
+.project-quickbar-group { display: flex; align-items: flex-start; flex-direction: column; gap: 2px; min-width: 0; max-width: 100%; flex: 0 1 auto; padding-right: 9px; border-right: 1px solid #ddd; }
 .project-quickbar-group:last-child { padding-right: 0; border-right: 0; }
 .project-quickbar-customer { max-width: 190px; overflow: hidden; color: #777; font-size: 8px; font-weight: 800; letter-spacing: .07em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
-.project-quickbar-projects { display: flex; gap: 4px; }
+.project-quickbar-projects { display: flex; flex-wrap: wrap; gap: 4px; max-width: 100%; }
 .project-quickbar-item { display: inline-flex; align-items: center; gap: 7px; max-width: 210px; height: 34px; flex: 0 0 auto; padding: 0 11px; color: #333; background: #f4f4f4; border: 1px solid #dedede; border-radius: 8px; cursor: pointer; font-size: 11.5px; }
 .project-quickbar-item > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-quickbar-item:hover { color: #000; background: #fff; border-color: #777; }
@@ -268,11 +268,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .sidebar-backdrop { position: fixed; inset: 0; z-index: 1000; border: 0; background: rgba(12, 28, 23, .45); }
   .sidebar-open .sidebar-backdrop { display: block; }
   .main-inner { padding: 24px 18px 64px; }
-  .project-quickbar { height: 112px; flex-basis: 112px; flex-wrap: wrap; align-content: center; padding: 6px 8px; }
+  .project-quickbar { min-height: 112px; flex-basis: auto; flex-wrap: wrap; align-content: center; padding: 6px 8px; }
   .top-brand { width: 34px; height: 34px; flex-basis: 34px; }
   .top-primary-nav { flex: 1; padding-right: 0; border-right: 0; }
   .top-primary-nav button, .top-admin-nav button { width: 32px; height: 32px; }
-  .project-quickbar-scroll { order: 5; flex: 0 0 100%; height: 54px; }
+  .project-quickbar-scroll { order: 5; flex: 0 0 100%; height: auto; }
   .project-quickbar-label { display: none; }
   .project-quickbar-manage { display: none; }
   .stat-row { grid-template-columns: 1fr 1fr; gap: 8px; }
