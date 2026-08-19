@@ -28,6 +28,7 @@ interface UiState {
   activeTab: string;
   search: string;
   moreNavExpanded: boolean;
+  sidebarOpen: boolean;
 
   dashboardTab: DashboardTab;
   calendarMonth: { year: number; month: number } | null;
@@ -38,6 +39,8 @@ interface UiState {
   goTo: (view: View, selectedId?: string | null) => void;
   setSearch: (v: string) => void;
   toggleMoreNav: () => void;
+  toggleSidebar: () => void;
+  closeSidebar: () => void;
   setActiveTab: (tab: string) => void;
 
   setDashboardTab: (tab: DashboardTab) => void;
@@ -54,6 +57,7 @@ export const useUiStore = create<UiState>((set) => ({
   activeTab: 'aufgaben',
   search: '',
   moreNavExpanded: false,
+  sidebarOpen: false,
 
   dashboardTab: 'liste',
   calendarMonth: null,
@@ -61,9 +65,11 @@ export const useUiStore = create<UiState>((set) => ({
   dashFilter: EMPTY_DASH_FILTER,
   dashboardEditingTaskId: null,
 
-  goTo: (view, selectedId = null) => set({ view, selectedId }),
+  goTo: (view, selectedId = null) => set({ view, selectedId, sidebarOpen: false }),
   setSearch: (v) => set({ search: v }),
   toggleMoreNav: () => set((s) => ({ moreNavExpanded: !s.moreNavExpanded })),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  closeSidebar: () => set({ sidebarOpen: false }),
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   setDashboardTab: (tab) => set({ dashboardTab: tab }),

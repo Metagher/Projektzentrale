@@ -1,75 +1,26 @@
-import { useUiStore } from '../../store/uiStore';
-import Dashboard from '../dashboard/Dashboard';
-import ProjectView from '../project/ProjectView';
-import SettingsView from '../settings/SettingsView';
-import GlobalAiSearch from '../ai/GlobalAiSearch';
-import AiSettingsView from '../ai/AiSettingsView';
-import KnowledgeView from '../knowledge/KnowledgeView';
-import DataView from '../data/DataView';
-import AnalyticsView from '../analytics/AnalyticsView';
+import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
+import { useUiStore, type View } from '../../store/uiStore';
+
+const VIEW_COMPONENTS = {
+  dashboard: lazy(() => import('../dashboard/Dashboard')),
+  project: lazy(() => import('../project/ProjectView')),
+  settings: lazy(() => import('../settings/SettingsView')),
+  data: lazy(() => import('../data/DataView')),
+  ai: lazy(() => import('../ai/GlobalAiSearch')),
+  knowledge: lazy(() => import('../knowledge/KnowledgeView')),
+  analytics: lazy(() => import('../analytics/AnalyticsView')),
+  'ai-settings': lazy(() => import('../ai/AiSettingsView')),
+} satisfies Record<View, LazyExoticComponent<ComponentType>>;
 
 export default function MainShell() {
-  const view = useUiStore((s) => s.view);
-
-  if (view === 'dashboard') {
-    return (
-      <div id="main">
-        <Dashboard />
-      </div>
-    );
-  }
-
-  if (view === 'project') {
-    return (
-      <div id="main">
-        <ProjectView />
-      </div>
-    );
-  }
-
-  if (view === 'settings') {
-    return (
-      <div id="main">
-        <SettingsView />
-      </div>
-    );
-  }
-
-  if (view === 'ai') {
-    return (
-      <div id="main">
-        <GlobalAiSearch />
-      </div>
-    );
-  }
-
-  if (view === 'ai-settings') {
-    return (
-      <div id="main">
-        <AiSettingsView />
-      </div>
-    );
-  }
-
-  if (view === 'knowledge') {
-    return (
-      <div id="main">
-        <KnowledgeView />
-      </div>
-    );
-  }
-
-  if (view === 'data') {
-    return (
-      <div id="main">
-        <DataView />
-      </div>
-    );
-  }
+  const view = useUiStore((state) => state.view);
+  const ViewComponent = VIEW_COMPONENTS[view];
 
   return (
-    <div id="main">
-      <AnalyticsView />
-    </div>
+    <main id="main">
+      <Suspense fallback={<div className="main-inner"><div className="loading-note">Ansicht wird geladen…</div></div>}>
+        <ViewComponent />
+      </Suspense>
+    </main>
   );
 }

@@ -4,6 +4,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { useDragReorder } from '../../hooks/useDragReorder';
 import { useAiStore } from '../../store/aiStore';
+import { PRIMARY_NAVIGATION, SECONDARY_NAVIGATION, type NavigationItem } from '../../lib/navigation';
 import ProjectTicket from './ProjectTicket';
 import type { Project, ProjectStatus } from '../../types/entities';
 
@@ -12,13 +13,10 @@ const STATUS_LABELS: Record<ProjectStatus, string> = { aktiv: 'Aktiv', pausiert:
 
 function sortProjects(projects: Project[]): Project[] {
   return projects.slice().sort((a, b) => {
-    const oa = STATUS_ORDER[a.status] ?? 3;
-    const ob = STATUS_ORDER[b.status] ?? 3;
-    if (oa !== ob) return oa - ob;
-    const ia = a.sortIndex ?? 0;
-    const ib = b.sortIndex ?? 0;
-    if (ia !== ib) return ia - ib;
-    return (b.createdAt || '').localeCompare(a.createdAt || '');
+    const statusOrder = (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3);
+    if (statusOrder) return statusOrder;
+    const sortOrder = (a.sortIndex ?? 0) - (b.sortIndex ?? 0);
+    return sortOrder || (b.createdAt || '').localeCompare(a.createdAt || '');
   });
 }
 
@@ -44,106 +42,55 @@ export default function Sidebar() {
     const result = await newProjectForm();
     if (!result) return;
     const id = await createProject(result);
-    useUiStore.setState({ view: 'project', selectedId: id, activeTab: 'uebersicht' });
+    useUiStore.setState({ view: 'project', selectedId: id, activeTab: 'uebersicht', sidebarOpen: false });
   }
 
-  const searchLower = search.trim().toLowerCase();
-  let visibleProjects = projects ? sortProjects(projects) : null;
-  if (visibleProjects && searchLower) {
-    visibleProjects = visibleProjects.filter(
-      (p) => p.name.toLowerCase().includes(searchLower) || (p.kunde || '').toLowerCase().includes(searchLower),
-    );
-  }
-  const dragEnabled = !searchLower;
-
+  const query = search.trim().toLowerCase();
+  const visibleProjects = projects ? sortProjects(projects).filter((project) =>
+    !query || project.name.toLowerCase().includes(query) || (project.kunde || '').toLowerCase().includes(query),
+  ) : null;
   let lastStatus: ProjectStatus | null = null;
 
+  const renderNavItem = (item: NavigationItem) => {
+    if (item.requiresAi && !aiAvailable) return null;
+    return (
+      <button key={item.view} className={`dashboard-link${view === item.view ? ' active' : ''}`} onClick={() => goTo(item.view)}>
+        <span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.label}</span>
+      </button>
+    );
+  };
+
   return (
-    <div id="sidebar">
+    <aside id="sidebar">
       <div className="sidebar-head">
-        <h1>Projektzentrale</h1>
-        <span className="tag">Consulting Übersicht</span>
+        <div className="brand-mark">PZ</div>
+        <div><h1>Projektzentrale</h1><span className="tag">Consulting Workspace</span></div>
       </div>
       <div className="sidebar-search">
-        <input
-          type="text"
-          placeholder="Projekt oder Kunde suchen…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <span className="search-icon" aria-hidden="true">⌕</span>
+        <input type="search" placeholder="Projekt oder Kunde suchen…" aria-label="Projekte durchsuchen" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
-      <div style={{ padding: '0 16px' }}>
-        <button className="new-project-btn" onClick={handleNewProject}>
-          + Neues Projekt
+      <nav className="sidebar-navigation" aria-label="Hauptnavigation">
+        <button className="new-project-btn" onClick={handleNewProject}><span aria-hidden="true">＋</span> Neues Projekt</button>
+        <div className="nav-group">{PRIMARY_NAVIGATION.map(renderNavItem)}</div>
+        <button className="dashboard-link nav-more" onClick={toggleMoreNav} aria-expanded={moreNavExpanded}>
+          <span className="nav-icon">···</span><span>{moreNavExpanded ? 'Weniger' : 'Mehr'}</span>
         </button>
-        <div
-          className={`dashboard-link${view === 'dashboard' ? ' active' : ''}`}
-          onClick={() => goTo('dashboard')}
-        >
-          Dashboard — alle offenen Aufgaben
-        </div>
-        <div
-          className={`dashboard-link${view === 'knowledge' ? ' active' : ''}`}
-          onClick={() => goTo('knowledge')}
-        >
-          🧠 Wissensdatenbank
-        </div>
-        <div
-          className={`dashboard-link${view === 'analytics' ? ' active' : ''}`}
-          onClick={() => goTo('analytics')}
-        >
-          📊 Auswertung
-        </div>
-        {aiAvailable && (
-          <div className={`dashboard-link${view === 'ai' ? ' active' : ''}`} onClick={() => goTo('ai')}>
-            🔍 KI-Suche (alle Projekte)
-          </div>
-        )}
-        <div className="dashboard-link" onClick={toggleMoreNav}>
-          {moreNavExpanded ? '⋯ Weniger' : '⋯ Mehr'}
-        </div>
-        {moreNavExpanded && (
-          <div>
-            <div
-              className={`dashboard-link${view === 'settings' ? ' active' : ''}`}
-              onClick={() => goTo('settings')}
-            >
-              ⚙ Oberpunkte verwalten
-            </div>
-            <div className={`dashboard-link${view === 'data' ? ' active' : ''}`} onClick={() => goTo('data')}>
-              ⇅ CSV Import / Export
-            </div>
-            <div
-              className={`dashboard-link${view === 'ai-settings' ? ' active' : ''}`}
-              onClick={() => goTo('ai-settings')}
-            >
-              🔑 KI-Einstellungen
-            </div>
-          </div>
-        )}
-      </div>
+        {moreNavExpanded && <div className="nav-group secondary-nav">{SECONDARY_NAVIGATION.map(renderNavItem)}</div>}
+      </nav>
+      <div className="project-list-heading"><span>Projekte</span><span>{visibleProjects?.length ?? '–'}</span></div>
       <div id="project-list">
         {visibleProjects === null && <div className="loading-note">Projekte werden geladen…</div>}
-        {visibleProjects !== null && visibleProjects.length === 0 && (
-          <div className="empty-hint">Keine Projekte gefunden.</div>
-        )}
-        {visibleProjects?.map((p) => {
-          const showLabel = p.status !== lastStatus;
-          lastStatus = p.status;
-          return (
-            <div key={p.id}>
-              {showLabel && <div className="list-section-label">{STATUS_LABELS[p.status] || p.status}</div>}
-              <ProjectTicket
-                project={p}
-                active={view === 'project' && selectedId === p.id}
-                dragEnabled={dragEnabled}
-                dragProps={getItemProps(p.id)}
-                onClick={() => useUiStore.setState({ view: 'project', selectedId: p.id, activeTab: 'aufgaben' })}
-              />
-            </div>
-          );
+        {visibleProjects !== null && visibleProjects.length === 0 && <div className="empty-hint">Keine Projekte gefunden.</div>}
+        {visibleProjects?.map((project) => {
+          const showLabel = project.status !== lastStatus;
+          lastStatus = project.status;
+          return <div key={project.id}>
+            {showLabel && <div className="list-section-label">{STATUS_LABELS[project.status] || project.status}</div>}
+            <ProjectTicket project={project} active={view === 'project' && selectedId === project.id} dragEnabled={!query} dragProps={getItemProps(project.id)} onClick={() => useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'aufgaben', sidebarOpen: false })} />
+          </div>;
         })}
       </div>
-    </div>
+    </aside>
   );
 }

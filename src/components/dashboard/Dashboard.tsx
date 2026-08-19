@@ -4,6 +4,7 @@ import { useUiStore, type DashboardTab } from '../../store/uiStore';
 import { useModalStore } from '../../store/modalStore';
 import { applyDashboardFilters } from '../../lib/filters';
 import { fmtDate, todayStr } from '../../lib/format';
+import { getDashboardSummary } from '../../lib/dashboardModel';
 import DailyBriefingCard from './DailyBriefingCard';
 import OverdueBanner from './OverdueBanner';
 import DashboardFilterBar from './DashboardFilterBar';
@@ -40,14 +41,7 @@ export default function Dashboard() {
     );
   }
 
-  const active = projects.filter((p) => p.status === 'aktiv').length;
-  const openTaskCount = dashboardData.openTasks.length;
-  const overdueCount = dashboardData.overdueTasks.length;
-  const soon = dashboardData.upcomingMilestones.filter((m) => {
-    if (!m.datum) return false;
-    const diff = (new Date(m.datum).getTime() - new Date(todayStr()).getTime()) / 86400000;
-    return diff >= 0 && diff <= 30;
-  }).length;
+  const summary = getDashboardSummary(projects, dashboardData);
 
   const counts: Record<DashboardTab, number> = {
     liste: dashboardData.tasksWithDate.length,
@@ -124,30 +118,31 @@ export default function Dashboard() {
 
   return (
     <div className="main-inner">
-      <h2>Dashboard</h2>
-      <div className="sub" style={{ color: 'var(--ink-soft)', margin: '4px 0 18px' }}>
-        Projektübergreifende Übersicht über offene Aufgaben und anstehende Echtläufe.
-      </div>
+      <header className="page-header">
+        <div className="eyebrow">Arbeitsbereich</div>
+        <h2>Guten Überblick.</h2>
+        <p>Alle Projekte, offenen Aufgaben und anstehenden Echtläufe an einem Ort.</p>
+      </header>
       <DailyBriefingCard />
       <div className="stat-row">
         <div className="stat-card">
-          <div className="num">{active}</div>
+          <div className="stat-icon">◆</div><div className="num">{summary.activeProjects}</div>
           <div className="label">Aktive Projekte</div>
         </div>
         <div className="stat-card">
-          <div className="num">{openTaskCount}</div>
+          <div className="stat-icon">✓</div><div className="num">{summary.openTasks}</div>
           <div className="label">Offene Aufgaben</div>
         </div>
         <div className="stat-card warn">
-          <div className="num">{overdueCount}</div>
+          <div className="stat-icon">!</div><div className="num">{summary.overdueTasks}</div>
           <div className="label">Überfällig</div>
         </div>
         <div className="stat-card upcoming">
-          <div className="num">{soon}</div>
+          <div className="stat-icon">◷</div><div className="num">{summary.upcomingMilestones}</div>
           <div className="label">Echtläufe in 30 Tagen</div>
         </div>
       </div>
-      <OverdueBanner count={overdueCount} />
+      <OverdueBanner count={summary.overdueTasks} />
       <div className="tabs" style={{ justifyContent: 'space-between' }}>
         <div style={{ display: 'flex' }}>
           {TABS.map((t) => (
