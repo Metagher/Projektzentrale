@@ -8,6 +8,36 @@ import AfnChipsField from '../../shared/AfnChipsField';
 import AfnChipsView from '../../shared/AfnChipsView';
 import type { Project, ProjectCache, UpdateEntry } from '../../../types/entities';
 
+type DeliveryState = 'delivered' | 'current' | 'upcoming' | 'unassigned';
+
+const DELIVERY_LABELS: Record<DeliveryState, string> = {
+  delivered: 'Bereits ausgeliefert',
+  current: 'Aktuelle Version',
+  upcoming: 'Noch ausstehend',
+  unassigned: 'Nicht zugeordnet',
+};
+
+function compareRevision(revision: string, currentVersion: string): number | null {
+  const revisionParts = revision.match(/\d+/g)?.map(Number);
+  const currentParts = currentVersion.match(/\d+/g)?.map(Number);
+  if (!revisionParts?.length || !currentParts?.length) return null;
+  const length = Math.max(revisionParts.length, currentParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const left = revisionParts[index] || 0;
+    const right = currentParts[index] || 0;
+    if (left !== right) return left < right ? -1 : 1;
+  }
+  return 0;
+}
+
+function deliveryState(revision: string, currentVersion: string): DeliveryState {
+  const comparison = compareRevision(revision, currentVersion);
+  if (comparison === null) return 'unassigned';
+  if (comparison < 0) return 'delivered';
+  if (comparison > 0) return 'upcoming';
+  return 'current';
+}
+
 export default function UpdateTab({ project, data }: { project: Project; data: ProjectCache }) {
   const saveUpdateEntry = useDataStore((s) => s.saveUpdateEntry);
   const deleteUpdateEntry = useDataStore((s) => s.deleteUpdateEntry);
@@ -87,9 +117,22 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
   const sortedDesc = data.updates
     .slice()
     .sort((a, b) => (b.datum || '').localeCompare(a.datum || '') || (b.id || '').localeCompare(a.id || ''));
+  const deliveryCounts = sortedDesc.reduce<Record<DeliveryState, number>>((counts, entry) => {
+    counts[deliveryState(entry.revision, project.aktuelleVersion)] += 1;
+    return counts;
+  }, { delivered: 0, current: 0, upcoming: 0, unassigned: 0 });
 
   return (
     <>
+      <section className="current-version-card">
+        <div><div className="cv-label">Aktuelle RK-Version</div><div className="cv-value">{project.aktuelleVersion || 'Nicht hinterlegt'}</div></div>
+        <div className="update-delivery-summary" aria-label="Verteilung der Update-Punkte">
+          <span className="delivered"><strong>{deliveryCounts.delivered}</strong> ausgeliefert</span>
+          <span className="current"><strong>{deliveryCounts.current}</strong> aktuell</span>
+          <span className="upcoming"><strong>{deliveryCounts.upcoming}</strong> ausstehend</span>
+          {deliveryCounts.unassigned > 0 && <span className="unassigned"><strong>{deliveryCounts.unassigned}</strong> ohne Zuordnung</span>}
+        </div>
+      </section>
       {showNewUpdateForm ? (
         <div className="card">
           <div className="top-row" style={{ marginBottom: 10 }}>
@@ -153,9 +196,11 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
           <div>Trage hier Punkte ein, für die ein Update notwendig wird — z.B. neue Felder, Anpassungen oder Fixes.</div>
         </div>
       ) : (
-        sortedDesc.map((u) =>
+        sortedDesc.map((u) => {
+          const state = deliveryState(u.revision, project.aktuelleVersion);
+          return (
           u.id === editingUpdateId ? (
-            <div className="update-entry" key={u.id}>
+            <div className={`update-entry delivery-${state}`} key={u.id}>
               <div className="field-grid">
                 <div className="field">
                   <label>Titel</label>
@@ -190,11 +235,12 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
               </div>
             </div>
           ) : (
-            <div className="update-entry" key={u.id} style={{ cursor: 'pointer' }} onClick={() => startEdit(u)}>
+            <div className={`update-entry delivery-${state}`} key={u.id} style={{ cursor: 'pointer' }} onClick={() => startEdit(u)}>
               <div className="update-entry-head">
                 <div className="update-step-label">
                   <span className="uv-new">{u.titel}</span>
                   {u.revision && <span className="update-revision-tag">{u.revision}</span>}
+                  <span className={`update-delivery-badge ${state}`}>{DELIVERY_LABELS[state]}</span>
                 </div>
                 <span className="meta mono">{fmtDate(u.datum)}</span>
               </div>
@@ -219,8 +265,8 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
                 </button>
               </div>
             </div>
-          ),
-        )
+          ));
+        })
       )}
     </>
   );

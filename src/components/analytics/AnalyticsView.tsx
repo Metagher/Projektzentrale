@@ -3,6 +3,7 @@ import { useAnalyticsStore, type AnalyticsSubTab } from '../../store/analyticsSt
 import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import TaskAnalytics from './TaskAnalytics';
 import AfnLesestandTab from './AfnLesestandTab';
+import GlobalPortfolioOverview from './GlobalPortfolioOverview';
 
 export default function AnalyticsView() {
   const { analyticsSubTab, setAnalyticsSubTab } = useAnalyticsStore();
@@ -28,7 +29,7 @@ export default function AnalyticsView() {
 
   return (
     <div className="main-inner">
-      <h2>📊 Auswertung</h2>
+      <header className="page-header analytics-page-header"><div className="eyebrow">Gesamtunternehmen</div><h2>Globale Auswertung</h2><p>Projektportfolio, übergreifende Risiken und langfristige Leistungsentwicklung.</p></header>
       <div className="tabs">
         {(['aufgaben', 'afn'] as AnalyticsSubTab[]).map((t) => (
           <button
@@ -36,7 +37,7 @@ export default function AnalyticsView() {
             className={`tab-btn${analyticsSubTab === t ? ' active' : ''}`}
             onClick={() => setAnalyticsSubTab(t)}
           >
-            {t === 'aufgaben' ? 'Aufgaben' : 'AFN-Lesestand'}
+            {t === 'aufgaben' ? 'Projektportfolio' : 'AFN-Lesestand'}
           </button>
         ))}
       </div>
@@ -46,15 +47,8 @@ export default function AnalyticsView() {
         <div className="loading-note">Lade Auswertung…</div>
       ) : (
         <>
-          <div className="sub" style={{ color: 'var(--ink-soft)', margin: '4px 0 6px' }}>
-            Durchlaufzeit von Erstellung bis Abschluss, projektübergreifend, nach Projekt und Priorität — sowie deine
-            Produktivität pro Kalenderwoche.
-          </div>
-          <div className="an-note">
-            Basiert nur auf Aufgaben, die seit Einführung dieser Auswertung angelegt bzw. abgeschlossen wurden —
-            ältere Aufgaben ohne Erstelldatum fließen in die Durchlaufzeit nicht ein, zählen aber bei der
-            Wochenübersicht mit, sobald sie ein Abschlussdatum haben.
-          </div>
+          <GlobalPortfolioOverview projects={projects || []} tasks={allTasks} />
+          <div className="analytics-section-intro"><div className="analytics-scope-label">Langfristige Entwicklung</div><h3>Projektübergreifende Aufgabenleistung</h3><p>Durchlaufzeiten, Abschlüsse pro Kalenderwoche und Entwicklung des offenen Bestands.</p></div>
           <TaskAnalytics allTasks={allTasks} showProjectBreakdown />
         </>
       )}
