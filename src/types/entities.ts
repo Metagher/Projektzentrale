@@ -33,6 +33,7 @@ export interface Comm {
   notiz: string; // RTF html
   afns: string[];
   taskIds: string[];
+  teilprojekt?: string;
 }
 
 export type DocLevel = 1 | 2 | 3;

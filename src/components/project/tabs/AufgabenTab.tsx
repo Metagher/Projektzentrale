@@ -10,6 +10,7 @@ import ProjectTaskEditRow from '../ProjectTaskEditRow';
 import AiSummaryCard from '../AiSummaryCard';
 import type { Project, ProjectCache, Task, TaskStatus } from '../../../types/entities';
 import { compareTaskColors, compareWaitingPerson } from '../../../lib/taskColors';
+import { writeTaskDrag } from '../../../lib/taskDrag';
 
 type BoardColumn = 'offen' | 'wartet' | 'erledigt';
 
@@ -122,7 +123,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
         className={`kanban-task${task.farbe ? ` marked task-color-border-${task.farbe}` : ''}${draggedTaskId === task.id ? ' dragging' : ''}`}
         key={task.id}
         draggable
-        onDragStart={(event) => { setDraggedTaskId(task.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', task.id); }}
+        onDragStart={(event) => { setDraggedTaskId(task.id); event.dataTransfer.effectAllowed = 'move'; writeTaskDrag(event.dataTransfer, { projectId: project.id, taskId: task.id }); }}
         onDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); setDragOverPerson(null); }}
       >
         <ProjectTaskRow task={task} project={project} contact={data.contacts.find((contact) => contact.id === task.kontaktId)} data={data} onDelete={() => handleDelete(task.id)} />

@@ -35,6 +35,11 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   const [notiz, setNotiz] = useState(editObj?.notiz || '');
   const [afns, setAfns] = useState<string[]>(editObj?.afns || []);
   const [taskIds, setTaskIds] = useState<string[]>(editObj?.taskIds || []);
+  const [teilprojekt, setTeilprojekt] = useState(editObj?.teilprojekt || '');
+  const teilprojekte = Array.from(new Set([
+    ...data.tasks.map((task) => task.teilprojekt?.trim()),
+    ...data.comms.map((comm) => comm.teilprojekt?.trim()),
+  ].filter((value): value is string => !!value))).sort((a, b) => a.localeCompare(b, 'de'));
 
   function resetForm() {
     setDatum(todayStr());
@@ -44,6 +49,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
     setNotiz('');
     setAfns([]);
     setTaskIds([]);
+    setTeilprojekt('');
   }
 
   function startEdit(c: Comm) {
@@ -55,6 +61,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
     setNotiz(c.notiz);
     setAfns(c.afns || []);
     setTaskIds(c.taskIds || []);
+    setTeilprojekt(c.teilprojekt || '');
   }
 
   async function handleSave() {
@@ -67,6 +74,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
       notiz,
       afns,
       taskIds,
+      teilprojekt: teilprojekt.trim(),
     };
     const prevTaskIds = editObj?.taskIds || [];
     await saveComm(projectId, comm);
@@ -105,6 +113,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
             commIds: [c.id],
             doku: false,
             dokuErledigt: false,
+            teilprojekt: c.teilprojekt || '',
           });
           newTaskIds.push(newId);
         }
@@ -160,6 +169,18 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
             <div className="field">
               <label>Betreff</label>
               <input value={betreff} onChange={(e) => setBetreff(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Teilprojekt</label>
+              <input
+                value={teilprojekt}
+                onChange={(e) => setTeilprojekt(e.target.value)}
+                list={`kommunikation-teilprojekte-${projectId}`}
+                placeholder="Teilprojekt neu eingeben oder auswählen"
+              />
+              <datalist id={`kommunikation-teilprojekte-${projectId}`}>
+                {teilprojekte.map((name) => <option key={name} value={name} />)}
+              </datalist>
             </div>
           </div>
           <div className="field">
@@ -220,6 +241,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
                 <div>
                   <span className="channel-tag">{c.kanal}</span> <span className="meta mono">{fmtDate(c.datum)}</span>
                   {contact && <span className="meta">· {contact.name}</span>}
+                  {c.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{c.teilprojekt.trim()}</span>}
                   {c.afns && c.afns.length > 0 && <AfnChipsView afns={c.afns} />}
                   <div style={{ marginTop: 5 }}>
                     <strong>{c.betreff || '(kein Betreff)'}</strong>

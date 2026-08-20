@@ -74,7 +74,8 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
         const contact = data.contacts.find((x) => x.id === c.kontaktId);
         const notizText = htmlToPlainText(c.notiz);
         const afnText = c.afns && c.afns.length ? ` [AFN: ${c.afns.join(', ')}]` : '';
-        lines.push(`- ${fmtDate(c.datum)} | ${c.kanal}${contact ? ' | ' + contact.name : ''} | ${c.betreff || '(kein Betreff)'}${afnText}${notizText ? ': ' + notizText : ''}`);
+        const teilprojektText = c.teilprojekt ? ` [Teilprojekt: ${c.teilprojekt}]` : '';
+        lines.push(`- ${fmtDate(c.datum)} | ${c.kanal}${contact ? ' | ' + contact.name : ''} | ${c.betreff || '(kein Betreff)'}${teilprojektText}${afnText}${notizText ? ': ' + notizText : ''}`);
       });
   }
   const hidden = (data.doc._hidden as string[] | undefined) || [];

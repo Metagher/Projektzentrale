@@ -4,6 +4,7 @@ import { fmtDate, todayStr } from '../../lib/format';
 import { useUiStore } from '../../store/uiStore';
 import { getProjectUiStore } from '../../store/projectUiStore';
 import { localDateKey, nextWorkday } from '../../lib/workdays';
+import { hasTaskDrag, readTaskDrag, writeTaskDrag } from '../../lib/taskDrag';
 
 export default function DailyPlanner() {
   const data = useDataStore((state) => state.dashboardData);
@@ -12,6 +13,8 @@ export default function DailyPlanner() {
   const workdayOverrides = useDataStore((state) => state.workdayOverrides);
   const [day, setDay] = useState<'today' | 'tomorrow'>('today');
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<{ targetId: string; edge: 'before' | 'after' } | null>(null);
+  const [externalTaskOver, setExternalTaskOver] = useState(false);
   const nextDate = nextWorkday(new Date(`${todayStr()}T12:00:00`), workdayOverrides);
   const date = day === 'today' ? todayStr() : localDateKey(nextDate);
   const nextDayLabel = new Intl.DateTimeFormat('de-DE', { weekday: 'long' }).format(nextDate);
@@ -21,15 +24,16 @@ export default function DailyPlanner() {
     .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr);
   const rankedTasks = tasks.filter((task) => (task.tagesSortierung ?? 999) < 999);
 
-  async function dropOn(targetId: string) {
+  async function dropOn(targetId: string, edge: 'before' | 'after') {
     if (!draggedId || draggedId === targetId) return;
     const moved = tasks.find((task) => task.id === draggedId);
-    const targetRankIndex = rankedTasks.findIndex((task) => task.id === targetId);
     if (!moved) return;
     const next = rankedTasks.filter((task) => task.id !== draggedId);
-    const insertionIndex = targetRankIndex >= 0 ? Math.min(targetRankIndex, next.length) : next.length;
+    const targetIndex = next.findIndex((task) => task.id === targetId);
+    const insertionIndex = targetIndex < 0 ? next.length : targetIndex + (edge === 'after' ? 1 : 0);
     next.splice(insertionIndex, 0, moved);
     setDraggedId(null);
+    setDropPosition(null);
     await reorder(date, next);
   }
 
@@ -37,10 +41,21 @@ export default function DailyPlanner() {
     await reorder(date, rankedTasks.filter((task) => task.id !== taskId));
   }
 
-  async function dropOnDay(targetDay: 'today' | 'tomorrow') {
+  async function assignRank(task: TaskWithMeta) {
+    await reorder(date, [...rankedTasks, task]);
+  }
+
+  async function dropOnDay(targetDay: 'today' | 'tomorrow', event?: DragEvent) {
+    const external = event ? readTaskDrag(event.dataTransfer) : null;
+    const targetDate = targetDay === 'today' ? todayStr() : localDateKey(nextDate);
+    if (external && !draggedId) {
+      setExternalTaskOver(false);
+      await moveTaskToDailyDate(external.projectId, external.taskId, targetDate);
+      setDay(targetDay);
+      return;
+    }
     if (!draggedId) return;
     const task = tasks.find((item) => item.id === draggedId);
-    const targetDate = targetDay === 'today' ? todayStr() : localDateKey(nextDate);
     setDraggedId(null);
     if (!task || task.faelligAm === targetDate) return;
     await moveTaskToDailyDate(task.projectId, task.id, targetDate);
@@ -50,6 +65,7 @@ export default function DailyPlanner() {
   function allowDayDrop(event: DragEvent) {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
+    if (!draggedId && hasTaskDrag(event.dataTransfer)) setExternalTaskOver(true);
   }
 
   function openTask(task: TaskWithMeta) {
@@ -61,9 +77,9 @@ export default function DailyPlanner() {
     <section className="daily-planner">
       <header className="daily-planner-head">
         <div><span className="eyebrow">Tagesplanung</span><h3>{day === 'today' ? 'Heute' : nextDayLabel}</h3><small>{fmtDate(date)} · {tasks.length} Aufgabe{tasks.length === 1 ? '' : 'n'}</small></div>
-        <div className={`daily-planner-switch${draggedId ? ' accepting-drop' : ''}`}>
-          <button className={day === 'today' ? 'active' : ''} onClick={() => setDay('today')} onDragOver={allowDayDrop} onDrop={(event) => { event.preventDefault(); dropOnDay('today'); }}>Heute</button>
-          <button className={day === 'tomorrow' ? 'active' : ''} onClick={() => setDay('tomorrow')} onDragOver={allowDayDrop} onDrop={(event) => { event.preventDefault(); dropOnDay('tomorrow'); }} title={`Nächster Arbeitstag: ${nextDayLabel}`}>Nächster Arbeitstag</button>
+        <div className={`daily-planner-switch${draggedId || externalTaskOver ? ' accepting-drop' : ''}`} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setExternalTaskOver(false); }}>
+          <button className={day === 'today' ? 'active' : ''} onClick={() => setDay('today')} onDragOver={allowDayDrop} onDrop={(event) => { event.preventDefault(); dropOnDay('today', event); }}>Heute</button>
+          <button className={day === 'tomorrow' ? 'active' : ''} onClick={() => setDay('tomorrow')} onDragOver={allowDayDrop} onDrop={(event) => { event.preventDefault(); dropOnDay('tomorrow', event); }} title={`Nächster Arbeitstag: ${nextDayLabel}`}>Nächster Arbeitstag</button>
         </div>
       </header>
       <div className="daily-planner-list">
@@ -71,8 +87,29 @@ export default function DailyPlanner() {
         {tasks.map((task) => {
           const rank = rankedTasks.findIndex((item) => item.id === task.id) + 1;
           return (
-          <div className={`daily-planner-task${draggedId === task.id ? ' dragging' : ''}${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} key={task.id} draggable onDragStart={(event) => { setDraggedId(task.id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => setDraggedId(null)} onDragOver={(event: DragEvent) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); dropOn(task.id); }}>
-            <button className={`daily-rank${rank ? '' : ' unranked'}`} type="button" onClick={() => { if (rank) removeRank(task.id); }} title={rank ? 'Tagesrang entfernen und auf #X setzen' : 'Noch nicht eingeordnet – Aufgabe ziehen, um einen Rang zu vergeben'}>#{rank || 'X'}</button>
+          <div
+            className={`daily-planner-task${draggedId === task.id ? ' dragging' : ''}${dropPosition?.targetId === task.id ? ` drop-${dropPosition.edge}` : ''}${task.farbe ? ` task-color-border-${task.farbe}` : ''}`}
+            key={task.id}
+            draggable
+            onDragStart={(event) => { setDraggedId(task.id); setDropPosition(null); event.dataTransfer.effectAllowed = 'move'; writeTaskDrag(event.dataTransfer, { projectId: task.projectId, taskId: task.id }); }}
+            onDragEnd={() => { setDraggedId(null); setDropPosition(null); setExternalTaskOver(false); }}
+            onDragOver={(event: DragEvent) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+              if (!draggedId || draggedId === task.id) return;
+              const bounds = event.currentTarget.getBoundingClientRect();
+              const edge = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+              setDropPosition((current) => current?.targetId === task.id && current.edge === edge ? current : { targetId: task.id, edge });
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              if (!draggedId || draggedId === task.id) return;
+              const bounds = event.currentTarget.getBoundingClientRect();
+              const edge = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+              dropOn(task.id, edge);
+            }}
+          >
+            <button className={`daily-rank${rank ? '' : ' unranked'}`} type="button" onClick={() => { if (rank) removeRank(task.id); else assignRank(task); }} title={rank ? 'Tagesrang entfernen und auf #X setzen' : `Als #${rankedTasks.length + 1} einordnen`}>#{rank || 'X'}</button>
             <button className="daily-task-content" onClick={() => openTask(task)}><strong>{task.titel}</strong><small>{task.projectName}{task.status === 'wartet' ? ` · wartet auf ${task.wartetAuf}` : ''}</small></button>
             <span className="daily-drag" title="Ziehen zum Sortieren oder auf einen anderen Arbeitstag">⠿</span>
           </div>

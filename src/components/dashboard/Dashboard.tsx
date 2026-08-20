@@ -45,7 +45,7 @@ export default function Dashboard() {
     <DailyPlanner />
     <section className="dashboard-global-steering"><div className="analytics-scope-label">Projektübergreifende Steuerung</div><div className="analytics-kpi-grid">
       <article><strong>{summary.activeProjects}</strong><span>Aktive Projekte</span><small>von {projects.length} insgesamt</small></article>
-      <article><strong>{summary.openTasks}</strong><span>Offene Aufgaben</span><small>über alle Projekte</small></article>
+      <article><strong>{unfinishedTasks.length}</strong><span>Offene Aufgaben</span><small>alle nicht erledigten Aufgaben</small></article>
       <article className={summary.overdueTasks ? 'critical' : ''}><strong>{summary.overdueTasks}</strong><span>Überfällig</span><small>sofortiger Handlungsbedarf</small></article>
       <article className={dashboardData.waitingTasks.length ? 'attention' : ''}><strong>{dashboardData.waitingTasks.length}</strong><span>Wartet auf andere</span><small>externe Abhängigkeiten</small></article>
     </div></section>
