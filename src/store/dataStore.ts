@@ -451,7 +451,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     for (const projectId of Object.keys(byProject)) {
       const data = await get().ensureProjectData(projectId);
       const ids = byProject[projectId];
-      const tasks = data.tasks.map((t) => (ids.includes(t.id) ? { ...t, faelligAm: today } : t));
+      const tasks = data.tasks.map((t) => (ids.includes(t.id) ? { ...t, faelligAm: today, tagesSortierung: 999 } : t));
       await persistTasks(get, set, projectId, tasks);
     }
     await get().loadDashboardData();
