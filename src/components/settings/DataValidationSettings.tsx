@@ -57,6 +57,9 @@ export default function DataValidationSettings() {
         const validCommIds = (task.commIds || []).filter((id) => commIds.has(id));
         if (validCommIds.length !== (task.commIds || []).length) add({ ...prefix, area: 'Aufgabe', problem: 'Verknüpfte Kommunikation existiert nicht mehr', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, commIds: validCommIds }) });
         if (task.fremdverknuepfung?.trim() && !toExternalHref(task.fremdverknuepfung)) add({ ...prefix, area: 'Aufgabe', problem: 'Ungültige Fremdverknüpfung', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, fremdverknuepfung: '' }) });
+        if (task.ticketsystemVerknuepfung?.trim() && !toExternalHref(task.ticketsystemVerknuepfung)) add({ ...prefix, area: 'Aufgabe', problem: 'Ungültige Ticketsystem-Verknüpfung', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, ticketsystemVerknuepfung: '' }) });
+        const validHistory = (task.verlauf || []).filter((entry) => entry.titel?.trim() && validDate(entry.datum));
+        if (validHistory.length !== (task.verlauf || []).length) add({ ...prefix, area: 'Aufgabe', problem: 'Ungültiger Verlaufseintrag', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, verlauf: validHistory }) });
       });
 
       data.comms.forEach((comm) => {

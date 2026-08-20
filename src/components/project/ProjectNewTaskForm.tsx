@@ -8,7 +8,8 @@ import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
-import type { ProjectCache, Task, TaskColor, TaskStatus } from '../../types/entities';
+import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
+import type { ProjectCache, Task, TaskColor, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const createTask = useDataStore((s) => s.createTask);
@@ -24,11 +25,16 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [kontaktId, setKontaktId] = useState('');
   const [wartetAuf, setWartetAuf] = useState('');
   const [doku, setDoku] = useState(false);
-  const [beschreibung, setBeschreibung] = useState('');
-  const [notizen, setNotizen] = useState('');
+  const [anforderung, setAnforderung] = useState('');
+  const [aktuellerStand, setAktuellerStand] = useState('');
+  const [verlauf, setVerlauf] = useState<TaskProgressEntry[]>([]);
   const [afns, setAfns] = useState<string[]>([]);
   const [commIds, setCommIds] = useState<string[]>([]);
   const [fremdverknuepfung, setFremdverknuepfung] = useState('');
+  const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState('');
+  const [teilprojekt, setTeilprojekt] = useState('');
+  const teilprojekte = Array.from(new Set(data.tasks.map((task) => task.teilprojekt?.trim()).filter((value): value is string => !!value)))
+    .sort((a, b) => a.localeCompare(b, 'de'));
 
   async function handleSave() {
     const trimmed = titel.trim();
@@ -44,11 +50,14 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
       kontaktId,
-      beschreibung,
-      notizen,
+      anforderung,
+      aktuellerStand,
+      verlauf,
       afns,
       commIds,
       fremdverknuepfung: fremdverknuepfung.trim(),
+      ticketsystemVerknuepfung: ticketsystemVerknuepfung.trim(),
+      teilprojekt: teilprojekt.trim(),
       doku,
       dokuErledigt: false,
     };
@@ -115,13 +124,23 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
         <input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://app.asana.com/…" />
       </div>
       <div className="field">
-        <label>Beschreibung</label>
-        <RtfField value={beschreibung} onChange={setBeschreibung} title="Beschreibung" placeholder="Klicken, um eine Beschreibung zu erfassen…" />
+        <label>Ticketsystem-Verknüpfung</label>
+        <input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" />
       </div>
       <div className="field">
-        <label>Interne Notizen</label>
-        <RtfField value={notizen} onChange={setNotizen} title="Interne Notizen" placeholder="Klicken, um interne Notizen zu erfassen…" />
+        <label>Teilprojekt</label>
+        <input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" />
+        <datalist id={`teilprojekte-${projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist>
       </div>
+      <div className="field">
+        <label>Anforderung</label>
+        <RtfField value={anforderung} onChange={setAnforderung} title="Anforderung" placeholder="Was wird benötigt und welche Kriterien müssen erfüllt sein?" />
+      </div>
+      <div className="field">
+        <label>Aktueller Stand</label>
+        <RtfField value={aktuellerStand} onChange={setAktuellerStand} title="Aktueller Stand" placeholder="Was ist aktuell umgesetzt, offen oder blockiert?" />
+      </div>
+      <TaskProgressHistoryField value={verlauf} onChange={setVerlauf} />
       <div className="field">
         <label>AFN-Nummer(n)</label>
         <AfnChipsField value={afns} onChange={setAfns} />

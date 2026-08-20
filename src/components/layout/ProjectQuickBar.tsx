@@ -5,6 +5,8 @@ import { useModalStore } from '../../store/modalStore';
 import { todayStr } from '../../lib/format';
 import { groupProjectsByCustomer, orderCustomerGroups } from '../../lib/projectGroups';
 import { useInstallApp } from '../../hooks/useInstallApp';
+import AfnQuickSearch from './AfnQuickSearch';
+import TaskFullTextSearch from './TaskFullTextSearch';
 
 export default function ProjectQuickBar() {
   const { canInstall, install } = useInstallApp();
@@ -72,6 +74,8 @@ export default function ProjectQuickBar() {
           ))}</div>
         </div>)}
       </div>
+      <AfnQuickSearch />
+      <TaskFullTextSearch />
       <div className="top-admin-nav">
         <button onClick={() => window.location.reload()} title="App vollständig aktualisieren" aria-label="App aktualisieren">↻</button>
         {canInstall && <button onClick={install} title="App auf diesem Gerät installieren" aria-label="App installieren">⇩</button>}

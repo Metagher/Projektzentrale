@@ -11,6 +11,23 @@ function splitList(v: string | undefined): string[] {
   return (v || '').split(';').map((s) => s.trim()).filter(Boolean);
 }
 
+function parseTaskHistory(value: string | number | undefined): Task['verlauf'] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(String(value));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function importedTaskStand(row: CsvRow): string {
+  const current = String(row.AktuellerStand || '');
+  if (current) return current;
+  const description = String(row.Beschreibung || '');
+  const notes = String(row.Notiz || '');
+  if (description && notes) return `<h3>Beschreibung</h3>${description}<h3>Interne Notizen</h3>${notes}`;
+  return description || notes;
+}
+
 export function downloadTextFile(content: string, filename: string, mime: string): void {
   const blob = new Blob([content], { type: mime + ';charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -74,9 +91,9 @@ export async function buildExportCsv(): Promise<string> {
     data.tasks.forEach((t) => {
       rows.push({
         Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '', Farbe: t.farbe || '', TagesSortierung: t.tagesSortierung ?? 999,
-        Status: t.status || '', KontaktId: t.kontaktId || '', Beschreibung: t.beschreibung || '', ErstelltAm: t.erstelltAm || '',
+        Status: t.status || '', KontaktId: t.kontaktId || '', Anforderung: t.anforderung || '', AktuellerStand: t.aktuellerStand || '', Verlauf: JSON.stringify(t.verlauf || []), ErstelltAm: t.erstelltAm || '',
         AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '',
-        Notiz: t.notizen || '', Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'),
+        Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'),
       });
     });
     data.timeline.forEach((m) => {
@@ -203,9 +220,9 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
       perProject[pid].tasks.push({
         id: String(r.Id), titel: String(r.Titel || ''), faelligAm: String(r.Datum || ''),
         prioritaet: migratePrio(r.Prioritaet as string), farbe: (r.Farbe as Task['farbe']) || '', status: (r.Status as Task['status']) || 'offen',
-        kontaktId: String(r.KontaktId || ''), beschreibung: String(r.Beschreibung || ''),
+        kontaktId: String(r.KontaktId || ''), anforderung: String(r.Anforderung || ''), aktuellerStand: importedTaskStand(r),
         erstelltAm: (r.ErstelltAm as string) || '', abgeschlossenAm: (r.AbgeschlossenAm as string) || null,
-        afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), notizen: String(r.Notiz || ''),
+        afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), verlauf: parseTaskHistory(r.Verlauf),
         nr: Number.isFinite(nrRaw) ? nrRaw : 0, tagesSortierung: Number(r.TagesSortierung) || 999, commIds: splitList(r.VerknuepfteKommIds as string),
         doku: false, dokuErledigt: false,
       });

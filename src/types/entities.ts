@@ -73,6 +73,15 @@ export type TaskStatus = 'offen' | 'in Arbeit' | 'wartet' | 'erledigt';
 export type TaskPrio = 'must' | 'should' | 'could' | 'wont';
 export type TaskColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'gray';
 
+export interface TaskProgressEntry {
+  id: string;
+  datum: string;
+  titel: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Task {
   id: string;
   nr: number;
@@ -85,11 +94,18 @@ export interface Task {
   status: TaskStatus;
   wartetAuf: string;
   kontaktId: string;
-  beschreibung: string; // RTF html
-  notizen: string; // RTF html
+  anforderung?: string; // RTF html
+  aktuellerStand?: string; // RTF html
+  verlauf?: TaskProgressEntry[];
+  /** @deprecated Wird beim Laden in aktuellerStand migriert. */
+  beschreibung?: string;
+  /** @deprecated Wird beim Laden in aktuellerStand migriert. */
+  notizen?: string;
   afns: string[];
   commIds: string[];
   fremdverknuepfung?: string;
+  ticketsystemVerknuepfung?: string;
+  teilprojekt?: string;
   erstelltAm: string; // ISO datetime
   abgeschlossenAm: string | null; // ISO datetime
   doku: boolean;

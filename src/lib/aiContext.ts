@@ -12,7 +12,7 @@ export function buildDailyBriefingContext(dashboardData: DashboardData | null): 
     lines.push('Offene Aufgaben (alle Projekte, aktiv zu bearbeiten):');
     tasks.forEach((t) => {
       const overdue = t.faelligAm && t.faelligAm < todayStr();
-      const desc = htmlToPlainText(t.beschreibung);
+      const desc = htmlToPlainText(t.aktuellerStand || t.anforderung);
       lines.push(
         `- [${t.projectName}] ${t.titel} | Fällig: ${t.faelligAm ? fmtDate(t.faelligAm) : 'kein Datum'}${overdue ? ' (ÜBERFÄLLIG)' : ''}${desc ? ' — ' + desc : ''}`,
       );
@@ -108,12 +108,13 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
     lines.push('Aufgaben:');
     data.tasks.forEach((t) => {
       const contact = data.contacts.find((x) => x.id === t.kontaktId);
-      const beschreibungText = htmlToPlainText(t.beschreibung);
-      const notizenText = htmlToPlainText(t.notizen);
+      const anforderungText = htmlToPlainText(t.anforderung);
+      const standText = htmlToPlainText(t.aktuellerStand);
+      const verlaufText = (t.verlauf || []).slice().sort((a, b) => b.datum.localeCompare(a.datum)).map((entry) => `${fmtDate(entry.datum)} ${entry.titel}: ${htmlToPlainText(entry.content)}`).join(' | ');
       const afnText = t.afns && t.afns.length ? ` [AFN: ${t.afns.join(', ')}]` : '';
       const wartetText = t.status === 'wartet' && t.wartetAuf ? `, wartet auf: ${t.wartetAuf}` : '';
       lines.push(
-        `- [${t.status}] ${t.titel}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${wartetText}${contact ? `, Ansprechpartner: ${contact.name}` : ''}${beschreibungText ? ' — ' + beschreibungText : ''}${notizenText ? ` [Interne Notiz: ${notizenText}]` : ''}`,
+        `- [${t.status}] ${t.titel}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${wartetText}${contact ? `, Ansprechpartner: ${contact.name}` : ''}${anforderungText ? ` | Anforderung: ${anforderungText}` : ''}${standText ? ` | Aktueller Stand: ${standText}` : ''}${verlaufText ? ` | Verlauf: ${verlaufText}` : ''}`,
       );
     });
   }

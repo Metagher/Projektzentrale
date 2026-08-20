@@ -81,6 +81,19 @@
 .task-external-link a,.task-external-link-inline{display:inline-flex;align-items:center;padding:3px 7px;color:#fff;background:#000;border:1px solid #000;border-radius:5px;text-decoration:none;font-weight:600;}
 .task-external-link a:hover,.task-external-link-inline:hover{color:#000;background:#fff;}
 .task-external-link-inline{margin-left:6px;padding:1px 5px;font-size:10px;vertical-align:middle;}
+.task-subproject-filters{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0 0 12px;padding:8px 10px;background:#fff;border:1px solid var(--line-soft);border-radius:8px;}
+.task-subproject-filters>span{margin-right:2px;color:var(--ink-soft);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+.task-subproject-filters .btn.active{color:#fff;background:#000;border-color:#000;}
+.badge.teilprojekt{color:#fff;background:var(--violet);}
+.task-progress-history{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper-raised);}
+.task-progress-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
+.task-progress-history-head>div{display:flex;flex-direction:column;gap:2px;}
+.task-progress-history-head small{color:var(--ink-soft);font-size:10px;}
+.task-progress-editor{margin-bottom:12px;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--paper);}
+.task-progress-entry{padding:9px 0;border-top:1px solid var(--line-soft);}
+.task-progress-entry .doc-section-head>div:first-child{display:flex;align-items:baseline;gap:8px;}
+.task-progress-entry time{color:var(--ink-soft);font-size:10px;}
+.task-progress-entry .rtf-content{margin-top:5px;font-size:12px;}
 .settings-validation{margin-top:30px;scroll-margin-top:20px;}
 .validation-summary{display:flex;align-items:center;justify-content:space-between;gap:20px;}
 .validation-summary h3{margin:0 0 5px;font-size:15px;}

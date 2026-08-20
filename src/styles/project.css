@@ -1,8 +1,13 @@
 /* Project header */
 .project-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;}
+.project-header-main{width:min(100%,900px);}
 .project-header h2{font-size:26px;}
 .project-header .sub{color:var(--ink-soft);font-size:13px;margin-top:3px;}
 .project-header .code{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber-deep);}
+.project-info-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:10px;border-top:1px solid var(--line-soft);}
+.project-info-head strong{font-size:11px;letter-spacing:.06em;text-transform:uppercase;}
+.project-info-content{margin-top:6px;}
+.project-info-content .rtf-field-preview{min-height:42px;background:var(--paper-raised);}
 
 .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:22px;flex-wrap:wrap;}
 .tab-btn{

@@ -36,5 +36,5 @@ export const CSV_COLUMNS = [
   'Email', 'Notiz', 'Datum', 'Kanal', 'KontaktId', 'Betreff', 'OberpunktId', 'Inhalt',
   'AktualisiertAm', 'Prioritaet', 'AbgeschlossenAm', 'AFN', 'WartetAuf', 'Revision',
   'AktuelleVersion', 'Nr', 'Farbe', 'TagesSortierung', 'VerknuepfteAufgabenIds', 'VerknuepfteKommIds',
-  'BereichId',
+  'BereichId', 'Anforderung', 'AktuellerStand', 'Verlauf',
 ] as const;

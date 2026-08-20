@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 import { useProjectUiStore } from '../../../store/projectUiStore';
 import { useDataStore } from '../../../store/dataStore';
 import { useModalStore } from '../../../store/modalStore';
@@ -38,8 +38,18 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<BoardColumn | null>(null);
   const [dragOverPerson, setDragOverPerson] = useState<string | null>(null);
+  const [teilprojektFilter, setTeilprojektFilter] = useState('');
 
-  const filteredTasks = applyProjectTaskFilters(data.tasks, projectTaskFilter);
+  const teilprojekte = Array.from(new Set(data.tasks.map((task) => task.teilprojekt?.trim()).filter((value): value is string => !!value)))
+    .sort((a, b) => a.localeCompare(b, 'de'));
+
+  useEffect(() => { setTeilprojektFilter(''); }, [project.id]);
+  useEffect(() => {
+    if (teilprojektFilter && !teilprojekte.includes(teilprojektFilter)) setTeilprojektFilter('');
+  }, [teilprojektFilter, teilprojekte]);
+
+  const filteredTasks = applyProjectTaskFilters(data.tasks, projectTaskFilter)
+    .filter((task) => !teilprojektFilter || task.teilprojekt?.trim() === teilprojektFilter);
   const tasksByColumn = COLUMNS.reduce<Record<BoardColumn, Task[]>>((groups, column) => {
     groups[column.key] = filteredTasks
       .filter((task) => columnForStatus(task.status) === column.key)
@@ -47,7 +57,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
     return groups;
   }, { offen: [], wartet: [], erledigt: [] });
   const editingTask = editingTaskId ? data.tasks.find((task) => task.id === editingTaskId) : undefined;
-  const filterActive = !!(projectTaskFilter.kontaktId || projectTaskFilter.von || projectTaskFilter.bis);
+  const filterActive = !!(projectTaskFilter.kontaktId || projectTaskFilter.von || projectTaskFilter.bis || teilprojektFilter);
   const visibleColumns = showCompletedKanban ? COLUMNS : COLUMNS.filter((column) => column.key !== 'erledigt');
   const waitingGroups = tasksByColumn.wartet.reduce<{ key: string; label: string; person: string; tasks: Task[] }[]>((groups, task) => {
     const person = (task.wartetAuf || '').trim();
@@ -134,6 +144,15 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
       </div>
       {showNewTaskForm && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Neue Aufgabe"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Aufgabe anlegen</span><strong>Neue Aufgabe · {project.name}</strong></div></div><ProjectNewTaskForm projectId={project.id} data={data} /></div></div>}
       {showTaskFilters && <ProjectTaskFilterBar contacts={data.contacts} />}
+      {teilprojekte.length > 0 && (
+        <div className="task-subproject-filters" aria-label="Quickfilter nach Teilprojekt">
+          <span>Teilprojekte</span>
+          <button className={`btn secondary small${teilprojektFilter === '' ? ' active' : ''}`} onClick={() => setTeilprojektFilter('')}>Alle</button>
+          {teilprojekte.map((name) => (
+            <button key={name} className={`btn secondary small${teilprojektFilter === name ? ' active' : ''}`} onClick={() => setTeilprojektFilter(name)}>{name}</button>
+          ))}
+        </div>
+      )}
       {editingTask && (
         <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten">
           <div className="task-edit-dialog">

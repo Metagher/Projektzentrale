@@ -48,7 +48,7 @@ export default function DokumentationTab({ project, data }: { project: Project; 
       id: uid(),
       datum: task.abgeschlossenAm?.slice(0, 10) || todayStr(),
       titel: task.titel,
-      content: task.beschreibung || '',
+      content: task.aktuellerStand || task.anforderung || '',
       afns: task.afns || [],
       createdAt: now,
       updatedAt: now,

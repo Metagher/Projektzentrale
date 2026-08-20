@@ -6,8 +6,9 @@ import { slug } from '../../lib/format';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
+import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
 import type { TaskWithMeta } from '../../store/dataStore';
-import type { TaskColor, TaskStatus } from '../../types/entities';
+import type { TaskColor, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 interface Props {
   task: TaskWithMeta;
@@ -31,10 +32,15 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const [kontaktId, setKontaktId] = useState(task.kontaktId || '');
   const [doku, setDoku] = useState(task.doku);
   const [wartetAuf, setWartetAuf] = useState(task.wartetAuf || '');
-  const [beschreibung, setBeschreibung] = useState(task.beschreibung || '');
-  const [notizen, setNotizen] = useState(task.notizen || '');
+  const [anforderung, setAnforderung] = useState(task.anforderung || '');
+  const [aktuellerStand, setAktuellerStand] = useState(task.aktuellerStand || '');
+  const [verlauf, setVerlauf] = useState<TaskProgressEntry[]>(task.verlauf || []);
   const [afns, setAfns] = useState(task.afns || []);
   const [fremdverknuepfung, setFremdverknuepfung] = useState(task.fremdverknuepfung || '');
+  const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState(task.ticketsystemVerknuepfung || '');
+  const [teilprojekt, setTeilprojekt] = useState(task.teilprojekt || '');
+  const teilprojekte = Array.from(new Set((useDataStore((s) => s.cache[task.projectId]?.tasks) || []).map((item) => item.teilprojekt?.trim()).filter((value): value is string => !!value)))
+    .sort((a, b) => a.localeCompare(b, 'de'));
 
   async function handleSave() {
     const trimmed = titel.trim();
@@ -57,10 +63,13 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
       faelligAm,
       kontaktId,
-      beschreibung,
-      notizen,
+      anforderung,
+      aktuellerStand,
+      verlauf,
       afns,
       fremdverknuepfung: fremdverknuepfung.trim(),
+      ticketsystemVerknuepfung: ticketsystemVerknuepfung.trim(),
+      teilprojekt: teilprojekt.trim(),
       abgeschlossenAm,
       doku,
     });
@@ -119,13 +128,23 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
         <input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://app.asana.com/…" />
       </div>
       <div className="field">
-        <label>Beschreibung</label>
-        <RtfField value={beschreibung} onChange={setBeschreibung} title="Beschreibung" placeholder="Klicken, um eine Beschreibung zu erfassen…" />
+        <label>Ticketsystem-Verknüpfung</label>
+        <input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" />
       </div>
       <div className="field">
-        <label>Interne Notizen</label>
-        <RtfField value={notizen} onChange={setNotizen} title="Interne Notizen" placeholder="Klicken, um interne Notizen zu erfassen…" />
+        <label>Teilprojekt</label>
+        <input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-dashboard-${task.projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" />
+        <datalist id={`teilprojekte-dashboard-${task.projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist>
       </div>
+      <div className="field">
+        <label>Anforderung</label>
+        <RtfField value={anforderung} onChange={setAnforderung} title="Anforderung" placeholder="Was wird benötigt und welche Kriterien müssen erfüllt sein?" />
+      </div>
+      <div className="field">
+        <label>Aktueller Stand</label>
+        <RtfField value={aktuellerStand} onChange={setAktuellerStand} title="Aktueller Stand" placeholder="Was ist aktuell umgesetzt, offen oder blockiert?" />
+      </div>
+      <TaskProgressHistoryField value={verlauf} onChange={setVerlauf} />
       <AfnChipsField value={afns} onChange={setAfns} />
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn small" onClick={handleSave}>

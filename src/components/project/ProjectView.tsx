@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
 import { useAiStore } from '../../store/aiStore';
@@ -11,6 +11,7 @@ import UpdateTab from './tabs/UpdateTab';
 import KiSucheTab from './tabs/KiSucheTab';
 import AuswertungTab from './tabs/AuswertungTab';
 import { ProjectUiScopeProvider, type ProjectUiScope } from '../../store/projectUiStore';
+import RtfField from '../shared/RtfField';
 
 const STATUS_LABELS: Record<string, string> = { aktiv: 'Aktiv', pausiert: 'Pausiert', abgeschlossen: 'Abgeschlossen' };
 
@@ -27,6 +28,8 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
   const projects = useDataStore((s) => s.projects);
   const cache = useDataStore((s) => s.cache);
   const ensureProjectData = useDataStore((s) => s.ensureProjectData);
+  const updateProject = useDataStore((s) => s.updateProject);
+  const [projectInfoVisible, setProjectInfoVisible] = useState(true);
 
   const project = projects?.find((p) => p.id === selectedId);
   const data = selectedId ? cache[selectedId] : undefined;
@@ -35,6 +38,8 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
   useEffect(() => {
     if (selectedId) ensureProjectData(selectedId);
   }, [selectedId, ensureProjectData]);
+
+  useEffect(() => { setProjectInfoVisible(true); }, [selectedId]);
 
   useEffect(() => {
     if (projectId === undefined && projects && !project) goTo('dashboard');
@@ -66,10 +71,26 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
   return (
     <ProjectUiScopeProvider scope={scopeKey}><div className="main-inner">
       <div className="project-header">
-        <div>
+        <div className="project-header-main">
           <div className="code">{projectCode(project)}</div>
           <h2>{project.name}</h2>
           <div className="sub"><span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span></div>
+          <div className="project-info-head">
+            <strong>Projektinfo</strong>
+            <button className="icon-btn" onClick={() => setProjectInfoVisible((visible) => !visible)} aria-expanded={projectInfoVisible}>
+              {projectInfoVisible ? 'Ausblenden' : 'Einblenden'}
+            </button>
+          </div>
+          {projectInfoVisible && (
+            <div className="project-info-content">
+              <RtfField
+                value={project.beschreibung || ''}
+                onChange={(beschreibung) => updateProject(project.id, { beschreibung })}
+                title="Projektinfo bearbeiten"
+                placeholder="Projektinfo direkt hier eingeben…"
+              />
+            </div>
+          )}
         </div>
       </div>
       <div className="tabs">

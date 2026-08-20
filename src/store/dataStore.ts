@@ -4,7 +4,7 @@ import { useConnectionStore } from './connectionStore';
 import { DEFAULT_DOC_SECTIONS } from '../lib/constants';
 import { DEFAULT_TASK_COLOR_LABELS, DEFAULT_TASK_COLOR_ORDER, compareTaskColors, compareWaitingPerson, normalizeTaskColorLabels, normalizeTaskColorOrder, type TaskColorLabels } from '../lib/taskColors';
 import { isDefaultWorkday, type WorkdayOverrides } from '../lib/workdays';
-import { migratePrio } from '../lib/migrations';
+import { migratePrio, migrateTaskContent } from '../lib/migrations';
 import { hasEchtlauf, todayStr, uid } from '../lib/format';
 import { effectiveCustomerOrder, groupProjectsByCustomer } from '../lib/projectGroups';
 import type {
@@ -246,11 +246,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     let migrated = false;
     tasks = tasks.map((t) => {
       const fixed = migratePrio(t.prioritaet);
-      if (fixed !== t.prioritaet) {
+      const contentMigration = migrateTaskContent(t);
+      if (fixed !== t.prioritaet || contentMigration.changed) {
         migrated = true;
-        return { ...t, prioritaet: fixed };
+        return { ...contentMigration.task, prioritaet: fixed };
       }
-      return t;
+      return contentMigration.task;
     });
     if (migrated) await sSet(sb, 'tasks:' + id, tasks);
     const projectCache: ProjectCache = {
