@@ -274,8 +274,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .task-color-gray, .task-color-border-gray { --task-mark: #777; }
 .task-color-swatch { display: inline-block; width: 11px; height: 11px; flex: 0 0 11px; margin-right: 5px; vertical-align: -1px; background: var(--task-mark, transparent); border: 1px solid rgba(0,0,0,.18); border-radius: 50%; }
 .task-color-none { background: #fff; border: 1px dashed #777; }
-.task-color-select { display: inline-flex; align-items: center; gap: 3px; min-width: 142px; }
-.task-color-select select { min-width: 118px; padding: 5px 7px; }
+.task-color-select { display: inline-flex; align-items: center; flex-wrap:wrap; gap: 5px; }
 .agg-row[class*="task-color-border-"] { border-left: 5px solid var(--task-mark); }
 .doku-list-row[class*="task-color-border-"] { border-left: 5px solid var(--task-mark); }
 .cal-task[class*="task-color-border-"] { border-left-color: var(--task-mark); }

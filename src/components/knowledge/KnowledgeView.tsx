@@ -4,6 +4,8 @@ import { useAiStore } from '../../store/aiStore';
 import { useModalStore } from '../../store/modalStore';
 import { fmtDateTime, htmlToPlainText } from '../../lib/format';
 import RtfField from '../shared/RtfField';
+import AfnChipsField from '../shared/AfnChipsField';
+import AfnChipsView from '../shared/AfnChipsView';
 import type { KnowledgeAiEntry, KnowledgeManualEntry } from '../../types/entities';
 
 function daysSince(iso: string | null): number {
@@ -11,9 +13,9 @@ function daysSince(iso: string | null): number {
   return (Date.now() - new Date(iso).getTime()) / 86400000;
 }
 
-function kbMatchesSearch(entry: { titel: string; kategorie: string; inhalt: string; projekte?: string[] }, q: string): boolean {
+function kbMatchesSearch(entry: { titel: string; kategorie: string; inhalt: string; projekte?: string[]; afns?: string[] }, q: string): boolean {
   if (!q) return true;
-  const hay = (entry.titel + ' ' + entry.kategorie + ' ' + htmlToPlainText(entry.inhalt) + ' ' + (entry.projekte || []).join(' ')).toLowerCase();
+  const hay = (entry.titel + ' ' + entry.kategorie + ' ' + htmlToPlainText(entry.inhalt) + ' ' + (entry.projekte || []).join(' ') + ' ' + (entry.afns || []).join(' ')).toLowerCase();
   return hay.includes(q.toLowerCase());
 }
 
@@ -40,6 +42,7 @@ export default function KnowledgeView() {
   const [newTitel, setNewTitel] = useState('');
   const [newKategorie, setNewKategorie] = useState('');
   const [newInhalt, setNewInhalt] = useState('');
+  const [newAfns, setNewAfns] = useState<string[]>([]);
 
   useEffect(() => {
     ensureLoaded();
@@ -71,10 +74,11 @@ export default function KnowledgeView() {
       await alert('Bitte einen Titel angeben.');
       return;
     }
-    await addManual({ titel, kategorie: newKategorie.trim() || 'Allgemein', inhalt: newInhalt });
+    await addManual({ titel, kategorie: newKategorie.trim() || 'Allgemein', inhalt: newInhalt, afns: newAfns });
     setNewTitel('');
     setNewKategorie('');
     setNewInhalt('');
+    setNewAfns([]);
   }
 
   async function handleDelete(id: string, typ: 'manual' | 'ai') {
@@ -135,6 +139,7 @@ export default function KnowledgeView() {
           <label>Inhalt</label>
           <RtfField value={newInhalt} onChange={setNewInhalt} title="Inhalt" placeholder="Klicken, um Wissen zu erfassen…" />
         </div>
+        <div className="field"><label>Verknüpfte AFN-Nummer(n)</label><AfnChipsField value={newAfns} onChange={setNewAfns} /></div>
         <div className="btn-row">
           <button className="btn" onClick={handleAddManual}>
             Hinzufügen
@@ -177,6 +182,7 @@ export default function KnowledgeView() {
                     <span className={`kb-source-tag ${e.typ}`}>{e.typ === 'manual' ? 'Eigener Eintrag' : 'KI'}</span>
                   </div>
                   <div className="rtf-content" dangerouslySetInnerHTML={{ __html: e.inhalt || '' }} />
+                  {!!e.afns?.length && <div className="kb-afns"><AfnChipsView afns={e.afns} /></div>}
                   {'projekte' in e && e.projekte && e.projekte.length > 0 && (
                     <div className="kb-projects">Quelle: {e.projekte.join(', ')}</div>
                   )}
@@ -208,7 +214,7 @@ function KbEditCard({
   onDelete,
 }: {
   entry: KnowledgeManualEntry;
-  onSave: (patch: { titel: string; kategorie: string; inhalt: string }) => Promise<void>;
+  onSave: (patch: { titel: string; kategorie: string; inhalt: string; afns: string[] }) => Promise<void>;
   onCancel: () => void;
   onDelete: () => void;
 }) {
@@ -216,6 +222,7 @@ function KbEditCard({
   const [titel, setTitel] = useState(entry.titel);
   const [kategorie, setKategorie] = useState(entry.kategorie || '');
   const [inhalt, setInhalt] = useState(entry.inhalt || '');
+  const [afns, setAfns] = useState(entry.afns || []);
 
   async function handleSave() {
     const trimmed = titel.trim();
@@ -223,7 +230,7 @@ function KbEditCard({
       await alert('Bitte einen Titel angeben.');
       return;
     }
-    await onSave({ titel: trimmed, kategorie: kategorie.trim() || 'Allgemein', inhalt });
+    await onSave({ titel: trimmed, kategorie: kategorie.trim() || 'Allgemein', inhalt, afns });
   }
 
   return (
@@ -239,6 +246,7 @@ function KbEditCard({
         </div>
       </div>
       <RtfField value={inhalt} onChange={setInhalt} title="Inhalt" placeholder="Klicken, um Wissen zu erfassen…" />
+      <div className="field"><label>Verknüpfte AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div>
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn small" onClick={handleSave}>
           Speichern

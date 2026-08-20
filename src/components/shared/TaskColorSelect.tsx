@@ -4,13 +4,8 @@ import type { TaskColor } from '../../types/entities';
 
 export default function TaskColorSelect({ value, onChange }: { value: TaskColor | ''; onChange: (value: TaskColor | '') => void }) {
   const labels = useDataStore((state) => state.taskColorLabels);
-  return (
-    <label className="task-color-select">
-      <span className={`task-color-swatch${value ? ` task-color-${value}` : ' task-color-none'}`} />
-      <select value={value} onChange={(event) => onChange(event.target.value as TaskColor | '')} aria-label="Farbmarkierung">
-        <option value="">Keine Farbe</option>
-        {TASK_COLORS.map((color) => <option key={color} value={color}>{labels[color]}</option>)}
-      </select>
-    </label>
-  );
+  return <div className="task-color-select" role="group" aria-label="Farbmarkierung">
+    <button type="button" className={`task-color-choice none${value === '' ? ' active' : ''}`} onClick={() => onChange('')} title="Keine Farbe" aria-label="Keine Farbe">×</button>
+    {TASK_COLORS.map((color) => <button type="button" key={color} className={`task-color-choice task-color-${color}${value === color ? ' active' : ''}`} onClick={() => onChange(color)} title={labels[color]} aria-label={labels[color]} />)}
+  </div>;
 }

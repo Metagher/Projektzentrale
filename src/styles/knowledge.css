@@ -20,3 +20,4 @@
 .kb-projects{font-size:11px;color:var(--ink-soft);margin-top:6px;}
 .kb-search{width:100%;max-width:340px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px;background:var(--field-bg);color:var(--ink);}
 .kb-search:focus{border-color:var(--focus);outline:none;}
+.kb-afns{margin-top:8px;}

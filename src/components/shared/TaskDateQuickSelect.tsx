@@ -11,9 +11,14 @@ export default function TaskDateQuickSelect({ value, onChange }: { value: string
   nextMonday.setDate(today.getDate() + daysToMonday);
   const nextFriday = new Date(nextMonday);
   nextFriday.setDate(nextMonday.getDate() + 4);
+  const thisFriday = new Date(today);
+  let daysToFriday = 5 - today.getDay();
+  if (daysToFriday < 0) daysToFriday += 7;
+  thisFriday.setDate(today.getDate() + daysToFriday);
   const options = [
     { label: 'Heute', date: todayStr() },
     { label: 'Nächster Arbeitstag', date: localDateKey(workday) },
+    { label: 'Ende dieser Woche (Fr)', date: localDateKey(thisFriday) },
     { label: 'Nächste Woche (Mo)', date: localDateKey(nextMonday) },
     { label: 'Ende nächste Woche (Fr)', date: localDateKey(nextFriday) },
   ];

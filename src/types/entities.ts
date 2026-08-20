@@ -146,6 +146,7 @@ export interface KnowledgeManualEntry {
   titel: string;
   kategorie: string;
   inhalt: string; // RTF html
+  afns?: string[];
   typ: 'manual';
 }
 
@@ -155,6 +156,7 @@ export interface KnowledgeAiEntry {
   kategorie: string;
   inhalt: string; // RTF html
   projekte: string[];
+  afns?: string[];
   typ: 'ai';
 }
 
