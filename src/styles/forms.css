@@ -84,7 +84,7 @@
 .task-subproject-filters{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0 0 12px;padding:8px 10px;background:#fff;border:1px solid var(--line-soft);border-radius:8px;}
 .task-subproject-filters>span{margin-right:2px;color:var(--ink-soft);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
 .task-subproject-filters .btn.active{color:#fff;background:#000;border-color:#000;}
-.badge.teilprojekt{color:#fff;background:var(--violet);}
+.badge.teilprojekt{color:#fff;background:#111;border:1px solid #111;}
 .task-progress-history{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper-raised);}
 .task-progress-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
 .task-progress-history-head>div{display:flex;flex-direction:column;gap:2px;}
