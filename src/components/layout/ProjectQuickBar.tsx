@@ -74,8 +74,7 @@ export default function ProjectQuickBar() {
           ))}</div>
         </div>)}
       </div>
-      <AfnQuickSearch />
-      <TaskFullTextSearch />
+      <div className="top-searches" aria-label="Schnellsuchen"><AfnQuickSearch /><TaskFullTextSearch /></div>
       <div className="top-admin-nav">
         <button onClick={() => window.location.reload()} title="App vollständig aktualisieren" aria-label="App aktualisieren">↻</button>
         {canInstall && <button onClick={install} title="App auf diesem Gerät installieren" aria-label="App installieren">⇩</button>}
