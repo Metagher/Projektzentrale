@@ -5,25 +5,29 @@ import { localDateKey, nextWorkday } from '../../lib/workdays';
 import { commLinkLabel } from '../../lib/format';
 import LinkChipsView from '../shared/LinkChipsView';
 import AfnChipsView from '../shared/AfnChipsView';
-import type { Contact, ProjectCache, Task } from '../../types/entities';
+import type { Contact, Project, ProjectCache, Task } from '../../types/entities';
 import { toExternalHref } from '../../lib/externalLinks';
+import { exportTaskToPdf } from '../../lib/taskPdfExport';
+import { useModalStore } from '../../store/modalStore';
 
 interface Props {
   task: Task;
+  project: Project;
   contact: Contact | undefined;
   data: ProjectCache;
   onDelete: () => void;
 }
 
-export default function ProjectTaskRow({ task, contact, data, onDelete }: Props) {
+export default function ProjectTaskRow({ task, project, contact, data, onDelete }: Props) {
   const { setEditingTaskId, jumpToComm } = useProjectUiStore();
   const colorLabels = useDataStore((state) => state.taskColorLabels);
   const dashboardData = useDataStore((state) => state.dashboardData);
   const workdayOverrides = useDataStore((state) => state.workdayOverrides);
+  const alert = useModalStore((state) => state.alert);
   const nextWorkdayKey = localDateKey(nextWorkday(new Date(`${todayStr()}T12:00:00`), workdayOverrides));
   const isPlannedDay = task.faelligAm === todayStr() || task.faelligAm === nextWorkdayKey;
   const dayTasks = isPlannedDay ? (dashboardData?.tasksWithDate || [])
-    .filter((item) => item.faelligAm === task.faelligAm)
+    .filter((item) => item.faelligAm === task.faelligAm && (item.tagesSortierung ?? 999) < 999)
     .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr) : [];
   const dailyRank = dayTasks.findIndex((item) => item.id === task.id) + 1;
   const externalHref = toExternalHref(task.fremdverknuepfung);
@@ -73,6 +77,9 @@ export default function ProjectTaskRow({ task, contact, data, onDelete }: Props)
           </div>
         </div>
         <div className="actions" data-no-open>
+          <button className="icon-btn" onClick={async () => { try { exportTaskToPdf(project, task, contact); } catch (error) { await alert((error as Error).message); } }}>
+            PDF
+          </button>
           <button className="icon-btn" onClick={onDelete}>
             Löschen
           </button>

@@ -479,9 +479,14 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       if (!byProject.has(task.projectId)) byProject.set(task.projectId, new Map());
       byProject.get(task.projectId)!.set(task.id, index + 1);
     });
-    for (const [projectId, ranks] of byProject) {
+    const projectIds = new Set((get().dashboardData?.tasksWithDate || []).filter((task) => task.faelligAm === date).map((task) => task.projectId));
+    orderedTasks.forEach((task) => projectIds.add(task.projectId));
+    for (const projectId of projectIds) {
+      const ranks = byProject.get(projectId) || new Map<string, number>();
       const data = await get().ensureProjectData(projectId);
-      const tasks = data.tasks.map((task) => ranks.has(task.id) ? { ...task, tagesSortierung: ranks.get(task.id) } : task);
+      const tasks = data.tasks.map((task) => task.faelligAm === date
+        ? { ...task, tagesSortierung: ranks.get(task.id) ?? 999 }
+        : task);
       await persistTasks(get, set, projectId, tasks);
     }
     await get().loadDashboardData();

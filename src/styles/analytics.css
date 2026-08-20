@@ -30,13 +30,8 @@
 .project-analysis-header .eyebrow{margin-bottom:4px;color:#777;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;}
 .project-analysis-header h3{font-size:24px;}
 .project-analysis-header p{margin:5px 0 0;color:var(--ink-soft);font-size:12px;}
-.project-analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.project-analysis-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;}
 .analytics-detail-card{padding:15px;background:#fff;border:1px solid var(--line-soft);border-radius:10px;box-shadow:var(--shadow-sm);}
-.analytics-coverage{display:flex;flex-direction:column;gap:12px;}
-.analytics-coverage>div>div:first-child{display:flex;justify-content:space-between;gap:10px;font-size:11px;}
-.analytics-coverage small{display:block;margin-top:3px;color:var(--ink-soft);font-size:9px;text-align:right;}
-.coverage-track{height:6px;margin-top:4px;overflow:hidden;background:#e5e5e5;border-radius:10px;}
-.coverage-track i{display:block;height:100%;background:#111;border-radius:10px;}
 .subproject-analysis-list{display:flex;flex-direction:column;gap:10px;}
 .subproject-analysis-list>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;}
 .subproject-analysis-list strong{overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap;}

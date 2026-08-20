@@ -317,6 +317,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .daily-planner-task { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; min-width: 0; padding: 8px 10px; background: #f4f4f4; border: 1px solid #ddd; border-left: 5px solid var(--task-mark, #111); border-radius: 9px; cursor: grab; }
 .daily-planner-task.dragging { opacity: .35; }
 .daily-rank { display: grid; place-items: center; min-width: 31px; height: 28px; color: #fff; background: #111; border-radius: 7px; font-size: 10px; font-weight: 900; }
+.daily-rank{padding:0;border:1px solid #111;cursor:pointer;}
+.daily-rank.unranked{color:#555;background:#fff;border-style:dashed;border-color:#999;cursor:default;}
 .daily-task-content { display: grid; min-width: 0; padding: 0; color: #111; background: transparent; border: 0; cursor: pointer; text-align: left; }
 .daily-task-content strong { overflow: hidden; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .daily-task-content small { color: #777; font-size: 9.5px; }

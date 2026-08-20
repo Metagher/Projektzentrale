@@ -94,6 +94,17 @@
 .task-progress-entry .doc-section-head>div:first-child{display:flex;align-items:baseline;gap:8px;}
 .task-progress-entry time{color:var(--ink-soft);font-size:10px;}
 .task-progress-entry .rtf-content{margin-top:5px;font-size:12px;}
+.task-form-tabs{display:flex;gap:3px;margin:0 0 14px;padding-bottom:7px;border-bottom:1px solid var(--line);}
+.task-form-tabs button{padding:7px 12px;color:var(--ink-soft);background:transparent;border:0;border-bottom:2px solid transparent;cursor:pointer;font-size:11px;font-weight:700;}
+.task-form-tabs button.active{color:var(--ink);border-bottom-color:#111;}
+.task-form-section{display:flex;flex-direction:column;gap:10px;}
+.task-date-quick-select{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.task-date-quick-select button{padding:4px 7px;color:#444;background:#f3f3f3;border:1px solid #ccc;border-radius:5px;cursor:pointer;font-size:9px;}
+.task-date-quick-select button:hover,.task-date-quick-select button.active{color:#fff;background:#111;border-color:#111;}
+.task-date-control{display:flex;flex-direction:column;align-items:stretch;min-width:280px;}
+.task-date-control>input{width:100%;}
+.task-basics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+@media(max-width:700px){.task-basics-grid{grid-template-columns:1fr;}}
 .settings-validation{margin-top:30px;scroll-margin-top:20px;}
 .validation-summary{display:flex;align-items:center;justify-content:space-between;gap:20px;}
 .validation-summary h3{margin:0 0 5px;font-size:15px;}

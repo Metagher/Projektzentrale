@@ -125,7 +125,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
         onDragStart={(event) => { setDraggedTaskId(task.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', task.id); }}
         onDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); setDragOverPerson(null); }}
       >
-        <ProjectTaskRow task={task} contact={data.contacts.find((contact) => contact.id === task.kontaktId)} data={data} onDelete={() => handleDelete(task.id)} />
+        <ProjectTaskRow task={task} project={project} contact={data.contacts.find((contact) => contact.id === task.kontaktId)} data={data} onDelete={() => handleDelete(task.id)} />
       </div>
     );
   }

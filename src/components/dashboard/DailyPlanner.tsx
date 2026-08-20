@@ -19,17 +19,22 @@ export default function DailyPlanner() {
   const tasks = allOpen
     .filter((task, index, list) => task.faelligAm === date && list.findIndex((item) => item.id === task.id) === index)
     .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr);
+  const rankedTasks = tasks.filter((task) => (task.tagesSortierung ?? 999) < 999);
 
   async function dropOn(targetId: string) {
     if (!draggedId || draggedId === targetId) return;
-    const next = [...tasks];
-    const sourceIndex = next.findIndex((task) => task.id === draggedId);
-    const targetIndex = next.findIndex((task) => task.id === targetId);
-    if (sourceIndex < 0 || targetIndex < 0) return;
-    const [moved] = next.splice(sourceIndex, 1);
-    next.splice(targetIndex, 0, moved);
+    const moved = tasks.find((task) => task.id === draggedId);
+    const targetRankIndex = rankedTasks.findIndex((task) => task.id === targetId);
+    if (!moved) return;
+    const next = rankedTasks.filter((task) => task.id !== draggedId);
+    const insertionIndex = targetRankIndex >= 0 ? Math.min(targetRankIndex, next.length) : next.length;
+    next.splice(insertionIndex, 0, moved);
     setDraggedId(null);
     await reorder(date, next);
+  }
+
+  async function removeRank(taskId: string) {
+    await reorder(date, rankedTasks.filter((task) => task.id !== taskId));
   }
 
   async function dropOnDay(targetDay: 'today' | 'tomorrow') {
@@ -63,13 +68,16 @@ export default function DailyPlanner() {
       </header>
       <div className="daily-planner-list">
         {tasks.length === 0 && <div className="kanban-empty">Keine Aufgaben für diesen Tag.</div>}
-        {tasks.map((task, index) => (
+        {tasks.map((task) => {
+          const rank = rankedTasks.findIndex((item) => item.id === task.id) + 1;
+          return (
           <div className={`daily-planner-task${draggedId === task.id ? ' dragging' : ''}${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} key={task.id} draggable onDragStart={(event) => { setDraggedId(task.id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => setDraggedId(null)} onDragOver={(event: DragEvent) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); dropOn(task.id); }}>
-            <span className="daily-rank">#{index + 1}</span>
+            <button className={`daily-rank${rank ? '' : ' unranked'}`} type="button" onClick={() => { if (rank) removeRank(task.id); }} title={rank ? 'Tagesrang entfernen und auf #X setzen' : 'Noch nicht eingeordnet – Aufgabe ziehen, um einen Rang zu vergeben'}>#{rank || 'X'}</button>
             <button className="daily-task-content" onClick={() => openTask(task)}><strong>{task.titel}</strong><small>{task.projectName}{task.status === 'wartet' ? ` · wartet auf ${task.wartetAuf}` : ''}</small></button>
             <span className="daily-drag" title="Ziehen zum Sortieren oder auf einen anderen Arbeitstag">⠿</span>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

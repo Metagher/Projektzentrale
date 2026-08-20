@@ -9,6 +9,7 @@ import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
 import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
+import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import type { ProjectCache, Task, TaskColor, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
@@ -19,6 +20,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const alert = useModalStore((s) => s.alert);
 
   const [titel, setTitel] = useState('');
+  const [activeSection, setActiveSection] = useState<'task' | 'basics'>('task');
   const [faelligAm, setFaelligAm] = useState('');
   const [farbe, setFarbe] = useState<TaskColor | ''>('');
   const [status, setStatus] = useState<TaskStatus>('offen');
@@ -39,10 +41,11 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   async function handleSave() {
     const trimmed = titel.trim();
     if (!trimmed) {
+      setActiveSection('task');
       await alert('Bitte einen Titel angeben.');
       return;
     }
-    if (status === 'wartet' && !wartetAuf) { await alert('Bitte auswählen, auf wen gewartet wird.'); return; }
+    if (status === 'wartet' && !wartetAuf) { setActiveSection('task'); await alert('Bitte auswählen, auf wen gewartet wird.'); return; }
     const partial: Omit<Task, 'id' | 'nr' | 'erstelltAm' | 'abgeschlossenAm'> = {
       titel: trimmed,
       faelligAm,
@@ -74,6 +77,8 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
           Einklappen
         </button>
       </div>
+      <nav className="task-form-tabs"><button type="button" className={activeSection === 'task' ? 'active' : ''} onClick={() => setActiveSection('task')}>Aufgabe</button><button type="button" className={activeSection === 'basics' ? 'active' : ''} onClick={() => setActiveSection('basics')}>Grunddaten</button></nav>
+      {activeSection === 'task' ? <div className="task-form-section">
       <div className="field-grid">
         <div className="field">
           <label>Titel</label>
@@ -82,6 +87,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
         <div className="field">
           <label>Fällig am</label>
           <input type="date" value={faelligAm} onChange={(e) => setFaelligAm(e.target.value)} />
+          <TaskDateQuickSelect value={faelligAm} onChange={setFaelligAm} />
         </div>
         <div className="field">
           <label>Status</label>
@@ -89,18 +95,6 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
             {TASK_STATUS.map((st) => (
               <option key={st} value={st}>
                 {st}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label>Ansprechpartner</label>
-          <select className="contact-select" value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}>
-            <option value="">— kein Ansprechpartner —</option>
-            {data.contacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.rolle ? ` (${c.rolle})` : ''}
               </option>
             ))}
           </select>
@@ -113,20 +107,6 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
           <select value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)}><option value="">Bitte auswählen</option>{waitingOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
         </div>
       )}
-      <div className="doku-check-field">
-        <label>
-          <input type="checkbox" checked={doku} onChange={(e) => setDoku(e.target.checked)} /> Für Dokumentation
-          vormerken (erscheint nach Erledigung im Reiter „Dokumentation")
-        </label>
-      </div>
-      <div className="field">
-        <label>Fremdverknüpfung</label>
-        <input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://app.asana.com/…" />
-      </div>
-      <div className="field">
-        <label>Ticketsystem-Verknüpfung</label>
-        <input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" />
-      </div>
       <div className="field">
         <label>Teilprojekt</label>
         <input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" />
@@ -141,14 +121,18 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
         <RtfField value={aktuellerStand} onChange={setAktuellerStand} title="Aktueller Stand" placeholder="Was ist aktuell umgesetzt, offen oder blockiert?" />
       </div>
       <TaskProgressHistoryField value={verlauf} onChange={setVerlauf} />
+      <div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div>
+      </div> : <div className="task-form-section"><div className="task-basics-grid">
+      <div className="field"><label>Ticket</label><input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" /></div>
+      <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
+      <div className="field"><label>Ansprechpartner</label><select className="contact-select" value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}><option value="">— kein Ansprechpartner —</option>{data.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rolle ? ` (${c.rolle})` : ''}</option>)}</select></div>
+      <div className="doku-check-field"><label><input type="checkbox" checked={doku} onChange={(e) => setDoku(e.target.checked)} /> Für Dokumentation vormerken</label></div>
+      </div>
       <div className="field">
         <label>AFN-Nummer(n)</label>
         <AfnChipsField value={afns} onChange={setAfns} />
       </div>
-      <div className="field">
-        <label>Verknüpfte Kommunikation</label>
-        <LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} />
-      </div>
+      </div>}
       <div className="btn-row">
         <button className="btn" onClick={handleSave}>
           Hinzufügen

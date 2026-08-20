@@ -36,7 +36,7 @@ export default function ProjectQuickBar() {
   const customerOrder = useDataStore((state) => state.customerOrder);
   const customerGroups = orderCustomerGroups(groupProjectsByCustomer(sorted), customerOrder);
   const todayTasks = dashboardData ? dashboardData.tasksWithDate
-    .filter((task, index, list) => task.faelligAm === todayStr() && list.findIndex((item) => item.id === task.id) === index)
+    .filter((task, index, list) => task.faelligAm === todayStr() && (task.tagesSortierung ?? 999) < 999 && list.findIndex((item) => item.id === task.id) === index)
     .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr) : [];
   const projectTodayRanks = todayTasks.slice(0, 3).reduce<Record<string, number[]>>((ranks, task, index) => {
     (ranks[task.projectId] ||= []).push(index + 1);
