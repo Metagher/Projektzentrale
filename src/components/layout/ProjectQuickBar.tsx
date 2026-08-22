@@ -51,6 +51,7 @@ export default function ProjectQuickBar() {
         <button draggable className={view === 'calendar' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'calendar', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('calendar')} title="Kalender – ziehen oder öffnen" aria-label="Kalender">▤</button>
         <button draggable className={view === 'knowledge' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'knowledge', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('knowledge')} title="Wissensdatenbank – ziehen oder öffnen" aria-label="Wissensdatenbank">◇</button>
         <button className={view === 'analytics' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('analytics')} title="Auswertung" aria-label="Auswertung">↗</button>
+        <button className={view === 'company-chatbot' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('company-chatbot')} title="Unternehmens-Chatbot" aria-label="Unternehmens-Chatbot">◉</button>
         {aiAvailable && <button className={view === 'ai' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('ai')} title="KI-Suche" aria-label="KI-Suche">✦</button>}
       </div>
       <span className="project-quickbar-label">Projekte</span>

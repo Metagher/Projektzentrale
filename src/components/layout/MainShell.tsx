@@ -19,6 +19,7 @@ const VIEW_COMPONENTS = {
   knowledge: KnowledgeView,
   analytics: AnalyticsView,
   'ai-settings': lazy(() => import('../ai/AiSettingsView')),
+  'company-chatbot': lazy(() => import('../chatbot/CompanyChatbotView')),
 } satisfies Record<View, ComponentType | LazyExoticComponent<ComponentType>>;
 
 function readPaneDrop(event: DragEvent): WorkspacePane | null {

@@ -25,6 +25,7 @@ export const PRIMARY_NAVIGATION: NavigationItem[] = [
   { view: 'knowledge', label: 'Wissensdatenbank', icon: '◇' },
   { view: 'analytics', label: 'Auswertung', icon: '↗' },
   { view: 'ai', label: 'KI-Suche', icon: '✦', requiresAi: true },
+  { view: 'company-chatbot', label: 'Unternehmens-Chatbot', icon: '◉' },
 ];
 
 export const SECONDARY_NAVIGATION: NavigationItem[] = [

@@ -10,7 +10,8 @@ export type View =
   | 'ai'
   | 'knowledge'
   | 'analytics'
-  | 'ai-settings';
+  | 'ai-settings'
+  | 'company-chatbot';
 
 export type DashboardTab = 'liste' | 'ohne-datum' | 'wartet' | 'erledigt';
 export interface WorkspacePane { view: 'dashboard' | 'calendar' | 'knowledge' | 'project'; selectedId: string | null; activeTab: string; }
