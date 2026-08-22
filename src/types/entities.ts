@@ -11,6 +11,8 @@ export interface Project {
   createdAt: string; // ISO
   aktuelleVersion: string;
   sortIndex: number;
+  /** Blendet ausschließlich den Button in der oberen Projektschnellwahl aus. */
+  quickbarHidden?: boolean;
 }
 
 export type ModuleCommercialStatus = 'vertrag' | 'nachlizenzierung';
@@ -25,6 +27,7 @@ export interface ErpModule {
   beschreibung: string;
   notizen: string;
   createdAt: string;
+  sortIndex: number;
 }
 
 /** Kaufmännische Zuordnung je Kunde; wird in alle Projekte desselben Kunden gespiegelt. */

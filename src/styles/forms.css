@@ -128,3 +128,4 @@
 .validation-area{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;}
 @media(max-width:700px){.validation-summary{align-items:stretch;flex-direction:column}.validation-row{grid-template-columns:1fr auto}.validation-area{grid-column:1/-1}}
 .task-edit-row{border-color:var(--focus);background:#182C20;}
+.module-parent-card>header[draggable="true"],.module-child-list article[draggable="true"]{cursor:grab}.module-parent-card>header.dragging,.module-child-list article.dragging{opacity:.4}.module-parent-card>header.drag-over-top,.module-child-list article.drag-over-top{box-shadow:inset 0 3px 0 #111}.module-parent-card>header.drag-over-bottom,.module-child-list article.drag-over-bottom{box-shadow:inset 0 -3px 0 #111}.module-drag-hint{float:left;margin-right:7px;color:var(--ink-soft);font-size:11px}.module-child-list article>div:first-child{display:block}.module-child-list article>div:first-child small{display:block;margin:3px 0 0 18px}

@@ -214,7 +214,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .project-admin-main { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .project-admin-main strong { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 14px; white-space: nowrap; }
 .project-admin-main .meta { margin-top: 2px; color: var(--ink-soft); font-size: 11.5px; }
-.project-admin-actions { display: flex; gap: 7px; }
+.project-admin-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 7px; }
+.quickbar-visibility-btn.hidden { color: #666; border-style: dashed; }
 .project-admin-row .stamp { color: #111; }
 .quick-version { display: grid; grid-template-columns: auto minmax(80px, 1fr); align-items: center; gap: 5px 8px; }
 .quick-version label { color: var(--ink-soft); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }

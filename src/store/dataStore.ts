@@ -121,6 +121,7 @@ interface DataStoreState {
   saveWaitingOptions: (options: string[]) => Promise<void>;
   toggleWorkday: (date: string) => Promise<void>;
   saveModule: (module: ErpModule) => Promise<void>;
+  reorderModule: (sourceId: string, targetId: string, placeAfter: boolean) => Promise<void>;
   deleteModule: (id: string) => Promise<void>;
   saveCustomerModule: (entry: CustomerModule) => Promise<void>;
   deleteCustomerModule: (kunde: string, moduleId: string) => Promise<void>;
@@ -192,8 +193,9 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<TimeEntry[]>(sb, 'time-entries'),
       sGet<ActiveTimer>(sb, 'active-timer'),
     ]);
-    const normalizedModules = (modules || []).map((module) => ({ id: module.id, name: module.name, parentId: module.parentId || null, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString() }));
-    const legacyModuleFields = (modules || []).some((module) => { const legacy = module as ErpModule & { kategorie?: string; hersteller?: string; dokumentationsLink?: string }; return module.parentId === undefined || legacy.kategorie !== undefined || legacy.hersteller !== undefined || legacy.dokumentationsLink !== undefined; });
+    const nextModuleIndex = new Map<string, number>();
+    const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
+    const legacyModuleFields = (modules || []).some((module) => { const legacy = module as ErpModule & { kategorie?: string; hersteller?: string; dokumentationsLink?: string }; return module.parentId === undefined || module.sortIndex === undefined || legacy.kategorie !== undefined || legacy.hersteller !== undefined || legacy.dokumentationsLink !== undefined; });
     if (legacyModuleFields) await sSet(sb, 'erp-modules', normalizedModules);
     const taskColorOrder = normalizeTaskColorOrder(storedColorOrder);
     const taskColorLabels = normalizeTaskColorLabels(storedColorLabels);
@@ -366,6 +368,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       createdAt: new Date().toISOString(),
       aktuelleVersion: '',
       sortIndex: maxSortIndex + 1,
+      quickbarHidden: false,
     };
     const next = [...projects, newP];
     set({ projects: next });
@@ -658,10 +661,25 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
 
   saveModule: async (module) => {
     const current = get().modules;
-    const modules = current.some((item) => item.id === module.id)
-      ? current.map((item) => item.id === module.id ? module : item)
-      : [...current, module];
-    modules.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    const exists = current.some((item) => item.id === module.id);
+    const saved = exists ? module : { ...module, sortIndex: Math.max(-1, ...current.filter((item) => item.parentId === module.parentId).map((item) => item.sortIndex)) + 1 };
+    const modules = exists ? current.map((item) => item.id === module.id ? saved : item) : [...current, saved];
+    set({ modules });
+    await sSet(client(), 'erp-modules', modules);
+  },
+
+  reorderModule: async (sourceId, targetId, placeAfter) => {
+    const current = get().modules;
+    const source = current.find((item) => item.id === sourceId);
+    const target = current.find((item) => item.id === targetId);
+    if (!source || !target || source.parentId !== target.parentId) return;
+    const siblings = current.filter((item) => item.parentId === source.parentId).sort((a, b) => a.sortIndex - b.sortIndex);
+    const sourceIndex = siblings.findIndex((item) => item.id === sourceId);
+    siblings.splice(sourceIndex, 1);
+    const targetIndex = siblings.findIndex((item) => item.id === targetId);
+    siblings.splice(placeAfter ? targetIndex + 1 : targetIndex, 0, source);
+    const order = new Map(siblings.map((item, index) => [item.id, index]));
+    const modules = current.map((item) => order.has(item.id) ? { ...item, sortIndex: order.get(item.id) as number } : item);
     set({ modules });
     await sSet(client(), 'erp-modules', modules);
   },

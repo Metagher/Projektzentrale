@@ -38,4 +38,5 @@ export const CSV_COLUMNS = [
   'AktuelleVersion', 'Nr', 'Farbe', 'TagesSortierung', 'VerknuepfteAufgabenIds', 'VerknuepfteKommIds',
   'BereichId', 'Anforderung', 'AktuellerStand', 'Verlauf', 'Teilprojekt',
   'AufgabeId', 'Start', 'Ende', 'DauerMinuten',
+  'SchnellwahlAusgeblendet',
 ] as const;

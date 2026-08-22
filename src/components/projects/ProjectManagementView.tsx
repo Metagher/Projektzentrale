@@ -115,6 +115,7 @@ export default function ProjectManagementView() {
   const createProject = useDataStore((state) => state.createProject);
   const reorderProjects = useDataStore((state) => state.reorderProjects);
   const reorderCustomerGroups = useDataStore((state) => state.reorderCustomerGroups);
+  const updateProject = useDataStore((state) => state.updateProject);
   const customerOrder = useDataStore((state) => state.customerOrder);
   const selectedId = useUiStore((state) => state.selectedId);
   const goTo = useUiStore((state) => state.goTo);
@@ -198,6 +199,7 @@ export default function ProjectManagementView() {
                   <QuickVersion project={project} />
                   <span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span>
                   <div className="project-admin-actions">
+                    <button className={`btn secondary small quickbar-visibility-btn${project.quickbarHidden ? ' hidden' : ''}`} onClick={() => updateProject(project.id, { quickbarHidden: !project.quickbarHidden })}>{project.quickbarHidden ? 'In Schnellwahl einblenden' : 'Aus Schnellwahl ausblenden'}</button>
                     <button className="btn secondary small" onClick={() => setEditingId(project.id)}>Stammdaten</button>
                     <button className="btn small" onClick={() => goTo('project', project.id)}>Projekt öffnen</button>
                   </div>

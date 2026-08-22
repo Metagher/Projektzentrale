@@ -32,7 +32,7 @@ export default function ProjectQuickBar() {
     event.dataTransfer.setData('application/x-projectzentrale-pane', JSON.stringify(pane));
   }
 
-  const sorted = projects || [];
+  const sorted = (projects || []).filter((project) => !project.quickbarHidden);
   const customerOrder = useDataStore((state) => state.customerOrder);
   const customerGroups = orderCustomerGroups(groupProjectsByCustomer(sorted), customerOrder);
   const todayTasks = dashboardData ? dashboardData.tasksWithDate
@@ -55,7 +55,7 @@ export default function ProjectQuickBar() {
       </div>
       <span className="project-quickbar-label">Projekte</span>
       <div className="project-quickbar-scroll">
-        {sorted.length === 0 && <span className="project-quickbar-empty">Noch keine Projekte</span>}
+        {sorted.length === 0 && <span className="project-quickbar-empty">Keine Projekte in der Schnellwahl</span>}
         {customerGroups.map((group) => <div className="project-quickbar-group" key={group.key}>
           <span className="project-quickbar-customer">{group.label}</span>
           <div className="project-quickbar-projects">{group.projects.map((project) => (

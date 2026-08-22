@@ -38,7 +38,7 @@ export function useDragReorder({ disabled, getGroupKey, onDrop }: Options) {
       onDragLeave: () => setOverId((o) => (o === id ? null : o)),
       onDrop: (e: DragEvent) => {
         e.preventDefault();
-        if (dragId && dragId !== id) onDrop(dragId, id, overAfter);
+        if (dragId && dragId !== id && (!getGroupKey || getGroupKey(dragId) === getGroupKey(id))) onDrop(dragId, id, overAfter);
         setDragId(null);
         setOverId(null);
       },
