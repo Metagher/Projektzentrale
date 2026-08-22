@@ -11,6 +11,7 @@ import { exportTaskToPdf } from '../../lib/taskPdfExport';
 import { useModalStore } from '../../store/modalStore';
 import TimeTrackingButton from '../shared/TimeTrackingButton';
 import { formatDuration } from '../../lib/timeTracking';
+import TaskColorBadge from '../shared/TaskColorBadge';
 
 interface Props {
   task: Task;
@@ -22,7 +23,6 @@ interface Props {
 
 export default function ProjectTaskRow({ task, project, contact, data, onDelete }: Props) {
   const { setEditingTaskId, jumpToComm } = useProjectUiStore();
-  const colorLabels = useDataStore((state) => state.taskColorLabels);
   const dashboardData = useDataStore((state) => state.dashboardData);
   const workdayOverrides = useDataStore((state) => state.workdayOverrides);
   const alert = useModalStore((state) => state.alert);
@@ -46,7 +46,7 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
     >
       <div className="top-row">
         <div>
-          {task.farbe && <span className={`task-color-swatch task-color-${task.farbe}`} title={colorLabels[task.farbe]} />}
+          {task.farbe && <TaskColorBadge color={task.farbe} />}
           {dailyRank > 0 && <span className={`project-task-rank${task.faelligAm === todayStr() ? '' : ' next-workday'}`} title={task.faelligAm === todayStr() ? 'Tagesrang heute' : `Tagesrang am ${fmtDate(task.faelligAm)}`}>#{dailyRank}</span>}
           <span className="task-nr">{task.nr || '—'}</span>
           <strong>{task.titel}</strong>

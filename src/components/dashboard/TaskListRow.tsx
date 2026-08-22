@@ -1,6 +1,7 @@
 import { fmtDate, todayStr } from '../../lib/format';
-import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
+import type { TaskWithMeta } from '../../store/dataStore';
 import { toExternalHref } from '../../lib/externalLinks';
+import TaskColorBadge from '../shared/TaskColorBadge';
 
 interface Props {
   task: TaskWithMeta;
@@ -8,14 +9,13 @@ interface Props {
 }
 
 export default function TaskListRow({ task, onClick }: Props) {
-  const colorLabels = useDataStore((state) => state.taskColorLabels);
   const overdue = !!task.faelligAm && task.faelligAm < todayStr();
   const externalHref = toExternalHref(task.fremdverknuepfung);
   const ticketHref = toExternalHref(task.ticketsystemVerknuepfung);
 
   return (
     <div className={`agg-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} style={{ cursor: 'pointer' }} onClick={onClick}>
-      {task.farbe && <span className={`task-color-swatch task-color-${task.farbe}`} title={colorLabels[task.farbe]} />}
+      {task.farbe && <TaskColorBadge color={task.farbe} compact />}
       <span className="agg-project">{task.projectName}</span>
       <span className="agg-title">
         <span className="task-nr">{task.nr || '—'}</span>

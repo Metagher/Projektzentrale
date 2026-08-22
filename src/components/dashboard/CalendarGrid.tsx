@@ -3,6 +3,7 @@ import { buildCalendarWeeks, dateKey, MONTH_NAMES, WEEKDAY_LABELS } from '../../
 import { openTaskInDashboard } from '../../lib/navigation';
 import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import { isWorkday } from '../../lib/workdays';
+import TaskColorBadge from '../shared/TaskColorBadge';
 
 const MAX_VISIBLE_PER_DAY = 2;
 
@@ -77,7 +78,7 @@ export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: TaskWit
                     title={`ID ${t.nr || '?'} · ${t.projectName}: ${t.titel}`}
                     onClick={() => openTaskInDashboard(t.id)}
                   >
-                    {t.titel}
+                    <span>{t.titel}</span>{t.farbe && <TaskColorBadge color={t.farbe} compact />}
                   </div>
                 ))}
               </div>

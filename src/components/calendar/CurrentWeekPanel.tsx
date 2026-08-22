@@ -4,6 +4,7 @@ import { openTaskInDashboard } from '../../lib/navigation';
 import type { TaskWithMeta } from '../../store/dataStore';
 import { useDataStore } from '../../store/dataStore';
 import { compareTaskColors } from '../../lib/taskColors';
+import TaskColorBadge from '../shared/TaskColorBadge';
 
 export default function CurrentWeekPanel({ tasksWithDate }: { tasksWithDate: TaskWithMeta[] }) {
   const colorOrder = useDataStore((state) => state.taskColorOrder);
@@ -53,6 +54,7 @@ export default function CurrentWeekPanel({ tasksWithDate }: { tasksWithDate: Tas
                       onClick={() => openTaskInDashboard(t.id)}
                     >
                       <span className="current-week-task-title">{t.titel}</span>
+                      {t.farbe && <TaskColorBadge color={t.farbe} compact />}
                     </div>
                   ))}
                 </div>

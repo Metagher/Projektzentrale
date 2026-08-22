@@ -9,6 +9,7 @@ import AfnChipsView from '../../shared/AfnChipsView';
 import type { DocEntryValue, Project, ProjectCache, ProjectDocumentationArea, ProjectStatusEntry } from '../../../types/entities';
 import { compareTaskColors } from '../../../lib/taskColors';
 import { exportCurrentProjectStatus } from '../../../lib/projectStatusExport';
+import TaskColorBadge from '../../shared/TaskColorBadge';
 
 const CURRENT_STATE_KEY = '_currentProjectState';
 
@@ -113,7 +114,7 @@ export default function DokumentationTab({ project, data }: { project: Project; 
     {dokuTasks.length > 0 && <section className="doc-inbox">
       <div className="section-title">Zur Dokumentation vorgemerkt ({dokuTasks.length})</div>
       {dokuTasks.map((task) => <div className={`doku-list-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} key={task.id} onClick={() => jumpToTask(task.id)}>
-        <div className="doku-inbox-copy"><strong><span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong><small>{task.abgeschlossenAm ? `Erledigt: ${fmtDate(task.abgeschlossenAm.slice(0, 10))}` : ''}</small></div>
+        <div className="doku-inbox-copy"><strong><span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong>{task.farbe && <TaskColorBadge color={task.farbe} compact />}<small>{task.abgeschlossenAm ? `Erledigt: ${fmtDate(task.abgeschlossenAm.slice(0, 10))}` : ''}</small></div>
         <button className="btn secondary small" onClick={(event) => { event.stopPropagation(); moveTaskToHistory(task.id); }}>In Verlauf übernehmen</button>
       </div>)}
     </section>}

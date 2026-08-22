@@ -7,5 +7,6 @@ export default function TaskColorSelect({ value, onChange }: { value: TaskColor 
   return <div className="task-color-select" role="group" aria-label="Farbmarkierung">
     <button type="button" className={`task-color-choice none${value === '' ? ' active' : ''}`} onClick={() => onChange('')} title="Keine Farbe" aria-label="Keine Farbe">×</button>
     {TASK_COLORS.map((color) => <button type="button" key={color} className={`task-color-choice task-color-${color}${value === color ? ' active' : ''}`} onClick={() => onChange(color)} title={labels[color]} aria-label={labels[color]} />)}
+    {value && <strong className="task-color-selected-name">{labels[value]}</strong>}
   </div>;
 }

@@ -5,6 +5,7 @@ import { useUiStore } from '../../store/uiStore';
 import { getProjectUiStore } from '../../store/projectUiStore';
 import { localDateKey, nextWorkday } from '../../lib/workdays';
 import { hasTaskDrag, readTaskDrag, writeTaskDrag } from '../../lib/taskDrag';
+import TaskColorBadge from '../shared/TaskColorBadge';
 
 export default function DailyPlanner() {
   const data = useDataStore((state) => state.dashboardData);
@@ -110,7 +111,7 @@ export default function DailyPlanner() {
             }}
           >
             <button className={`daily-rank${rank ? '' : ' unranked'}`} type="button" onClick={() => { if (rank) removeRank(task.id); else assignRank(task); }} title={rank ? 'Tagesrang entfernen und auf #X setzen' : `Als #${rankedTasks.length + 1} einordnen`}>#{rank || 'X'}</button>
-            <button className="daily-task-content" onClick={() => openTask(task)}><strong>{task.titel}</strong><small>{task.projectName}{task.status === 'wartet' ? ` · wartet auf ${task.wartetAuf}` : ''}</small></button>
+            <button className="daily-task-content" onClick={() => openTask(task)}><strong>{task.titel}</strong>{task.farbe && <TaskColorBadge color={task.farbe} compact />}<small>{task.projectName}{task.status === 'wartet' ? ` · wartet auf ${task.wartetAuf}` : ''}</small></button>
             <span className="daily-drag" title="Ziehen zum Sortieren oder auf einen anderen Arbeitstag">⠿</span>
           </div>
           );
