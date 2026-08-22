@@ -14,6 +14,11 @@ import type {
   DocEntryValue,
   DocSectionDef,
   Milestone,
+  ErpModule,
+  CustomerModule,
+  ProjectModuleConfig,
+  TimeEntry,
+  ActiveTimer,
   Project,
   ProjectDocumentationArea,
   ProjectStatusEntry,
@@ -57,7 +62,7 @@ export interface DashboardData {
 }
 
 function emptyProjectCache(): ProjectCache {
-  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null };
+  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [] };
 }
 
 interface DataStoreState {
@@ -71,6 +76,10 @@ interface DataStoreState {
   waitingOptions: string[];
   workdayOverrides: WorkdayOverrides;
   customerOrder: string[];
+  modules: ErpModule[];
+  customerModules: CustomerModule[];
+  timeEntries: TimeEntry[];
+  activeTimer: ActiveTimer | null;
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -111,6 +120,15 @@ interface DataStoreState {
   saveTaskColorLabels: (labels: TaskColorLabels) => Promise<void>;
   saveWaitingOptions: (options: string[]) => Promise<void>;
   toggleWorkday: (date: string) => Promise<void>;
+  saveModule: (module: ErpModule) => Promise<void>;
+  deleteModule: (id: string) => Promise<void>;
+  saveCustomerModule: (entry: CustomerModule) => Promise<void>;
+  deleteCustomerModule: (kunde: string, moduleId: string) => Promise<void>;
+  saveProjectModuleConfig: (projectId: string, config: ProjectModuleConfig) => Promise<void>;
+  startTimer: (projectId: string, taskId?: string | null) => Promise<void>;
+  stopTimer: () => Promise<void>;
+  saveTimeEntry: (entry: TimeEntry) => Promise<void>;
+  deleteTimeEntry: (id: string) => Promise<void>;
 
   /** Keeps task.commIds in sync after a comm's linked-tasks selection changed; persists tasks if anything changed. */
   syncTaskLinksForComm: (projectId: string, commId: string, oldTaskIds: string[], newTaskIds: string[]) => Promise<void>;
@@ -129,6 +147,7 @@ interface DataStoreState {
       string,
       { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[] }
     >;
+    timeEntries: TimeEntry[];
   }) => Promise<void>;
 }
 
@@ -150,6 +169,10 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   waitingOptions: [],
   workdayOverrides: {},
   customerOrder: [],
+  modules: [],
+  customerModules: [],
+  timeEntries: [],
+  activeTimer: null,
 
   loadAll: async () => {
     const sb = client();
@@ -158,12 +181,16 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, workdayOverrides, storedCustomerOrder] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
       sGet<WorkdayOverrides>(sb, 'workday-overrides'),
       sGet<string[]>(sb, 'customer-order'),
+      sGet<ErpModule[]>(sb, 'erp-modules'),
+      sGet<CustomerModule[]>(sb, 'customer-modules'),
+      sGet<TimeEntry[]>(sb, 'time-entries'),
+      sGet<ActiveTimer>(sb, 'active-timer'),
     ]);
     const taskColorOrder = normalizeTaskColorOrder(storedColorOrder);
     const taskColorLabels = normalizeTaskColorLabels(storedColorLabels);
@@ -172,6 +199,10 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       waitingOptions: storedWaitingOptions || [],
       workdayOverrides: workdayOverrides || {},
       customerOrder: storedCustomerOrder || [],
+      modules: modules || [],
+      customerModules: customerModules || [],
+      timeEntries: timeEntries || [],
+      activeTimer: activeTimer || null,
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -233,7 +264,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const existing = get().cache[id];
     if (existing) return existing;
     const sb = client();
-    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary] = await Promise.all([
+    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs] = await Promise.all([
       sGet<Contact[]>(sb, 'contacts:' + id),
       sGet<Comm[]>(sb, 'comms:' + id),
       sGet<DocData>(sb, 'doc:' + id),
@@ -241,6 +272,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<Milestone[]>(sb, 'timeline:' + id),
       sGet<UpdateEntry[]>(sb, 'updates:' + id),
       sGet<ProjectCache['aiSummary']>(sb, 'ai-summary:' + id),
+      sGet<ProjectModuleConfig[]>(sb, 'module-configs:' + id),
     ]);
     let tasks = rawTasks || [];
     let migrated = false;
@@ -262,6 +294,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       timeline: timeline || [],
       updates: updates || [],
       aiSummary: aiSummary || null,
+      moduleConfigs: moduleConfigs || [],
     };
     set({ cache: { ...get().cache, [id]: projectCache } });
     return projectCache;
@@ -345,11 +378,13 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
 
   deleteProject: async (id) => {
     const projects = (get().projects || []).filter((p) => p.id !== id);
-    set({ projects });
+    const timeEntries = get().timeEntries.filter((entry) => entry.projectId !== id);
+    const activeTimer = get().activeTimer?.projectId === id ? null : get().activeTimer;
+    set({ projects, timeEntries, activeTimer });
     const sb = client();
-    await sSet(sb, 'projects', projects);
+    await Promise.all([sSet(sb, 'projects', projects), sSet(sb, 'time-entries', timeEntries), activeTimer ? sSet(sb, 'active-timer', activeTimer) : sDelete(sb, 'active-timer')]);
     await Promise.all(
-      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:'].map((prefix) =>
+      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:'].map((prefix) =>
         sDelete(sb, prefix + id),
       ),
     );
@@ -436,6 +471,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   },
 
   deleteTask: async (projectId, taskId) => {
+    if (get().activeTimer?.projectId === projectId && get().activeTimer?.taskId === taskId) await get().stopTimer();
     const data = await get().ensureProjectData(projectId);
     const tasks = data.tasks.filter((t) => t.id !== taskId);
     await persistTasks(get, set, projectId, tasks);
@@ -617,6 +653,92 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await sSet(client(), 'doc:' + projectId, doc);
   },
 
+  saveModule: async (module) => {
+    const current = get().modules;
+    const modules = current.some((item) => item.id === module.id)
+      ? current.map((item) => item.id === module.id ? module : item)
+      : [...current, module];
+    modules.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    set({ modules });
+    await sSet(client(), 'erp-modules', modules);
+  },
+
+  deleteModule: async (id) => {
+    const modules = get().modules.filter((item) => item.id !== id);
+    const customerModules = get().customerModules.filter((item) => item.moduleId !== id);
+    const cache = { ...get().cache };
+    await Promise.all(Object.entries(cache).map(async ([projectId, data]) => {
+      if (!data) return;
+      const moduleConfigs = data.moduleConfigs.filter((item) => item.moduleId !== id);
+      cache[projectId] = { ...data, moduleConfigs };
+      await sSet(client(), 'module-configs:' + projectId, moduleConfigs);
+    }));
+    set({ modules, customerModules, cache });
+    await Promise.all([sSet(client(), 'erp-modules', modules), sSet(client(), 'customer-modules', customerModules)]);
+  },
+
+  saveCustomerModule: async (entry) => {
+    const current = get().customerModules;
+    const customerModules = current.some((item) => item.kunde === entry.kunde && item.moduleId === entry.moduleId)
+      ? current.map((item) => item.kunde === entry.kunde && item.moduleId === entry.moduleId ? entry : item)
+      : [...current, entry];
+    set({ customerModules });
+    await sSet(client(), 'customer-modules', customerModules);
+  },
+
+  deleteCustomerModule: async (kunde, moduleId) => {
+    const customerModules = get().customerModules.filter((item) => !(item.kunde === kunde && item.moduleId === moduleId));
+    set({ customerModules });
+    await sSet(client(), 'customer-modules', customerModules);
+  },
+
+  saveProjectModuleConfig: async (projectId, config) => {
+    const data = await get().ensureProjectData(projectId);
+    const moduleConfigs = data.moduleConfigs.some((item) => item.moduleId === config.moduleId)
+      ? data.moduleConfigs.map((item) => item.moduleId === config.moduleId ? config : item)
+      : [...data.moduleConfigs, config];
+    const cache = { ...get().cache, [projectId]: { ...data, moduleConfigs } };
+    set({ cache });
+    await sSet(client(), 'module-configs:' + projectId, moduleConfigs);
+  },
+
+  startTimer: async (projectId, taskId = null) => {
+    const current = get().activeTimer;
+    if (current) {
+      if (current.projectId === projectId && current.taskId === taskId) return;
+      await get().stopTimer();
+    }
+    const activeTimer: ActiveTimer = { projectId, taskId, startedAt: new Date().toISOString() };
+    set({ activeTimer });
+    await sSet(client(), 'active-timer', activeTimer);
+  },
+
+  stopTimer: async () => {
+    const timer = get().activeTimer;
+    if (!timer) return;
+    const endedAt = new Date().toISOString();
+    const durationMinutes = Math.max(1, Math.round((Date.parse(endedAt) - Date.parse(timer.startedAt)) / 60000));
+    const entry: TimeEntry = { id: uid(), ...timer, endedAt, durationMinutes, note: '', createdAt: endedAt };
+    const timeEntries = [...get().timeEntries, entry];
+    set({ timeEntries, activeTimer: null });
+    await Promise.all([sSet(client(), 'time-entries', timeEntries), sDelete(client(), 'active-timer')]);
+  },
+
+  saveTimeEntry: async (entry) => {
+    const current = get().timeEntries;
+    const timeEntries = current.some((item) => item.id === entry.id)
+      ? current.map((item) => item.id === entry.id ? entry : item)
+      : [...current, entry];
+    set({ timeEntries });
+    await sSet(client(), 'time-entries', timeEntries);
+  },
+
+  deleteTimeEntry: async (id) => {
+    const timeEntries = get().timeEntries.filter((item) => item.id !== id);
+    set({ timeEntries });
+    await sSet(client(), 'time-entries', timeEntries);
+  },
+
   syncTaskLinksForComm: async (projectId, commId, oldTaskIds, newTaskIds) => {
     const data = await get().ensureProjectData(projectId);
     const oldSet = new Set(oldTaskIds);
@@ -663,7 +785,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     }
   },
 
-  importAllData: async ({ projects, docDefs, perProject }) => {
+  importAllData: async ({ projects, docDefs, perProject, timeEntries }) => {
     const sb = client();
     const previousProjects = get().projects || [];
     for (const p of previousProjects) {
@@ -684,8 +806,10 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     }
     await sSet(sb, 'projects', projects);
     await sSet(sb, 'doc-section-defs', docDefs);
+    await sSet(sb, 'time-entries', timeEntries);
+    await sDelete(sb, 'active-timer');
 
-    set({ projects, docDefs, cache: {} });
+    set({ projects, docDefs, cache: {}, timeEntries, activeTimer: null });
     await ensureTaskNumbers(get, set);
     await get().loadDashboardData();
   },

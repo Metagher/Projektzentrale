@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useConnectionStore } from './store/connectionStore';
 import { useDataStore } from './store/dataStore';
 import SetupScreen from './components/layout/SetupScreen';
+import LoginScreen from './components/layout/LoginScreen';
 import StorageBanner from './components/layout/StorageBanner';
 import MainShell from './components/layout/MainShell';
 import ModalRoot from './components/shared/ModalRoot';
@@ -25,6 +26,7 @@ export default function App() {
       <StorageBanner />
       <ModalRoot />
       {status === 'setup' && <SetupScreen />}
+      {status === 'login' && <LoginScreen />}
       {status === 'ready' && (
         <div id="app" className="ready">
           <MainShell />

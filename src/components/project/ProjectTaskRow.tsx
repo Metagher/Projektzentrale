@@ -9,6 +9,8 @@ import type { Contact, Project, ProjectCache, Task } from '../../types/entities'
 import { toExternalHref } from '../../lib/externalLinks';
 import { exportTaskToPdf } from '../../lib/taskPdfExport';
 import { useModalStore } from '../../store/modalStore';
+import TimeTrackingButton from '../shared/TimeTrackingButton';
+import { formatDuration } from '../../lib/timeTracking';
 
 interface Props {
   task: Task;
@@ -32,6 +34,7 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
   const dailyRank = dayTasks.findIndex((item) => item.id === task.id) + 1;
   const externalHref = toExternalHref(task.fremdverknuepfung);
   const ticketHref = toExternalHref(task.ticketsystemVerknuepfung);
+  const trackedMinutes = useDataStore((state) => state.timeEntries).filter((entry) => entry.projectId === project.id && entry.taskId === task.id).reduce((sum, entry) => sum + entry.durationMinutes, 0);
 
   return (
     <div
@@ -77,6 +80,8 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
           </div>
         </div>
         <div className="actions" data-no-open>
+          {trackedMinutes > 0 && <span className="task-time-total">{formatDuration(trackedMinutes)}</span>}
+          <TimeTrackingButton projectId={project.id} taskId={task.id} compact />
           <button className="icon-btn" onClick={async () => { try { exportTaskToPdf(project, task, contact); } catch (error) { await alert((error as Error).message); } }}>
             PDF
           </button>

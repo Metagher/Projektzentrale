@@ -21,7 +21,28 @@ rührt keine vorhandenen Tabellen an. Ein neues Projekt ist also nicht nötig.
    (den klassischen langen JWT-Key, nicht den neuen "Publishable key") kopieren —
    bei einem wiederverwendeten Projekt sind das dieselben Werte wie bei der anderen App.
 
-## 2. Hosten mit GitHub Pages (automatisches Deployment)
+## 2. Login einrichten
+
+Die Daten sind per Row-Level-Security auf eingeloggte Nutzer beschränkt (siehe `schema.sql`).
+Der anon key allein reicht nicht mehr — ohne Login mit deinem eigenen Account bekommt niemand
+Zugriff auf die Daten, selbst wenn URL und anon key bekannt werden.
+
+1. Im Supabase-Dashboard unter **Authentication → Providers → Email**: **"Confirm email"**
+   kann an bleiben, das Login läuft über einen 6-stelligen Code, keinen Magic-Link-Klick.
+2. Unter **Authentication → Sign In / Providers → Email** oder in den allgemeinen
+   **Authentication → Settings**: **"Allow new users to sign up"** deaktivieren — damit kann
+   niemand außer dir einen Account anlegen, selbst wenn er die App-URL kennt.
+3. Unter **Authentication → Users → Add user** deinen eigenen Account manuell anlegen
+   (deine E-Mail-Adresse, Passwort spielt keine Rolle, es wird nur der Login-Code genutzt) —
+   markiere den Nutzer dabei direkt als **"Auto Confirm User"**.
+4. In der App beim Login diese E-Mail-Adresse eintragen — du bekommst einen 6-stelligen Code
+   zugeschickt, den du eingibst, um dich anzumelden.
+
+Bereits vorhandene Daten in `projektzentrale_kv` müssen dafür nicht umgezogen werden: die
+Tabelle ist nicht pro Nutzer aufgeteilt, die Policy entscheidet nur *ob* zugegriffen werden
+darf. Nach dem Login siehst du exakt dieselben Daten wie vorher.
+
+## 3. Hosten mit GitHub Pages (automatisches Deployment)
 
 Diese App wird nicht mehr als fertige Datei hochgeladen, sondern aus dem Quellcode
 automatisch gebaut. Das ist nur einmalig einzurichten:
@@ -48,19 +69,22 @@ npm run typecheck # TypeScript-Prüfung
 npm run build     # Produktions-Build nach dist/ (wird von der CI ebenfalls ausgeführt)
 ```
 
-## 3. Einmalig einrichten
+## 4. Einmalig einrichten
 
 1. Die App-URL öffnen.
 2. Beim ersten Öffnen erscheint der Einrichtungs-Bildschirm: Project URL und anon key
    eintragen, **"Verbinden & speichern"** klicken.
-3. Ab jetzt merkt sich der Browser die Verbindung — beim nächsten Öffnen erscheint
-   direkt das Dashboard.
+3. Danach erscheint der Login-Bildschirm: deine E-Mail-Adresse eintragen, den per Mail
+   zugeschickten 6-stelligen Code eingeben.
+4. Ab jetzt merkt sich der Browser Verbindung und Login — beim nächsten Öffnen erscheint
+   direkt das Dashboard, bis du dich unter **Einstellungen** wieder abmeldest oder der
+   Login abläuft.
 
 Öffnest du die App auf einem zweiten Gerät (z.B. Handy), muss dieser Schritt dort
 einmal wiederholt werden (URL + Key sind identisch, die Eingabe passiert lokal auf
-jedem Gerät).
+jedem Gerät; der Login-Code kommt erneut per Mail).
 
-## 4. KI-Funktionen aktivieren (optional)
+## 5. KI-Funktionen aktivieren (optional)
 
 KI-Suche, KI-Übersicht, Wissensdatenbank-Update, Aufgaben-Erkennung aus
 Kommunikationseinträgen und der persönliche Berater brauchen einen eigenen

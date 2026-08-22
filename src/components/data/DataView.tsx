@@ -35,7 +35,7 @@ export default function DataView() {
       <h2>CSV Import / Export</h2>
       <div className="sub" style={{ color: 'var(--ink-soft)', margin: '4px 0 22px', maxWidth: 640 }}>
         Sichere alle Daten (Projekte, Ansprechpartner, Kommunikation, Dokumentation, Aufgaben, Echtlauf-Zeitpläne und
-        Oberpunkte) in einer einzigen CSV-Datei, oder lade eine zuvor exportierte Datei wieder hoch.
+        Oberpunkte und Zeiteinträge) in einer einzigen CSV-Datei, oder lade eine zuvor exportierte Datei wieder hoch.
       </div>
       <div className="card">
         <h3 style={{ marginBottom: 8, fontSize: 15 }}>Export</h3>

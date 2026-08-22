@@ -3,7 +3,7 @@ import { CSV_COLUMNS } from './constants';
 import { migratePrio } from './migrations';
 import { defLevel, todayStr } from './format';
 import { useDataStore } from '../store/dataStore';
-import type { Comm, Contact, DocData, DocEntryValue, DocSectionDef, Milestone, Project, ProjectDocumentationArea, ProjectStatusEntry, ProjectTyp, Task, UpdateEntry } from '../types/entities';
+import type { Comm, Contact, DocData, DocEntryValue, DocSectionDef, Milestone, Project, ProjectDocumentationArea, ProjectStatusEntry, ProjectTyp, Task, TimeEntry, UpdateEntry } from '../types/entities';
 
 type CsvRow = Record<string, string | number | undefined>;
 
@@ -41,7 +41,7 @@ export function downloadTextFile(content: string, filename: string, mime: string
 }
 
 export async function buildExportCsv(): Promise<string> {
-  const { projects, docDefs, ensureProjectData } = useDataStore.getState();
+  const { projects, docDefs, ensureProjectData, timeEntries } = useDataStore.getState();
   const rows: CsvRow[] = [];
 
   (docDefs || []).forEach((d, i) => {
@@ -102,6 +102,7 @@ export async function buildExportCsv(): Promise<string> {
     (data.updates || []).forEach((u) => {
       rows.push({ Typ: 'update', ProjektId: p.id, Id: u.id, Titel: u.titel || '', Datum: u.datum || '', Revision: u.revision || '', Beschreibung: u.beschreibung || '', AFN: (u.afns || []).join(';') });
     });
+    timeEntries.filter((entry) => entry.projectId === p.id).forEach((entry) => rows.push({ Typ: 'zeit', ProjektId: p.id, Id: entry.id, AufgabeId: entry.taskId || '', Start: entry.startedAt, Ende: entry.endedAt, DauerMinuten: entry.durationMinutes, Notiz: entry.note, ErstelltAm: entry.createdAt }));
   }
 
   return Papa.unparse({ fields: CSV_COLUMNS as unknown as string[], data: rows });
@@ -119,6 +120,7 @@ export interface ParsedImport {
     string,
     { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[] }
   >;
+  timeEntries: TimeEntry[];
 }
 
 export function parseImportCsv(text: string): { ok: true; data: ParsedImport } | { ok: false; error: string } {
@@ -155,6 +157,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
     });
 
   const perProject: ParsedImport['perProject'] = {};
+  const timeEntries: TimeEntry[] = [];
   for (const p of projects) {
     perProject[p.id] = { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [] };
   }
@@ -245,9 +248,15 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
       perProject[pid].updates.push({ id: String(r.Id), titel: String(r.Titel || ''), datum: String(r.Datum || ''), revision: String(r.Revision || ''), beschreibung: String(r.Beschreibung || ''), afns: splitList(r.AFN as string) });
     });
 
+  rows.filter((r) => r.Typ === 'zeit').forEach((r) => {
+    const durationMinutes = Number(r.DauerMinuten) || 0;
+    if (durationMinutes < 1) return;
+    timeEntries.push({ id: String(r.Id), projectId: String(r.ProjektId), taskId: r.AufgabeId ? String(r.AufgabeId) : null, startedAt: String(r.Start || ''), endedAt: String(r.Ende || ''), durationMinutes, note: String(r.Notiz || ''), createdAt: String(r.ErstelltAm || r.Ende || new Date().toISOString()) });
+  });
+
   for (const p of projects) {
     perProject[p.id].doc._hidden = hiddenByProject[p.id] || [];
   }
 
-  return { ok: true, data: { projects, docDefs, perProject } };
+  return { ok: true, data: { projects, docDefs, perProject, timeEntries } };
 }

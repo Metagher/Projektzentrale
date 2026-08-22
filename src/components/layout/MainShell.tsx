@@ -4,6 +4,7 @@ import ProjectQuickBar from './ProjectQuickBar';
 import CalendarView from '../calendar/CalendarView';
 import KnowledgeView from '../knowledge/KnowledgeView';
 import AnalyticsView from '../analytics/AnalyticsView';
+import ActiveTimerBar from './ActiveTimerBar';
 
 const DashboardView = lazy(() => import('../dashboard/Dashboard'));
 const ProjectView = lazy(() => import('../project/ProjectView'));
@@ -48,6 +49,7 @@ export default function MainShell() {
   return (
     <div className="workspace">
       <ProjectQuickBar />
+      <ActiveTimerBar />
       <div className={`workspace-panes${secondaryPane ? ' split' : ''}`}>
         <section className="workspace-pane" onDragOver={(event) => event.preventDefault()} onDrop={dropLeft}>
           {secondaryPane && <div className="workspace-pane-head"><span>Links</span><small>Projekt oder Dashboard hier ablegen</small></div>}

@@ -13,6 +13,58 @@ export interface Project {
   sortIndex: number;
 }
 
+export type ModuleCommercialStatus = 'vertrag' | 'nachlizenzierung';
+export type ModuleOfferStatus = 'kein Angebot' | 'Entwurf' | 'versendet' | 'angenommen' | 'abgelehnt';
+
+/** Globale, kundenunabhängige Stammdaten eines ERP-Moduls. */
+export interface ErpModule {
+  id: string;
+  name: string;
+  kategorie: string;
+  beschreibung: string;
+  hersteller: string;
+  dokumentationsLink: string;
+  notizen: string;
+  createdAt: string;
+}
+
+/** Kaufmännische Zuordnung je Kunde; wird in alle Projekte desselben Kunden gespiegelt. */
+export interface CustomerModule {
+  moduleId: string;
+  kunde: string;
+  commercialStatus: ModuleCommercialStatus;
+  offerNumber: string;
+  offerStatus: ModuleOfferStatus;
+  notizen: string;
+}
+
+/** Ausschließlich projektspezifische Angaben zur Einrichtung. */
+export interface ProjectModuleConfig {
+  moduleId: string;
+  einrichtungsstatus: 'nicht begonnen' | 'in Arbeit' | 'eingerichtet' | 'nicht relevant';
+  verantwortlicher: string;
+  einrichtungsdetails: string;
+  notizen: string;
+  updatedAt: string;
+}
+
+export interface TimeEntry {
+  id: string;
+  projectId: string;
+  taskId: string | null;
+  startedAt: string;
+  endedAt: string;
+  durationMinutes: number;
+  note: string;
+  createdAt: string;
+}
+
+export interface ActiveTimer {
+  projectId: string;
+  taskId: string | null;
+  startedAt: string;
+}
+
 export interface Contact {
   id: string;
   name: string;
@@ -181,4 +233,5 @@ export interface ProjectCache {
   timeline: Milestone[];
   updates: UpdateEntry[];
   aiSummary: AiSummary | null;
+  moduleConfigs: ProjectModuleConfig[];
 }
