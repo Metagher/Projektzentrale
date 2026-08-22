@@ -25,18 +25,22 @@ rührt keine vorhandenen Tabellen an. Ein neues Projekt ist also nicht nötig.
 
 Die Daten sind per Row-Level-Security auf eingeloggte Nutzer beschränkt (siehe `schema.sql`).
 Der anon key allein reicht nicht mehr — ohne Login mit deinem eigenen Account bekommt niemand
-Zugriff auf die Daten, selbst wenn URL und anon key bekannt werden.
+Zugriff auf die Daten, selbst wenn URL und anon key bekannt werden. Der Login läuft über einen
+Anmelde-Link per E-Mail (Supabase Magic Link), kein eigenes SMTP nötig.
 
-1. Im Supabase-Dashboard unter **Authentication → Providers → Email**: **"Confirm email"**
-   kann an bleiben, das Login läuft über einen 6-stelligen Code, keinen Magic-Link-Klick.
-2. Unter **Authentication → Sign In / Providers → Email** oder in den allgemeinen
-   **Authentication → Settings**: **"Allow new users to sign up"** deaktivieren — damit kann
-   niemand außer dir einen Account anlegen, selbst wenn er die App-URL kennt.
+1. Unter **Authentication → URL Configuration** die **Site URL** auf die echte App-Adresse
+   setzen (die `github.io`-URL aus Schritt 3, "Hosten mit GitHub Pages") — sonst führt der
+   Link in der Mail ins Leere ("Seite nicht erreichbar").
+2. Unter **Authentication → Sign In / Providers → Email** bzw. **Authentication → Settings**:
+   **"Allow new users to sign up"** deaktivieren — damit kann niemand außer dir einen Account
+   anlegen, selbst wenn er die App-URL kennt.
 3. Unter **Authentication → Users → Add user** deinen eigenen Account manuell anlegen
-   (deine E-Mail-Adresse, Passwort spielt keine Rolle, es wird nur der Login-Code genutzt) —
-   markiere den Nutzer dabei direkt als **"Auto Confirm User"**.
-4. In der App beim Login diese E-Mail-Adresse eintragen — du bekommst einen 6-stelligen Code
-   zugeschickt, den du eingibst, um dich anzumelden.
+   (deine E-Mail-Adresse, Passwort spielt keine Rolle, es wird nur der Login-Link genutzt) —
+   markiere den Nutzer dabei direkt als **"Auto Confirm User"**. Nicht über "Invite user"
+   einladen — die Einladungs-Mail nutzt denselben Link und stolpert über denselben
+   Site-URL-Punkt wie oben.
+4. In der App beim Login diese E-Mail-Adresse eintragen — du bekommst einen Link zugeschickt;
+   Klick darauf (im selben Browser) meldet dich an.
 
 Bereits vorhandene Daten in `projektzentrale_kv` müssen dafür nicht umgezogen werden: die
 Tabelle ist nicht pro Nutzer aufgeteilt, die Policy entscheidet nur *ob* zugegriffen werden
@@ -74,8 +78,8 @@ npm run build     # Produktions-Build nach dist/ (wird von der CI ebenfalls ausg
 1. Die App-URL öffnen.
 2. Beim ersten Öffnen erscheint der Einrichtungs-Bildschirm: Project URL und anon key
    eintragen, **"Verbinden & speichern"** klicken.
-3. Danach erscheint der Login-Bildschirm: deine E-Mail-Adresse eintragen, den per Mail
-   zugeschickten 6-stelligen Code eingeben.
+3. Danach erscheint der Login-Bildschirm: deine E-Mail-Adresse eintragen, auf den per Mail
+   zugeschickten Link klicken.
 4. Ab jetzt merkt sich der Browser Verbindung und Login — beim nächsten Öffnen erscheint
    direkt das Dashboard, bis du dich unter **Einstellungen** wieder abmeldest oder der
    Login abläuft.

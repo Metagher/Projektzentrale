@@ -1,13 +1,12 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { verifySupabaseConnection } from '../lib/supabase';
-import { sendLoginCode, verifyLoginCode, signOut as authSignOut } from '../lib/auth';
+import { sendLoginLink, signOut as authSignOut } from '../lib/auth';
 
 const URL_KEY = 'pz_supabase_url';
 const KEY_KEY = 'pz_supabase_key';
 
 type Status = 'booting' | 'setup' | 'login' | 'ready';
-type LoginStep = 'email' | 'code';
 
 interface ConnectionState {
   status: Status;
@@ -20,15 +19,13 @@ interface ConnectionState {
   bannerTitle: string | null;
   bannerBody: string;
   bannerDismissible: boolean;
-  loginStep: LoginStep;
   loginEmail: string;
-  loginCode: string;
+  linkSent: boolean;
   loginBusy: boolean;
   loginError: string | null;
   boot: () => Promise<void>;
   connect: (url: string, key: string) => Promise<void>;
-  requestLoginCode: (email: string) => Promise<void>;
-  verifyLoginCode: (code: string) => Promise<void>;
+  requestLoginLink: (email: string) => Promise<void>;
   resetLoginStep: () => void;
   signOut: () => Promise<void>;
   showStorageBanner: (title: string, body: string, dismissible: boolean) => void;
@@ -52,9 +49,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   bannerTitle: null,
   bannerBody: '',
   bannerDismissible: true,
-  loginStep: 'email',
   loginEmail: '',
-  loginCode: '',
+  linkSent: false,
   loginBusy: false,
   loginError: null,
 
@@ -103,40 +99,26 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     }
   },
 
-  requestLoginCode: async (email) => {
+  requestLoginLink: async (email) => {
     const client = get().client;
     const cleanEmail = email.trim();
     if (!client || !cleanEmail) return;
     set({ loginBusy: true, loginError: null });
     try {
-      await sendLoginCode(client, cleanEmail);
-      set({ loginBusy: false, loginStep: 'code', loginEmail: cleanEmail, loginCode: '' });
+      await sendLoginLink(client, cleanEmail);
+      set({ loginBusy: false, linkSent: true, loginEmail: cleanEmail });
     } catch (e) {
-      set({ loginBusy: false, loginError: `Code konnte nicht gesendet werden. (${(e as Error).message || ''})` });
+      set({ loginBusy: false, loginError: `Link konnte nicht gesendet werden. (${(e as Error).message || ''})` });
     }
   },
 
-  verifyLoginCode: async (code) => {
-    const client = get().client;
-    const { loginEmail } = get();
-    const cleanCode = code.trim();
-    if (!client || !cleanCode) return;
-    set({ loginBusy: true, loginError: null });
-    try {
-      await verifyLoginCode(client, loginEmail, cleanCode);
-      set({ loginBusy: false });
-    } catch (e) {
-      set({ loginBusy: false, loginError: `Code ungültig oder abgelaufen. (${(e as Error).message || ''})` });
-    }
-  },
-
-  resetLoginStep: () => set({ loginStep: 'email', loginCode: '', loginError: null }),
+  resetLoginStep: () => set({ linkSent: false, loginError: null }),
 
   signOut: async () => {
     const client = get().client;
     if (!client) return;
     await authSignOut(client);
-    set({ loginStep: 'email', loginEmail: '', loginCode: '', loginError: null });
+    set({ loginEmail: '', linkSent: false, loginError: null });
   },
 
   showStorageBanner: (title, body, dismissible) =>

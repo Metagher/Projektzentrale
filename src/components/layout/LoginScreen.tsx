@@ -2,18 +2,16 @@ import { useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 
 export default function LoginScreen() {
-  const { loginStep, loginEmail, loginBusy, loginError, requestLoginCode, verifyLoginCode, resetLoginStep } =
-    useConnectionStore();
+  const { loginEmail, linkSent, loginBusy, loginError, requestLoginLink, resetLoginStep } = useConnectionStore();
   const [email, setEmail] = useState(loginEmail);
-  const [code, setCode] = useState('');
 
   return (
     <div id="setup-screen">
       <div className="setup-box">
         <h1>Anmelden</h1>
-        {loginStep === 'email' && (
+        {!linkSent && (
           <>
-            <p>Trag deine E-Mail-Adresse ein — du bekommst einen 6-stelligen Anmeldecode zugeschickt.</p>
+            <p>Trag deine E-Mail-Adresse ein — du bekommst einen Anmelde-Link zugeschickt.</p>
             <div className="field">
               <label>E-Mail</label>
               <input
@@ -25,31 +23,18 @@ export default function LoginScreen() {
               />
             </div>
             {loginError && <div className="setup-error">{loginError}</div>}
-            <button className="btn" disabled={loginBusy} onClick={() => requestLoginCode(email)}>
-              {loginBusy ? 'Sende Code…' : 'Code anfordern'}
+            <button className="btn" disabled={loginBusy} onClick={() => requestLoginLink(email)}>
+              {loginBusy ? 'Sende Link…' : 'Anmelde-Link senden'}
             </button>
           </>
         )}
-        {loginStep === 'code' && (
+        {linkSent && (
           <>
             <p>
-              Code an <strong>{loginEmail}</strong> gesendet. Bitte eintragen (Postfach inkl. Spam-Ordner prüfen).
+              Link an <strong>{loginEmail}</strong> gesendet (Postfach inkl. Spam-Ordner prüfen). Klick auf den
+              Link im selben Browser, um dich anzumelden — diese Seite aktualisiert sich dann automatisch.
             </p>
-            <div className="field">
-              <label>Anmeldecode</label>
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="123456"
-                inputMode="numeric"
-                autoFocus
-              />
-            </div>
-            {loginError && <div className="setup-error">{loginError}</div>}
-            <button className="btn" disabled={loginBusy} onClick={() => verifyLoginCode(code)}>
-              {loginBusy ? 'Prüfe…' : 'Anmelden'}
-            </button>
-            <button className="btn secondary" style={{ width: '100%', marginTop: 8 }} onClick={resetLoginStep}>
+            <button className="btn secondary" style={{ width: '100%' }} onClick={resetLoginStep}>
               Andere E-Mail-Adresse
             </button>
           </>
