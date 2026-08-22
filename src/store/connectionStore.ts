@@ -1,7 +1,7 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { verifySupabaseConnection } from '../lib/supabase';
-import { sendLoginLink, signOut as authSignOut } from '../lib/auth';
+import { signInWithPassword, signOut as authSignOut } from '../lib/auth';
 
 const URL_KEY = 'pz_supabase_url';
 const KEY_KEY = 'pz_supabase_key';
@@ -19,14 +19,11 @@ interface ConnectionState {
   bannerTitle: string | null;
   bannerBody: string;
   bannerDismissible: boolean;
-  loginEmail: string;
-  linkSent: boolean;
   loginBusy: boolean;
   loginError: string | null;
   boot: () => Promise<void>;
   connect: (url: string, key: string) => Promise<void>;
-  requestLoginLink: (email: string) => Promise<void>;
-  resetLoginStep: () => void;
+  login: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   showStorageBanner: (title: string, body: string, dismissible: boolean) => void;
   hideStorageBanner: () => void;
@@ -49,8 +46,6 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   bannerTitle: null,
   bannerBody: '',
   bannerDismissible: true,
-  loginEmail: '',
-  linkSent: false,
   loginBusy: false,
   loginError: null,
 
@@ -99,26 +94,24 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     }
   },
 
-  requestLoginLink: async (email) => {
+  login: async (email, password) => {
     const client = get().client;
     const cleanEmail = email.trim();
-    if (!client || !cleanEmail) return;
+    if (!client || !cleanEmail || !password) return;
     set({ loginBusy: true, loginError: null });
     try {
-      await sendLoginLink(client, cleanEmail);
-      set({ loginBusy: false, linkSent: true, loginEmail: cleanEmail });
+      await signInWithPassword(client, cleanEmail, password);
+      set({ loginBusy: false });
     } catch (e) {
-      set({ loginBusy: false, loginError: `Link konnte nicht gesendet werden. (${(e as Error).message || ''})` });
+      set({ loginBusy: false, loginError: `Anmeldung fehlgeschlagen. (${(e as Error).message || ''})` });
     }
   },
-
-  resetLoginStep: () => set({ linkSent: false, loginError: null }),
 
   signOut: async () => {
     const client = get().client;
     if (!client) return;
     await authSignOut(client);
-    set({ loginEmail: '', linkSent: false, loginError: null });
+    set({ loginError: null });
   },
 
   showStorageBanner: (title, body, dismissible) =>
