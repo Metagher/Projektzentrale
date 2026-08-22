@@ -4,12 +4,15 @@ import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import TaskAnalytics from './TaskAnalytics';
 import AfnLesestandTab from './AfnLesestandTab';
 import GlobalPortfolioOverview from './GlobalPortfolioOverview';
+import TimeAnalyticsOverview from './TimeAnalyticsOverview';
 
 export default function AnalyticsView() {
   const { analyticsSubTab, setAnalyticsSubTab } = useAnalyticsStore();
   const projects = useDataStore((s) => s.projects);
   const ensureProjectData = useDataStore((s) => s.ensureProjectData);
   const [allTasks, setAllTasks] = useState<TaskWithMeta[] | null>(null);
+  const timeEntries = useDataStore((s) => s.timeEntries);
+  const workdayOverrides = useDataStore((s) => s.workdayOverrides);
 
   useEffect(() => {
     if (analyticsSubTab !== 'aufgaben' || !projects) return;
@@ -50,6 +53,7 @@ export default function AnalyticsView() {
           <GlobalPortfolioOverview projects={projects || []} tasks={allTasks} />
           <div className="analytics-section-intro"><div className="analytics-scope-label">Langfristige Entwicklung</div><h3>Projektübergreifende Aufgabenleistung</h3><p>Durchlaufzeiten, Abschlüsse pro Kalenderwoche und Entwicklung des offenen Bestands.</p></div>
           <TaskAnalytics allTasks={allTasks} showProjectBreakdown />
+          <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" />
         </>
       )}
     </div>

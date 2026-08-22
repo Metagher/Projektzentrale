@@ -20,10 +20,9 @@ export type ModuleOfferStatus = 'kein Angebot' | 'Entwurf' | 'versendet' | 'ange
 export interface ErpModule {
   id: string;
   name: string;
-  kategorie: string;
+  /** null kennzeichnet ein Obermodul; Untermodule verweisen auf dessen id. */
+  parentId: string | null;
   beschreibung: string;
-  hersteller: string;
-  dokumentationsLink: string;
   notizen: string;
   createdAt: string;
 }

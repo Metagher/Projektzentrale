@@ -250,7 +250,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
 
   rows.filter((r) => r.Typ === 'zeit').forEach((r) => {
     const durationMinutes = Number(r.DauerMinuten) || 0;
-    if (durationMinutes < 1) return;
+    if (durationMinutes <= 0) return;
     timeEntries.push({ id: String(r.Id), projectId: String(r.ProjektId), taskId: r.AufgabeId ? String(r.AufgabeId) : null, startedAt: String(r.Start || ''), endedAt: String(r.Ende || ''), durationMinutes, note: String(r.Notiz || ''), createdAt: String(r.ErstelltAm || r.Ende || new Date().toISOString()) });
   });
 

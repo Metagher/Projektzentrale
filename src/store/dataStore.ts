@@ -192,6 +192,9 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<TimeEntry[]>(sb, 'time-entries'),
       sGet<ActiveTimer>(sb, 'active-timer'),
     ]);
+    const normalizedModules = (modules || []).map((module) => ({ id: module.id, name: module.name, parentId: module.parentId || null, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString() }));
+    const legacyModuleFields = (modules || []).some((module) => { const legacy = module as ErpModule & { kategorie?: string; hersteller?: string; dokumentationsLink?: string }; return module.parentId === undefined || legacy.kategorie !== undefined || legacy.hersteller !== undefined || legacy.dokumentationsLink !== undefined; });
+    if (legacyModuleFields) await sSet(sb, 'erp-modules', normalizedModules);
     const taskColorOrder = normalizeTaskColorOrder(storedColorOrder);
     const taskColorLabels = normalizeTaskColorLabels(storedColorLabels);
     set({
@@ -199,7 +202,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       waitingOptions: storedWaitingOptions || [],
       workdayOverrides: workdayOverrides || {},
       customerOrder: storedCustomerOrder || [],
-      modules: modules || [],
+      modules: normalizedModules,
       customerModules: customerModules || [],
       timeEntries: timeEntries || [],
       activeTimer: activeTimer || null,
@@ -664,12 +667,13 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   },
 
   deleteModule: async (id) => {
-    const modules = get().modules.filter((item) => item.id !== id);
-    const customerModules = get().customerModules.filter((item) => item.moduleId !== id);
+    const ids = new Set([id, ...get().modules.filter((item) => item.parentId === id).map((item) => item.id)]);
+    const modules = get().modules.filter((item) => !ids.has(item.id));
+    const customerModules = get().customerModules.filter((item) => !ids.has(item.moduleId));
     const cache = { ...get().cache };
     await Promise.all(Object.entries(cache).map(async ([projectId, data]) => {
       if (!data) return;
-      const moduleConfigs = data.moduleConfigs.filter((item) => item.moduleId !== id);
+      const moduleConfigs = data.moduleConfigs.filter((item) => !ids.has(item.moduleId));
       cache[projectId] = { ...data, moduleConfigs };
       await sSet(client(), 'module-configs:' + projectId, moduleConfigs);
     }));
@@ -717,7 +721,8 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const timer = get().activeTimer;
     if (!timer) return;
     const endedAt = new Date().toISOString();
-    const durationMinutes = Math.max(1, Math.round((Date.parse(endedAt) - Date.parse(timer.startedAt)) / 60000));
+    const elapsedSeconds = Math.max(1, Math.round((Date.parse(endedAt) - Date.parse(timer.startedAt)) / 1000));
+    const durationMinutes = elapsedSeconds / 60;
     const entry: TimeEntry = { id: uid(), ...timer, endedAt, durationMinutes, note: '', createdAt: endedAt };
     const timeEntries = [...get().timeEntries, entry];
     set({ timeEntries, activeTimer: null });

@@ -1,6 +1,7 @@
 import TaskAnalytics from '../../analytics/TaskAnalytics';
 import type { Project, ProjectCache } from '../../../types/entities';
 import ProjectOperationalOverview from '../../analytics/ProjectOperationalOverview';
+import ZeitenTab from './ZeitenTab';
 
 export default function AuswertungTab({ project, data }: { project: Project; data: ProjectCache }) {
   const allTasks = data.tasks.map((t) => ({ ...t, projectId: project.id, projectName: project.name }));
@@ -11,6 +12,7 @@ export default function AuswertungTab({ project, data }: { project: Project; dat
       <ProjectOperationalOverview data={data} />
       <div className="analytics-section-intro"><div className="analytics-scope-label">Projektentwicklung</div><h3>Durchlaufzeit und Leistung</h3><p>Historische Entwicklung ausschließlich für dieses Projekt.</p></div>
       <TaskAnalytics allTasks={allTasks} showProjectBreakdown={false} />
+      <ZeitenTab project={project} data={data} />
     </>
   );
 }

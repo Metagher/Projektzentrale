@@ -15,7 +15,6 @@ import { ProjectUiScopeProvider, type ProjectUiScope } from '../../store/project
 import RtfField from '../shared/RtfField';
 import TimeTrackingButton from '../shared/TimeTrackingButton';
 import { formatDuration } from '../../lib/timeTracking';
-import ZeitenTab from './tabs/ZeitenTab';
 
 const STATUS_LABELS: Record<string, string> = { aktiv: 'Aktiv', pausiert: 'Pausiert', abgeschlossen: 'Abgeschlossen' };
 
@@ -71,7 +70,6 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
   else if (activeTab === 'update') tabContent = <UpdateTab project={project} data={data} />;
   else if (activeTab === 'auswertung') tabContent = <AuswertungTab project={project} data={data} />;
   else if (activeTab === 'module') tabContent = <ModuleTab project={project} data={data} />;
-  else if (activeTab === 'zeiten') tabContent = <ZeitenTab project={project} data={data} />;
   else if (activeTab === 'ki-suche') tabContent = <KiSucheTab project={project} data={data} />;
   else tabContent = <AufgabenTab project={project} data={data} />;
 
@@ -82,7 +80,7 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
           <div className="code">{projectCode(project)}</div>
           <h2>{project.name}</h2>
           <div className="sub"><span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span></div>
-          <div className="project-time-control"><TimeTrackingButton projectId={project.id} /><button className="project-time-total" onClick={() => setActiveTab('zeiten')}>{formatDuration(projectMinutes)} erfasst</button></div>
+          <div className="project-time-control"><TimeTrackingButton projectId={project.id} /><button className="project-time-total" onClick={() => setActiveTab('auswertung')}>{formatDuration(projectMinutes)} erfasst</button></div>
           <div className="project-info-head">
             <strong>Projektinfo</strong>
             <button className="icon-btn" onClick={() => setProjectInfoVisible((visible) => !visible)} aria-expanded={projectInfoVisible}>
@@ -119,9 +117,6 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
         </button>
         <button className={`tab-btn${activeTab === 'module' ? ' active' : ''}`} onClick={() => setActiveTab('module')}>
           Module
-        </button>
-        <button className={`tab-btn${activeTab === 'zeiten' ? ' active' : ''}`} onClick={() => setActiveTab('zeiten')}>
-          Zeiten
         </button>
         {echtlauf && (
           <button className={`tab-btn${activeTab === 'zeitplan' ? ' active' : ''}`} onClick={() => setActiveTab('zeitplan')}>
