@@ -18,6 +18,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   const deleteComm = useDataStore((s) => s.deleteComm);
   const syncTaskLinksForComm = useDataStore((s) => s.syncTaskLinksForComm);
   const createTask = useDataStore((s) => s.createTask);
+  const saveTask = useDataStore((s) => s.saveTask);
   const keyPresent = useAiStore((s) => s.keyPresent);
   const { editingComm, setEditingComm, showNewCommForm, setShowNewCommForm, jumpToTask } = useProjectUiStore();
   const confirm = useModalStore((s) => s.confirm);
@@ -27,6 +28,8 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
 
   const editObj = editingComm ? data.comms.find((c) => c.id === editingComm) : null;
   const showForm = !!editObj || showNewCommForm;
+  const meetingTasks = data.tasks.filter((task) => task.naechsteBesprechung)
+    .sort((a, b) => Number(a.status === 'erledigt') - Number(b.status === 'erledigt') || a.nr - b.nr);
 
   const [datum, setDatum] = useState(editObj?.datum || todayStr());
   const [kanal, setKanal] = useState<Kanal>(editObj?.kanal || CHANNELS[0]);
@@ -114,6 +117,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
             commIds: [c.id],
             doku: false,
             dokuErledigt: false,
+            naechsteBesprechung: false,
             teilprojekt: c.teilprojekt || '',
           });
           newTaskIds.push(newId);
@@ -130,6 +134,13 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
 
   return (
     <>
+      <section className="meeting-agenda">
+        <header><div><span className="eyebrow">Nächste Besprechung</span><h3>Vorgemerkte Aufgaben</h3><p>Gesprächspunkte, die direkt an den Aufgaben markiert wurden.</p></div><strong>{meetingTasks.length}</strong></header>
+        {meetingTasks.length === 0 ? <div className="meeting-agenda-empty">Noch keine Aufgaben für die nächste Besprechung vorgemerkt.</div> : <div>{meetingTasks.map((task) => <article key={task.id}>
+          <button type="button" className="meeting-agenda-task" onClick={() => jumpToTask(task.id)}><span className="task-nr">{task.nr || '—'}</span><strong>{task.titel}</strong><small>{task.status}{task.teilprojekt?.trim() ? ` · ${task.teilprojekt.trim()}` : ''}{task.faelligAm ? ` · fällig ${fmtDate(task.faelligAm)}` : ''}</small></button>
+          <button type="button" className="icon-btn" onClick={() => void saveTask(projectId, { ...task, naechsteBesprechung: false })}>Vormerkung entfernen</button>
+        </article>)}</div>}
+      </section>
       {showForm ? (
         <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label={editObj ? 'Kommunikation bearbeiten' : 'Kommunikation anlegen'}><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Kommunikation</span><strong>{editObj ? editObj.betreff || 'Eintrag bearbeiten' : 'Neuer Kommunikationseintrag'}</strong></div></div><div className="card">
           <div className="top-row" style={{ marginBottom: 10 }}>

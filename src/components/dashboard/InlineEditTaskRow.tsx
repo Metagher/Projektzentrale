@@ -34,6 +34,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const [faelligAm, setFaelligAm] = useState(task.faelligAm || '');
   const [kontaktId, setKontaktId] = useState(task.kontaktId || '');
   const [doku, setDoku] = useState(task.doku);
+  const [naechsteBesprechung, setNaechsteBesprechung] = useState(!!task.naechsteBesprechung);
   const [wartetAuf, setWartetAuf] = useState(task.wartetAuf || '');
   const [wartetSeit, setWartetSeit] = useState(task.wartetSeit || '');
   const [anforderung, setAnforderung] = useState(task.anforderung || '');
@@ -78,6 +79,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       teilprojekt: teilprojekt.trim(),
       abgeschlossenAm,
       doku,
+      naechsteBesprechung,
     });
     onSave();
   }
@@ -117,6 +119,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
         <div className="field"><label>Ansprechpartner</label><select value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}><option value="">— kein Ansprechpartner —</option>{contacts.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rolle ? ` (${c.rolle})` : ''}</option>)}</select></div>
         <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-dashboard-${task.projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-dashboard-${task.projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
         <label className="doku-check-field"><input type="checkbox" checked={doku} onChange={(e) => setDoku(e.target.checked)} /> Für Dokumentation vormerken</label>
+        <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
       </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div></div>}
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn small" onClick={handleSave}>

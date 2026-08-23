@@ -42,6 +42,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const [faelligAm, setFaelligAm] = useState(task.faelligAm || '');
   const [kontaktId, setKontaktId] = useState(task.kontaktId || '');
   const [doku, setDoku] = useState(task.doku);
+  const [naechsteBesprechung, setNaechsteBesprechung] = useState(!!task.naechsteBesprechung);
   const [wartetAuf, setWartetAuf] = useState(task.wartetAuf || '');
   const [wartetSeit, setWartetSeit] = useState(task.wartetSeit || '');
   const [anforderung, setAnforderung] = useState(task.anforderung || '');
@@ -131,6 +132,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       teilprojekt: teilprojekt.trim(),
       abgeschlossenAm,
       doku,
+      naechsteBesprechung,
     });
     await syncCommLinksForTask(projectId, task.id, prevCommIds, commIds);
     setEditingTaskId(null);
@@ -171,6 +173,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
         <div className="field"><label>Ansprechpartner</label><select value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}><option value="">— kein Ansprechpartner —</option>{contacts.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rolle ? ` (${c.rolle})` : ''}</option>)}</select></div>
         <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-edit-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-edit-${projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
         <label className="doku-check-field"><input type="checkbox" checked={doku} onChange={(e) => setDoku(e.target.checked)} /> Für Dokumentation vormerken</label>
+        <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
       </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div><div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div></div> : <TaskTimePanel projectId={projectId} taskId={task.id} />}
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn small" onClick={handleSave}>

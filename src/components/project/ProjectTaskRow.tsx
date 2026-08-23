@@ -24,6 +24,7 @@ interface Props {
 export default function ProjectTaskRow({ task, project, contact, data, onDelete }: Props) {
   const { setEditingTaskId, jumpToComm } = useProjectUiStore();
   const dashboardData = useDataStore((state) => state.dashboardData);
+  const saveTask = useDataStore((state) => state.saveTask);
   const workdayOverrides = useDataStore((state) => state.workdayOverrides);
   const alert = useModalStore((state) => state.alert);
   const nextWorkdayKey = localDateKey(nextWorkday(new Date(`${todayStr()}T12:00:00`), workdayOverrides));
@@ -61,6 +62,7 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
               Doku
             </span>
           )}
+          {task.naechsteBesprechung && <span className="badge meeting" style={{ marginLeft: 4 }}>Nächste Besprechung</span>}
           {task.afns && task.afns.length > 0 && <AfnChipsView afns={task.afns} />}
           <div className="meta">
             Fällig: {fmtDate(task.faelligAm)} {contact && `· ${contact.name}`}
@@ -82,6 +84,7 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
           </div>
         </div>
         <div className="actions" data-no-open>
+          <button type="button" className={`meeting-task-toggle${task.naechsteBesprechung ? ' active' : ''}`} aria-pressed={!!task.naechsteBesprechung} title={task.naechsteBesprechung ? 'Vormerkung für die nächste Besprechung entfernen' : 'Für die nächste Besprechung vormerken'} onClick={() => void saveTask(project.id, { ...task, naechsteBesprechung: !task.naechsteBesprechung })}>Besprechung</button>
           {trackedMinutes > 0 && <span className="task-time-total">{formatDuration(trackedMinutes)}</span>}
           <TimeTrackingButton projectId={project.id} taskId={task.id} compact />
           <button className="icon-btn" onClick={async () => { try { exportTaskToPdf(project, task, contact); } catch (error) { await alert((error as Error).message); } }}>

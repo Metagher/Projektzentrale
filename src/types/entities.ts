@@ -179,6 +179,8 @@ export interface Task {
   abgeschlossenAm: string | null; // ISO datetime
   doku: boolean;
   dokuErledigt: boolean;
+  /** Für die Themenliste der nächsten Projektbesprechung vorgemerkt. */
+  naechsteBesprechung?: boolean;
 }
 
 export type MilestoneStatus = 'geplant' | 'in Arbeit' | 'erledigt';

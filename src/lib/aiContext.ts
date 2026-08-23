@@ -120,8 +120,9 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
       const verlaufText = (t.verlauf || []).slice().sort((a, b) => b.datum.localeCompare(a.datum)).map((entry) => `${fmtDate(entry.datum)} ${entry.titel}: ${htmlToPlainText(entry.content)}`).join(' | ');
       const afnText = t.afns && t.afns.length ? ` [AFN: ${t.afns.join(', ')}]` : '';
       const wartetText = t.status === 'wartet' && t.wartetAuf ? `, wartet auf: ${t.wartetAuf}${t.wartetSeit ? `, ${waitingDurationLabel(t.wartetSeit)}` : ''}` : '';
+      const meetingText = t.naechsteBesprechung ? ' [für nächste Besprechung vorgemerkt]' : '';
       lines.push(
-        `- [${t.status}] ${t.titel}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${wartetText}${contact ? `, Ansprechpartner: ${contact.name}` : ''}${anforderungText ? ` | Anforderung: ${anforderungText}` : ''}${standText ? ` | Aktueller Stand: ${standText}` : ''}${verlaufText ? ` | Verlauf: ${verlaufText}` : ''}`,
+        `- [${t.status}] ${t.titel}${meetingText}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${wartetText}${contact ? `, Ansprechpartner: ${contact.name}` : ''}${anforderungText ? ` | Anforderung: ${anforderungText}` : ''}${standText ? ` | Aktueller Stand: ${standText}` : ''}${verlaufText ? ` | Verlauf: ${verlaufText}` : ''}`,
       );
     });
   }

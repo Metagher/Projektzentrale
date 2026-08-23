@@ -22,6 +22,7 @@ export default function TaskListRow({ task, onClick }: Props) {
         {task.titel}
         {task.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{task.teilprojekt.trim()}</span>}
         {task.doku && <span className="badge doku" style={{ marginLeft: 4 }}>Doku</span>}
+        {task.naechsteBesprechung && <span className="badge meeting" style={{ marginLeft: 4 }}>Nächste Besprechung</span>}
         {externalHref && <a className="task-external-link-inline" href={externalHref} target="_blank" rel="noreferrer" title="Fremdverknüpfung öffnen" onClick={(event) => event.stopPropagation()}>↗</a>}
         {ticketHref && <a className="task-external-link-inline" href={ticketHref} target="_blank" rel="noreferrer" title="Ticket im Ticketsystem öffnen" onClick={(event) => event.stopPropagation()}>Ticket ↗</a>}
         {task.status === 'wartet' && (

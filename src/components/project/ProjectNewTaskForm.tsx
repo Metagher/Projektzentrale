@@ -32,6 +32,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [wartetAuf, setWartetAuf] = useState('');
   const [wartetSeit, setWartetSeit] = useState('');
   const [doku, setDoku] = useState(false);
+  const [naechsteBesprechung, setNaechsteBesprechung] = useState(false);
   const [anforderung, setAnforderung] = useState('');
   const [aktuellerStand, setAktuellerStand] = useState('');
   const [verlauf, setVerlauf] = useState<TaskProgressEntry[]>([]);
@@ -74,6 +75,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       teilprojekt: teilprojekt.trim(),
       doku,
       dokuErledigt: false,
+      naechsteBesprechung,
     };
     const newTaskId = await createTask(projectId, partial);
     if (commIds.length) await syncCommLinksForTask(projectId, newTaskId, [], commIds);
@@ -114,6 +116,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       <div className="field"><label>Ansprechpartner</label><select className="contact-select" value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}><option value="">— kein Ansprechpartner —</option>{data.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rolle ? ` (${c.rolle})` : ''}</option>)}</select></div>
       <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-${projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
       <div className="doku-check-field"><label><input type="checkbox" checked={doku} onChange={(e) => setDoku(e.target.checked)} /> Für Dokumentation vormerken</label></div>
+      <div className="doku-check-field"><label><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label></div>
       </div>
       <div className="field">
         <label>AFN-Nummer(n)</label>

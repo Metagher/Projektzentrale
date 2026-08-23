@@ -41,4 +41,5 @@ export const CSV_COLUMNS = [
   'SchnellwahlAusgeblendet',
   'VerknuepfteModulIds',
   'Global', 'Angeheftet',
+  'NaechsteBesprechung',
 ] as const;
