@@ -1,6 +1,5 @@
-import { fmtDate, htmlToPlainText, todayStr, truncateText } from './format';
+import { fmtDate, hasEchtlauf, htmlToPlainText, todayStr, truncateText, waitingDurationLabel } from './format';
 import { computeDocLabels } from './docOutline';
-import { hasEchtlauf } from './format';
 import { useDataStore, type DashboardData } from '../store/dataStore';
 import type { DocEntryValue, Project, ProjectCache, ProjectDocumentationArea, ProjectStatusEntry } from '../types/entities';
 
@@ -25,7 +24,7 @@ export function buildDailyBriefingContext(dashboardData: DashboardData | null): 
     lines.push('Aufgaben, die BLOCKIERT sind (der Nutzer wartet auf jemand anderen, kann selbst gerade nichts tun):');
     waiting.forEach((t) => {
       lines.push(
-        `- [${t.projectName}] ${t.titel} | wartet auf: ${t.wartetAuf || 'unbekannt'}${t.faelligAm ? ' | Fällig: ' + fmtDate(t.faelligAm) : ''}`,
+        `- [${t.projectName}] ${t.titel} | wartet auf: ${t.wartetAuf || 'unbekannt'}${t.wartetSeit ? ` | Wartet seit: ${fmtDate(t.wartetSeit)} (${waitingDurationLabel(t.wartetSeit)})` : ''}${t.faelligAm ? ' | Fällig: ' + fmtDate(t.faelligAm) : ''}`,
       );
     });
   }
@@ -113,7 +112,7 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
       const standText = htmlToPlainText(t.aktuellerStand);
       const verlaufText = (t.verlauf || []).slice().sort((a, b) => b.datum.localeCompare(a.datum)).map((entry) => `${fmtDate(entry.datum)} ${entry.titel}: ${htmlToPlainText(entry.content)}`).join(' | ');
       const afnText = t.afns && t.afns.length ? ` [AFN: ${t.afns.join(', ')}]` : '';
-      const wartetText = t.status === 'wartet' && t.wartetAuf ? `, wartet auf: ${t.wartetAuf}` : '';
+      const wartetText = t.status === 'wartet' && t.wartetAuf ? `, wartet auf: ${t.wartetAuf}${t.wartetSeit ? `, ${waitingDurationLabel(t.wartetSeit)}` : ''}` : '';
       lines.push(
         `- [${t.status}] ${t.titel}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${wartetText}${contact ? `, Ansprechpartner: ${contact.name}` : ''}${anforderungText ? ` | Anforderung: ${anforderungText}` : ''}${standText ? ` | Aktueller Stand: ${standText}` : ''}${verlaufText ? ` | Verlauf: ${verlaufText}` : ''}`,
       );

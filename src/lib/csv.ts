@@ -93,7 +93,7 @@ export async function buildExportCsv(): Promise<string> {
       rows.push({
         Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '', Farbe: t.farbe || '', TagesSortierung: t.tagesSortierung ?? 999,
         Status: t.status || '', KontaktId: t.kontaktId || '', Anforderung: t.anforderung || '', AktuellerStand: t.aktuellerStand || '', Verlauf: JSON.stringify(t.verlauf || []), ErstelltAm: t.erstelltAm || '',
-        AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '',
+        AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '', WartetSeit: t.wartetSeit || '',
         Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), VerknuepfteModulIds: (t.moduleIds || []).join(';'), Teilprojekt: t.teilprojekt || '',
       });
     });
@@ -227,7 +227,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         prioritaet: migratePrio(r.Prioritaet as string), farbe: (r.Farbe as Task['farbe']) || '', status: (r.Status as Task['status']) || 'offen',
         kontaktId: String(r.KontaktId || ''), anforderung: String(r.Anforderung || ''), aktuellerStand: importedTaskStand(r),
         erstelltAm: (r.ErstelltAm as string) || '', abgeschlossenAm: (r.AbgeschlossenAm as string) || null,
-        afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), verlauf: parseTaskHistory(r.Verlauf),
+        afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), wartetSeit: String(r.WartetSeit || ''), verlauf: parseTaskHistory(r.Verlauf),
         nr: Number.isFinite(nrRaw) ? nrRaw : 0, tagesSortierung: Number(r.TagesSortierung) || 999, commIds: splitList(r.VerknuepfteKommIds as string), moduleIds: splitList(r.VerknuepfteModulIds as string),
         teilprojekt: String(r.Teilprojekt || ''),
         doku: false, dokuErledigt: false,

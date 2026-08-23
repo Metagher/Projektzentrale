@@ -70,6 +70,8 @@
 .task-status-select.wartet{color:var(--violet);}
 .task-status-select.erledigt{color:var(--ink-soft);}
 .wartet-auf-field{margin-top:8px;}
+.task-waiting-fields{margin-top:8px;}
+.task-waiting-fields .field{margin-top:0;}
 .wartet-auf-note{font-size:11.5px;color:var(--violet);background:var(--violet-bg);border:1px solid var(--violet-border);border-radius:var(--radius);padding:6px 10px;margin-top:4px;}
 @keyframes taskHighlightFlash{
   0%{background:#ccc;} 100%{background:transparent;}

@@ -34,7 +34,7 @@ export const CSV_COLUMNS = [
   'Typ', 'ProjektId', 'Id', 'Titel', 'Kunde', 'ProjektTyp', 'Status', 'Beschreibung',
   'ErstelltAm', 'AusgeblendeteOberpunkte', 'Level', 'Reihenfolge', 'Rolle', 'Telefon',
   'Email', 'Notiz', 'Datum', 'Kanal', 'KontaktId', 'Betreff', 'OberpunktId', 'Inhalt',
-  'AktualisiertAm', 'Prioritaet', 'AbgeschlossenAm', 'AFN', 'WartetAuf', 'Revision',
+  'AktualisiertAm', 'Prioritaet', 'AbgeschlossenAm', 'AFN', 'WartetAuf', 'WartetSeit', 'Revision',
   'AktuelleVersion', 'Nr', 'Farbe', 'TagesSortierung', 'VerknuepfteAufgabenIds', 'VerknuepfteKommIds',
   'BereichId', 'Anforderung', 'AktuellerStand', 'Verlauf', 'Teilprojekt',
   'AufgabeId', 'Start', 'Ende', 'DauerMinuten',

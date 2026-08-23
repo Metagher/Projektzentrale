@@ -1,4 +1,4 @@
-import { fmtDate, todayStr } from '../../lib/format';
+import { fmtDate, todayStr, waitingDurationLabel } from '../../lib/format';
 import type { TaskWithMeta } from '../../store/dataStore';
 import { toExternalHref } from '../../lib/externalLinks';
 import TaskColorBadge from '../shared/TaskColorBadge';
@@ -26,7 +26,7 @@ export default function TaskListRow({ task, onClick }: Props) {
         {ticketHref && <a className="task-external-link-inline" href={ticketHref} target="_blank" rel="noreferrer" title="Ticket im Ticketsystem öffnen" onClick={(event) => event.stopPropagation()}>Ticket ↗</a>}
         {task.status === 'wartet' && (
           <span className="badge wartet" style={{ marginLeft: 6 }}>
-            wartet auf {task.wartetAuf || 'jemanden'}
+            wartet auf {task.wartetAuf || 'jemanden'}{task.wartetSeit ? ` · ${waitingDurationLabel(task.wartetSeit)}` : ''}
           </span>
         )}
       </span>

@@ -1,6 +1,6 @@
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useDataStore } from '../../store/dataStore';
-import { fmtDate, slug, todayStr } from '../../lib/format';
+import { fmtDate, slug, todayStr, waitingDurationLabel } from '../../lib/format';
 import { localDateKey, nextWorkday } from '../../lib/workdays';
 import { commLinkLabel } from '../../lib/format';
 import LinkChipsView from '../shared/LinkChipsView';
@@ -52,7 +52,9 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
           <strong>{task.titel}</strong>
           {task.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{task.teilprojekt.trim()}</span>}
           <span className={`badge ${slug(task.status)}`} style={{ marginLeft: 6 }}>
-            {task.status}
+            {task.status === 'wartet'
+              ? `wartet auf ${task.wartetAuf || 'jemanden'}${task.wartetSeit ? ` · ${waitingDurationLabel(task.wartetSeit)}` : ''}`
+              : task.status}
           </span>
           {task.doku && (
             <span className="badge doku" style={{ marginLeft: 4 }}>

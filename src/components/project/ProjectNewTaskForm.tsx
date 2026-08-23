@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
-import { commLinkLabel } from '../../lib/format';
+import { commLinkLabel, todayStr } from '../../lib/format';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
@@ -10,6 +10,7 @@ import TaskColorSelect from '../shared/TaskColorSelect';
 import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
 import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import TaskStatusButtons from '../shared/TaskStatusButtons';
+import TaskWaitingFields from '../shared/TaskWaitingFields';
 import type { ProjectCache, Task, TaskColor, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
@@ -29,6 +30,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [status, setStatus] = useState<TaskStatus>('offen');
   const [kontaktId, setKontaktId] = useState('');
   const [wartetAuf, setWartetAuf] = useState('');
+  const [wartetSeit, setWartetSeit] = useState('');
   const [doku, setDoku] = useState(false);
   const [anforderung, setAnforderung] = useState('');
   const [aktuellerStand, setAktuellerStand] = useState('');
@@ -59,6 +61,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       farbe,
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
+      wartetSeit: status === 'wartet' ? wartetSeit : '',
       kontaktId,
       anforderung,
       aktuellerStand,
@@ -77,23 +80,24 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
     setShowNewTaskForm(false);
   }
 
+  function discardTask() {
+    setShowNewTaskForm(false);
+  }
+
   return (
     <div className="card">
       <div className="top-row" style={{ marginBottom: 10 }}>
         <h3 style={{ fontSize: 15 }}>Neue Aufgabe</h3>
-        <button className="icon-btn" onClick={() => setShowNewTaskForm(false)}>
-          Einklappen
+        <button type="button" className="icon-btn" onClick={discardTask}>
+          Verwerfen
         </button>
       </div>
       <nav className="task-form-tabs"><button type="button" className={activeSection === 'task' ? 'active' : ''} onClick={() => setActiveSection('task')}>Aufgabe</button><button type="button" className={activeSection === 'basics' ? 'active' : ''} onClick={() => setActiveSection('basics')}>Grunddaten</button></nav>
       {activeSection === 'task' ? <div className="task-form-section">
       <div className="field task-title-field"><label>Titel</label><input value={titel} onChange={(e) => setTitel(e.target.value)} /></div>
-      <div className="task-primary-controls"><div className="task-primary-control"><label>Status</label><TaskStatusButtons value={status} onChange={setStatus} /><label>Farbmarkierung</label><TaskColorSelect value={farbe} onChange={setFarbe} /></div><div className="task-primary-control"><label>Fällig am</label><div className="task-date-control"><input type="date" value={faelligAm} onChange={(e) => setFaelligAm(e.target.value)} /><TaskDateQuickSelect value={faelligAm} onChange={setFaelligAm} /></div></div></div>
+      <div className="task-primary-controls"><div className="task-primary-control"><label>Status</label><TaskStatusButtons value={status} onChange={(value) => { setStatus(value); if (value === 'wartet' && !wartetSeit) setWartetSeit(todayStr()); }} /><label>Farbmarkierung</label><TaskColorSelect value={farbe} onChange={setFarbe} /></div><div className="task-primary-control"><label>Fällig am</label><div className="task-date-control"><input type="date" value={faelligAm} onChange={(e) => setFaelligAm(e.target.value)} /><TaskDateQuickSelect value={faelligAm} onChange={setFaelligAm} /></div></div></div>
       {status === 'wartet' && (
-        <div className="field wartet-auf-field">
-          <label>Wartet auf (Person)</label>
-          <select value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)}><option value="">Bitte auswählen</option>{waitingOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-        </div>
+        <TaskWaitingFields waitingFor={wartetAuf} waitingSince={wartetSeit} waitingOptions={waitingOptions} onWaitingForChange={setWartetAuf} onWaitingSinceChange={setWartetSeit} />
       )}
       <div className="field">
         <label>Anforderung</label>
@@ -119,8 +123,11 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       <div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div>
       </div>}
       <div className="btn-row">
-        <button className="btn" onClick={handleSave}>
+        <button type="button" className="btn" onClick={handleSave}>
           Hinzufügen
+        </button>
+        <button type="button" className="btn secondary" onClick={discardTask}>
+          Verwerfen
         </button>
       </div>
     </div>

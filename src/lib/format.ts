@@ -21,6 +21,19 @@ export function fmtDateTime(iso: string | null | undefined): string {
   );
 }
 
+export function waitingDurationLabel(waitingSince: string | null | undefined, now = new Date()): string {
+  if (!waitingSince) return '';
+  const parts = waitingSince.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return '';
+  const [year, month, day] = parts;
+  const start = Date.UTC(year, month - 1, day);
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.max(0, Math.floor((today - start) / 86400000));
+  if (days === 0) return 'seit heute';
+  if (days === 1) return 'seit 1 Tag';
+  return `seit ${days} Tagen`;
+}
+
 export function slug(status: string): string {
   return status.toLowerCase().replace(/\s+/g, '-');
 }

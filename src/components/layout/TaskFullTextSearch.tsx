@@ -10,7 +10,7 @@ function searchableText(task: Task, projectName: string, data: ProjectCache): st
   const contact = data.contacts.find((item) => item.id === task.kontaktId);
   const history = (task.verlauf || []).flatMap((entry) => [entry.datum, entry.titel, htmlToPlainText(entry.content)]);
   return [
-    projectName, task.nr, task.titel, task.status, task.wartetAuf, contact?.name, contact?.rolle,
+    projectName, task.nr, task.titel, task.status, task.wartetAuf, task.wartetSeit, contact?.name, contact?.rolle,
     task.teilprojekt, task.afns?.join(' '), htmlToPlainText(task.anforderung), htmlToPlainText(task.aktuellerStand),
     ...history,
   ].filter(Boolean).join(' ').toLocaleLowerCase('de');

@@ -105,6 +105,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
             faelligAm: t.faelligAm,
             status: 'offen',
             wartetAuf: '',
+            wartetSeit: '',
             kontaktId: c.kontaktId || '',
             anforderung: t.beschreibung ? `<p>${escapeHtml(t.beschreibung)}</p>` : '',
             aktuellerStand: '',

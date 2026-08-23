@@ -11,6 +11,7 @@ import AiSummaryCard from '../AiSummaryCard';
 import type { Project, ProjectCache, Task, TaskStatus } from '../../../types/entities';
 import { compareTaskColors, compareWaitingPerson } from '../../../lib/taskColors';
 import { writeTaskDrag } from '../../../lib/taskDrag';
+import { todayStr } from '../../../lib/format';
 
 type BoardColumn = 'offen' | 'wartet' | 'erledigt';
 const WITHOUT_SUBPROJECT_FILTER = '__without-subproject__';
@@ -109,6 +110,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
       ...task,
       status: nextStatus,
       wartetAuf,
+      wartetSeit: nextStatus === 'wartet' ? (task.wartetSeit || todayStr()) : '',
       abgeschlossenAm: nextStatus === 'erledigt' ? (task.abgeschlossenAm || new Date().toISOString()) : null,
     });
   }

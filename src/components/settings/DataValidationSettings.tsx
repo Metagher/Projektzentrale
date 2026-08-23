@@ -51,8 +51,9 @@ export default function DataValidationSettings() {
       });
 
       data.tasks.forEach((task) => {
-        const invalid = !task.titel?.trim() || !TASK_STATUSES.has(task.status) || (!!task.faelligAm && !validDate(task.faelligAm)) || (task.status === 'wartet' && !task.wartetAuf?.trim());
-        if (invalid) add({ ...prefix, area: 'Aufgabe', problem: !task.titel?.trim() ? 'Titel fehlt' : !TASK_STATUSES.has(task.status) ? `Ungültiger Status: ${task.status}` : task.status === 'wartet' && !task.wartetAuf?.trim() ? 'Wartet auf ohne Person' : `Ungültiges Datum: ${task.faelligAm}`, detail: `#${task.nr || '—'} · ${task.titel || task.id}`, actionLabel: 'Löschen', run: () => store.deleteTask(project.id, task.id) });
+        const invalidWaitingSince = !!task.wartetSeit && !validDate(task.wartetSeit);
+        const invalid = !task.titel?.trim() || !TASK_STATUSES.has(task.status) || (!!task.faelligAm && !validDate(task.faelligAm)) || invalidWaitingSince || (task.status === 'wartet' && !task.wartetAuf?.trim());
+        if (invalid) add({ ...prefix, area: 'Aufgabe', problem: !task.titel?.trim() ? 'Titel fehlt' : !TASK_STATUSES.has(task.status) ? `Ungültiger Status: ${task.status}` : task.status === 'wartet' && !task.wartetAuf?.trim() ? 'Wartet auf ohne Person' : invalidWaitingSince ? `Ungültiges Wartedatum: ${task.wartetSeit}` : `Ungültiges Datum: ${task.faelligAm}`, detail: `#${task.nr || '—'} · ${task.titel || task.id}`, actionLabel: 'Löschen', run: () => store.deleteTask(project.id, task.id) });
         if (task.kontaktId && !contactIds.has(task.kontaktId)) add({ ...prefix, area: 'Aufgabe', problem: 'Ansprechpartner existiert nicht mehr', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, kontaktId: '' }) });
         const validCommIds = (task.commIds || []).filter((id) => commIds.has(id));
         if (validCommIds.length !== (task.commIds || []).length) add({ ...prefix, area: 'Aufgabe', problem: 'Verknüpfte Kommunikation existiert nicht mehr', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, commIds: validCommIds }) });

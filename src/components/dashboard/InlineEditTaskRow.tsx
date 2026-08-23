@@ -7,6 +7,8 @@ import TaskColorSelect from '../shared/TaskColorSelect';
 import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
 import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import TaskStatusButtons from '../shared/TaskStatusButtons';
+import TaskWaitingFields from '../shared/TaskWaitingFields';
+import { todayStr } from '../../lib/format';
 import type { TaskWithMeta } from '../../store/dataStore';
 import type { TaskColor, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
@@ -33,6 +35,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const [kontaktId, setKontaktId] = useState(task.kontaktId || '');
   const [doku, setDoku] = useState(task.doku);
   const [wartetAuf, setWartetAuf] = useState(task.wartetAuf || '');
+  const [wartetSeit, setWartetSeit] = useState(task.wartetSeit || '');
   const [anforderung, setAnforderung] = useState(task.anforderung || '');
   const [aktuellerStand, setAktuellerStand] = useState(task.aktuellerStand || '');
   const [verlauf, setVerlauf] = useState<TaskProgressEntry[]>(task.verlauf || []);
@@ -63,6 +66,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       farbe,
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
+      wartetSeit: status === 'wartet' ? wartetSeit : '',
       faelligAm,
       kontaktId,
       anforderung,
@@ -94,12 +98,9 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       <nav className="task-form-tabs"><button type="button" className={activeSection === 'task' ? 'active' : ''} onClick={() => setActiveSection('task')}>Aufgabe</button><button type="button" className={activeSection === 'basics' ? 'active' : ''} onClick={() => setActiveSection('basics')}>Grunddaten</button></nav>
       {activeSection === 'task' ? <div className="task-form-section">
       <div className="field task-title-field"><label>Titel</label><input type="text" value={titel} onChange={(e) => setTitel(e.target.value)} /></div>
-      <div className="task-primary-controls"><div className="task-primary-control"><label>Status</label><TaskStatusButtons value={status} onChange={setStatus} /><label>Farbmarkierung</label><TaskColorSelect value={farbe} onChange={setFarbe} /></div><div className="task-primary-control"><label>Fällig am</label><div className="task-date-control"><input type="date" value={faelligAm} onChange={(e) => setFaelligAm(e.target.value)} /><TaskDateQuickSelect value={faelligAm} onChange={setFaelligAm} /></div></div></div>
+      <div className="task-primary-controls"><div className="task-primary-control"><label>Status</label><TaskStatusButtons value={status} onChange={(value) => { setStatus(value); if (value === 'wartet' && !wartetSeit) setWartetSeit(todayStr()); }} /><label>Farbmarkierung</label><TaskColorSelect value={farbe} onChange={setFarbe} /></div><div className="task-primary-control"><label>Fällig am</label><div className="task-date-control"><input type="date" value={faelligAm} onChange={(e) => setFaelligAm(e.target.value)} /><TaskDateQuickSelect value={faelligAm} onChange={setFaelligAm} /></div></div></div>
       {status === 'wartet' && (
-        <div className="field wartet-auf-field">
-          <label>Wartet auf (Person)</label>
-          <select value={wartetAuf} onChange={(e) => setWartetAuf(e.target.value)}><option value="">Bitte auswählen</option>{wartetAuf && !waitingOptions.includes(wartetAuf) && <option value={wartetAuf}>{wartetAuf} (Bestand)</option>}{waitingOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-        </div>
+        <TaskWaitingFields waitingFor={wartetAuf} waitingSince={wartetSeit} waitingOptions={waitingOptions} onWaitingForChange={setWartetAuf} onWaitingSinceChange={setWartetSeit} />
       )}
       <div className="field">
         <label>Anforderung</label>

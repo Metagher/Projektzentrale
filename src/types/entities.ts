@@ -148,6 +148,8 @@ export interface Task {
   tagesSortierung?: number;
   status: TaskStatus;
   wartetAuf: string;
+  /** Lokales Datum (YYYY-MM-DD), seit dem die Aufgabe im Status "wartet" ist. */
+  wartetSeit?: string;
   kontaktId: string;
   anforderung?: string; // RTF html
   aktuellerStand?: string; // RTF html
