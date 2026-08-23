@@ -181,9 +181,13 @@ export interface Task {
   abgeschlossenAm: string | null; // ISO datetime
   doku: boolean;
   dokuErledigt: boolean;
+  /** Ziel der Dokumentationsvormerkung; alte doku=true-Einträge gelten als Projektdokumentation. */
+  dokuZiel?: TaskDocumentationTarget;
   /** Für die Themenliste der nächsten Projektbesprechung vorgemerkt. */
   naechsteBesprechung?: boolean;
 }
+
+export type TaskDocumentationTarget = '' | 'project' | 'global';
 
 export type MilestoneStatus = 'geplant' | 'in Arbeit' | 'erledigt';
 

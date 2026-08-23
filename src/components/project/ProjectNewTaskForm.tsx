@@ -11,7 +11,8 @@ import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
 import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import TaskStatusButtons from '../shared/TaskStatusButtons';
 import TaskWaitingFields from '../shared/TaskWaitingFields';
-import type { ProjectCache, Task, TaskColor, TaskProgressEntry, TaskStatus } from '../../types/entities';
+import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSelect';
+import type { ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const createTask = useDataStore((s) => s.createTask);
@@ -31,7 +32,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [kontaktId, setKontaktId] = useState('');
   const [wartetAuf, setWartetAuf] = useState('');
   const [wartetSeit, setWartetSeit] = useState('');
-  const [doku, setDoku] = useState(false);
+  const [dokuZiel, setDokuZiel] = useState<TaskDocumentationTarget>('');
   const [naechsteBesprechung, setNaechsteBesprechung] = useState(false);
   const [anforderung, setAnforderung] = useState('');
   const [aktuellerStand, setAktuellerStand] = useState('');
@@ -73,8 +74,9 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       fremdverknuepfung: fremdverknuepfung.trim(),
       ticketsystemVerknuepfung: ticketsystemVerknuepfung.trim(),
       teilprojekt: teilprojekt.trim(),
-      doku,
+      doku: dokuZiel !== '',
       dokuErledigt: false,
+      dokuZiel,
       naechsteBesprechung,
     };
     const newTaskId = await createTask(projectId, partial);
@@ -115,7 +117,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
       <div className="field"><label>Ansprechpartner</label><select className="contact-select" value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}><option value="">— kein Ansprechpartner —</option>{data.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rolle ? ` (${c.rolle})` : ''}</option>)}</select></div>
       <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-${projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
-      <div className="doku-check-field"><label><input type="checkbox" checked={doku} onChange={(e) => setDoku(e.target.checked)} /> Für Dokumentation vormerken</label></div>
+      <TaskDocumentationTargetSelect value={dokuZiel} onChange={setDokuZiel} />
       <div className="doku-check-field"><label><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label></div>
       </div>
       <div className="field">

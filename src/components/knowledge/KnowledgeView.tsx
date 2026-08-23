@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useKnowledgeStore } from '../../store/knowledgeStore';
 import { useAiStore } from '../../store/aiStore';
 import { useModalStore } from '../../store/modalStore';
+import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import { fmtDateTime, htmlToPlainText } from '../../lib/format';
+import { taskDocumentationTarget } from '../../lib/taskDocumentation';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import AfnChipsView from '../shared/AfnChipsView';
@@ -17,6 +19,10 @@ function kbMatchesSearch(entry: { titel: string; kategorie: string; inhalt: stri
   if (!q) return true;
   const hay = (entry.titel + ' ' + entry.kategorie + ' ' + htmlToPlainText(entry.inhalt) + ' ' + (entry.projekte || []).join(' ') + ' ' + (entry.afns || []).join(' ')).toLowerCase();
   return hay.includes(q.toLowerCase());
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] || character);
 }
 
 export default function KnowledgeView() {
@@ -38,11 +44,14 @@ export default function KnowledgeView() {
   } = useKnowledgeStore();
   const confirm = useModalStore((s) => s.confirm);
   const alert = useModalStore((s) => s.alert);
+  const dashboardData = useDataStore((s) => s.dashboardData);
+  const saveTask = useDataStore((s) => s.saveTask);
 
   const [newTitel, setNewTitel] = useState('');
   const [newKategorie, setNewKategorie] = useState('');
   const [newInhalt, setNewInhalt] = useState('');
   const [newAfns, setNewAfns] = useState<string[]>([]);
+  const [acceptingTaskId, setAcceptingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     ensureLoaded();
@@ -67,6 +76,12 @@ export default function KnowledgeView() {
     (byCategory[cat] = byCategory[cat] || []).push(e);
   });
   const categories = Object.keys(byCategory).sort((a, b) => a.localeCompare(b));
+  const globalDokuTasks = [
+    ...(dashboardData?.openTasks || []),
+    ...(dashboardData?.waitingTasks || []),
+    ...(dashboardData?.completedTasks || []),
+  ].filter((task) => taskDocumentationTarget(task) === 'global' && !task.dokuErledigt)
+    .sort((a, b) => a.projectName.localeCompare(b.projectName, 'de') || a.nr - b.nr);
 
   async function handleAddManual() {
     const titel = newTitel.trim();
@@ -86,6 +101,27 @@ export default function KnowledgeView() {
     if (!sure) return;
     if (typ === 'manual') await deleteManual(id);
     else await deleteAi(id);
+  }
+
+  async function acceptGlobalTask(task: TaskWithMeta) {
+    setAcceptingTaskId(task.id);
+    try {
+      const source = `<p><strong>Quelle:</strong> Projekt ${escapeHtml(task.projectName)}, Aufgabe ${task.nr || '—'}</p>`;
+      const content = task.aktuellerStand || task.anforderung || `<p>${escapeHtml(task.titel)}</p>`;
+      await addManual({
+        titel: task.titel,
+        kategorie: task.teilprojekt?.trim() || 'Projektwissen',
+        inhalt: `${source}${content}`,
+        afns: task.afns || [],
+      });
+      const { projectId, projectName: _projectName, ...storedTask } = task;
+      void _projectName;
+      await saveTask(projectId, { ...storedTask, dokuErledigt: true });
+    } catch (cause) {
+      await alert(cause instanceof Error ? cause.message : 'Der Eintrag konnte nicht übernommen werden.');
+    } finally {
+      setAcceptingTaskId(null);
+    }
   }
 
   return (
@@ -114,6 +150,24 @@ export default function KnowledgeView() {
         </div>
       )}
       {error && <div className="ai-error" style={{ marginBottom: 14 }}>{error}</div>}
+
+      {globalDokuTasks.length > 0 && (
+        <section className="kb-task-inbox">
+          <div className="section-title">Für globale Dokumentation vorgemerkt ({globalDokuTasks.length})</div>
+          <p className="kb-task-inbox-intro">Diese Aufgaben wurden gezielt für die globale Wissensdatenbank vorgemerkt.</p>
+          {globalDokuTasks.map((task) => (
+            <div className={`doku-list-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} key={`${task.projectId}-${task.id}`}>
+              <div className="doku-inbox-copy">
+                <strong><span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong>
+                <small>{task.projectName} · Status: {task.status}</small>
+              </div>
+              <button className="btn secondary small" disabled={acceptingTaskId === task.id} onClick={() => acceptGlobalTask(task)}>
+                {acceptingTaskId === task.id ? 'Übernehme…' : 'In Wissensdatenbank übernehmen'}
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       <input
         type="text"

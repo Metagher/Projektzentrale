@@ -117,6 +117,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
             commIds: [c.id],
             doku: false,
             dokuErledigt: false,
+            dokuZiel: '',
             naechsteBesprechung: false,
             teilprojekt: c.teilprojekt || '',
           });

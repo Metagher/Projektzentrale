@@ -96,6 +96,7 @@ export async function buildExportCsv(): Promise<string> {
         Status: t.status || '', KontaktId: t.kontaktId || '', Anforderung: t.anforderung || '', AktuellerStand: t.aktuellerStand || '', Verlauf: JSON.stringify(t.verlauf || []), ErstelltAm: t.erstelltAm || '',
         AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '', WartetSeit: t.wartetSeit || '',
         Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), VerknuepfteModulIds: (t.moduleIds || []).join(';'), Teilprojekt: t.teilprojekt || '', NaechsteBesprechung: t.naechsteBesprechung ? 'ja' : 'nein',
+        DokuZiel: t.dokuZiel || (t.doku ? 'project' : ''), DokuErledigt: t.dokuErledigt ? 'ja' : 'nein',
       });
     });
     data.notes.forEach((note) => {
@@ -235,7 +236,10 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), wartetSeit: String(r.WartetSeit || ''), verlauf: parseTaskHistory(r.Verlauf),
         nr: Number.isFinite(nrRaw) ? nrRaw : 0, tagesSortierung: Number(r.TagesSortierung) || 999, commIds: splitList(r.VerknuepfteKommIds as string), moduleIds: splitList(r.VerknuepfteModulIds as string),
         teilprojekt: String(r.Teilprojekt || ''),
-        doku: false, dokuErledigt: false, naechsteBesprechung: String(r.NaechsteBesprechung || '').toLowerCase() === 'ja',
+        doku: r.DokuZiel === 'project' || r.DokuZiel === 'global',
+        dokuZiel: r.DokuZiel === 'global' ? 'global' : r.DokuZiel === 'project' ? 'project' : '',
+        dokuErledigt: String(r.DokuErledigt || '').toLowerCase() === 'ja',
+        naechsteBesprechung: String(r.NaechsteBesprechung || '').toLowerCase() === 'ja',
       });
     });
 

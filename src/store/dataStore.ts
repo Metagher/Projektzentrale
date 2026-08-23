@@ -288,9 +288,10 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     tasks = tasks.map((t) => {
       const fixed = migratePrio(t.prioritaet);
       const contentMigration = migrateTaskContent(t);
-      if (fixed !== t.prioritaet || contentMigration.changed) {
+      const dokuZiel = t.dokuZiel ?? (t.doku ? 'project' : '');
+      if (fixed !== t.prioritaet || contentMigration.changed || t.dokuZiel === undefined) {
         migrated = true;
-        return { ...contentMigration.task, prioritaet: fixed };
+        return { ...contentMigration.task, prioritaet: fixed, dokuZiel };
       }
       return contentMigration.task;
     });

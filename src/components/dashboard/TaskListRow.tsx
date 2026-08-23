@@ -2,6 +2,7 @@ import { fmtDate, todayStr, waitingDurationLabel } from '../../lib/format';
 import type { TaskWithMeta } from '../../store/dataStore';
 import { toExternalHref } from '../../lib/externalLinks';
 import TaskColorBadge from '../shared/TaskColorBadge';
+import { taskDocumentationLabel } from '../../lib/taskDocumentation';
 
 interface Props {
   task: TaskWithMeta;
@@ -21,7 +22,7 @@ export default function TaskListRow({ task, onClick }: Props) {
         <span className="task-nr">{task.nr || '—'}</span>
         {task.titel}
         {task.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{task.teilprojekt.trim()}</span>}
-        {task.doku && <span className="badge doku" style={{ marginLeft: 4 }}>Doku</span>}
+        {taskDocumentationLabel(task) && <span className="badge doku" style={{ marginLeft: 4 }}>{taskDocumentationLabel(task)}</span>}
         {task.naechsteBesprechung && <span className="badge meeting" style={{ marginLeft: 4 }}>Nächste Besprechung</span>}
         {externalHref && <a className="task-external-link-inline" href={externalHref} target="_blank" rel="noreferrer" title="Fremdverknüpfung öffnen" onClick={(event) => event.stopPropagation()}>↗</a>}
         {ticketHref && <a className="task-external-link-inline" href={ticketHref} target="_blank" rel="noreferrer" title="Ticket im Ticketsystem öffnen" onClick={(event) => event.stopPropagation()}>Ticket ↗</a>}

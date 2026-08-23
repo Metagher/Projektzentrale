@@ -14,6 +14,7 @@ import TimeTrackingButton from '../shared/TimeTrackingButton';
 import { formatDuration } from '../../lib/timeTracking';
 import TaskColorBadge from '../shared/TaskColorBadge';
 import { copyPathToClipboard, normalizeExplorerBasePath, taskExplorerPath } from '../../lib/explorerPaths';
+import { taskDocumentationLabel } from '../../lib/taskDocumentation';
 
 interface Props {
   task: Task;
@@ -57,56 +58,47 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
         setEditingTaskId(task.id);
       }}
     >
-      <div className="top-row">
-        <div>
-          {task.farbe && <TaskColorBadge color={task.farbe} />}
-          {dailyRank > 0 && <span className={`project-task-rank${task.faelligAm === todayStr() ? '' : ' next-workday'}`} title={task.faelligAm === todayStr() ? 'Tagesrang heute' : `Tagesrang am ${fmtDate(task.faelligAm)}`}>#{dailyRank}</span>}
-          <span className="task-nr">{task.nr || '—'}</span>
-          <strong>{task.titel}</strong>
-          {task.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{task.teilprojekt.trim()}</span>}
-          <span className={`badge ${slug(task.status)}`} style={{ marginLeft: 6 }}>
-            {task.status === 'wartet'
-              ? `wartet auf ${task.wartetAuf || 'jemanden'}${task.wartetSeit ? ` · ${waitingDurationLabel(task.wartetSeit)}` : ''}`
-              : task.status}
-          </span>
-          {task.doku && (
-            <span className="badge doku" style={{ marginLeft: 4 }}>
-              Doku
-            </span>
-          )}
-          {task.naechsteBesprechung && <span className="badge meeting" style={{ marginLeft: 4 }}>Nächste Besprechung</span>}
+      <div className="task-card-layout">
+        <header className="task-card-head">
+          <div className="task-card-identity">
+            <div className="task-card-kicker">
+              {task.farbe && <TaskColorBadge color={task.farbe} compact />}
+              {dailyRank > 0 && <span className={`project-task-rank${task.faelligAm === todayStr() ? '' : ' next-workday'}`} title={task.faelligAm === todayStr() ? 'Tagesrang heute' : `Tagesrang am ${fmtDate(task.faelligAm)}`}>#{dailyRank}</span>}
+              <span className="task-nr">ID {task.nr || '—'}</span>
+            </div>
+            <strong className="task-card-title">{task.titel}</strong>
+          </div>
+        </header>
+
+        <div className="task-card-badges">
+          <span className={`badge ${slug(task.status)}`}>{task.status === 'wartet' ? `wartet auf ${task.wartetAuf || 'jemanden'}${task.wartetSeit ? ` · ${waitingDurationLabel(task.wartetSeit)}` : ''}` : task.status}</span>
+          {task.teilprojekt?.trim() && <span className="badge teilprojekt">{task.teilprojekt.trim()}</span>}
+          {taskDocumentationLabel(task) && <span className="badge doku">{taskDocumentationLabel(task)}</span>}
+          {task.naechsteBesprechung && <span className="badge meeting">Nächste Besprechung</span>}
           {task.afns && task.afns.length > 0 && <AfnChipsView afns={task.afns} />}
-          <div className="meta">
-            Fällig: {fmtDate(task.faelligAm)} {contact && `· ${contact.name}`}
-            {task.erstelltAm && ` · Erstellt: ${fmtDate(task.erstelltAm.slice(0, 10))}`}
-            {task.abgeschlossenAm && ` · Erledigt: ${fmtDate(task.abgeschlossenAm.slice(0, 10))}`}
-          </div>
-          {externalHref && (
-            <div className="task-external-link" data-no-open>
-              <a href={externalHref} target="_blank" rel="noreferrer">↗ Fremdverknüpfung öffnen</a>
-            </div>
-          )}
-          {ticketHref && (
-            <div className="task-external-link" data-no-open>
-              <a href={ticketHref} target="_blank" rel="noreferrer">↗ Ticket im Ticketsystem öffnen</a>
-            </div>
-          )}
-          <div data-no-open>
-            <LinkChipsView ids={task.commIds} items={data.comms} labelFn={commLinkLabel} onJump={jumpToComm} />
-          </div>
-          {explorerBasePath && <div className="task-explorer-paths" data-no-open><button type="button" title={explorerTaskPath} onClick={() => copyExplorerPath('task')}>{copiedPath === 'task' ? 'Pfad kopiert' : 'Aufgabenordner kopieren'}</button><button type="button" title={explorerBasePath} onClick={() => copyExplorerPath('project')}>{copiedPath === 'project' ? 'Pfad kopiert' : 'Oberordner kopieren'}</button><small>Danach in die Explorer-Adresszeile einfügen.</small></div>}
         </div>
-        <div className="actions" data-no-open>
+
+        <div className="task-card-meta">
+          <span><b>Fällig</b>{fmtDate(task.faelligAm)}</span>
+          {contact && <span><b>Kontakt</b>{contact.name}</span>}
+          {task.erstelltAm && <span><b>Erstellt</b>{fmtDate(task.erstelltAm.slice(0, 10))}</span>}
+          {task.abgeschlossenAm && <span><b>Erledigt</b>{fmtDate(task.abgeschlossenAm.slice(0, 10))}</span>}
+        </div>
+
+        {(externalHref || ticketHref) && <div className="task-card-links" data-no-open>
+          {externalHref && <a href={externalHref} target="_blank" rel="noreferrer">↗ Fremdlink</a>}
+          {ticketHref && <a href={ticketHref} target="_blank" rel="noreferrer">↗ Ticket</a>}
+        </div>}
+        <div className="task-card-relations" data-no-open><LinkChipsView ids={task.commIds} items={data.comms} labelFn={commLinkLabel} onJump={jumpToComm} /></div>
+        {explorerBasePath && <div className="task-explorer-paths" data-no-open><button type="button" title={explorerTaskPath} onClick={() => copyExplorerPath('task')}>{copiedPath === 'task' ? 'Pfad kopiert' : 'Aufgabenordner'}</button><button type="button" title={explorerBasePath} onClick={() => copyExplorerPath('project')}>{copiedPath === 'project' ? 'Pfad kopiert' : 'Oberordner'}</button></div>}
+
+        <footer className="task-card-actions" data-no-open>
           <button type="button" className={`meeting-task-toggle${task.naechsteBesprechung ? ' active' : ''}`} aria-pressed={!!task.naechsteBesprechung} title={task.naechsteBesprechung ? 'Vormerkung für die nächste Besprechung entfernen' : 'Für die nächste Besprechung vormerken'} onClick={() => void saveTask(project.id, { ...task, naechsteBesprechung: !task.naechsteBesprechung })}>Besprechung</button>
           {trackedMinutes > 0 && <span className="task-time-total">{formatDuration(trackedMinutes)}</span>}
           <TimeTrackingButton projectId={project.id} taskId={task.id} compact />
-          <button className="icon-btn" onClick={async () => { try { exportTaskToPdf(project, task, contact); } catch (error) { await alert((error as Error).message); } }}>
-            PDF
-          </button>
-          <button className="icon-btn" onClick={onDelete}>
-            Löschen
-          </button>
-        </div>
+          <button type="button" className="icon-btn" onClick={async () => { try { exportTaskToPdf(project, task, contact); } catch (error) { await alert((error as Error).message); } }}>PDF</button>
+          <button type="button" className="icon-btn" onClick={onDelete}>Löschen</button>
+        </footer>
       </div>
     </div>
   );

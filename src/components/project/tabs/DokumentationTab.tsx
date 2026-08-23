@@ -10,6 +10,7 @@ import type { DocEntryValue, Project, ProjectCache, ProjectDocumentationArea, Pr
 import { compareTaskColors } from '../../../lib/taskColors';
 import { exportCurrentProjectStatus } from '../../../lib/projectStatusExport';
 import TaskColorBadge from '../../shared/TaskColorBadge';
+import { taskDocumentationTarget } from '../../../lib/taskDocumentation';
 
 const CURRENT_STATE_KEY = '_currentProjectState';
 
@@ -39,7 +40,7 @@ export default function DokumentationTab({ project, data }: { project: Project; 
     const entry = data.doc[definition.id];
     return entry && !Array.isArray(entry) && (entry.content || entry.afns?.length) ? [{ definition, entry }] : [];
   });
-  const dokuTasks = data.tasks.filter((task) => task.status === 'erledigt' && task.doku && !task.dokuErledigt).slice().sort((a, b) => compareTaskColors(a, b, taskColorOrder) || (b.abgeschlossenAm || '').localeCompare(a.abgeschlossenAm || ''));
+  const dokuTasks = data.tasks.filter((task) => taskDocumentationTarget(task) === 'project' && !task.dokuErledigt).slice().sort((a, b) => compareTaskColors(a, b, taskColorOrder) || Number(b.status === 'erledigt') - Number(a.status === 'erledigt') || (b.abgeschlossenAm || b.erstelltAm || '').localeCompare(a.abgeschlossenAm || a.erstelltAm || ''));
 
   async function moveTaskToHistory(taskId: string) {
     const task = data.tasks.find((item) => item.id === taskId);
@@ -112,9 +113,9 @@ export default function DokumentationTab({ project, data }: { project: Project; 
       </section>}
 
     {dokuTasks.length > 0 && <section className="doc-inbox">
-      <div className="section-title">Zur Dokumentation vorgemerkt ({dokuTasks.length})</div>
+      <div className="section-title">Für Projektdokumentation vorgemerkt ({dokuTasks.length})</div>
       {dokuTasks.map((task) => <div className={`doku-list-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} key={task.id} onClick={() => jumpToTask(task.id)}>
-        <div className="doku-inbox-copy"><strong><span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong>{task.farbe && <TaskColorBadge color={task.farbe} compact />}<small>{task.abgeschlossenAm ? `Erledigt: ${fmtDate(task.abgeschlossenAm.slice(0, 10))}` : ''}</small></div>
+        <div className="doku-inbox-copy"><strong><span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong>{task.farbe && <TaskColorBadge color={task.farbe} compact />}<small>{task.status === 'erledigt' && task.abgeschlossenAm ? `Erledigt: ${fmtDate(task.abgeschlossenAm.slice(0, 10))}` : `Status: ${task.status}`}</small></div>
         <button className="btn secondary small" onClick={(event) => { event.stopPropagation(); moveTaskToHistory(task.id); }}>In Verlauf übernehmen</button>
       </div>)}
     </section>}

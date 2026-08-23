@@ -42,5 +42,6 @@ export const CSV_COLUMNS = [
   'VerknuepfteModulIds',
   'Global', 'Angeheftet',
   'NaechsteBesprechung',
+  'DokuZiel', 'DokuErledigt',
   'ExplorerPfad',
 ] as const;
