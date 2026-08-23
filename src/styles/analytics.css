@@ -1,5 +1,10 @@
 /* Auswertung / Analytics */
 .analytics-page-header{margin-bottom:14px;}
+.analytics-subtabs{display:flex;width:max-content;max-width:100%;gap:4px;margin:0 0 24px;padding:4px;overflow-x:auto;background:#e7e7e7;border:1px solid #ccc;border-radius:10px;}
+.analytics-subtab{padding:8px 13px;color:#444;background:transparent;border:1px solid transparent;border-radius:7px;cursor:pointer;font-size:11px;font-weight:800;white-space:nowrap;}
+.analytics-subtab:hover{color:#111;background:#f7f7f7;}
+.analytics-subtab.active{color:#fff;background:#111;border-color:#111;box-shadow:0 1px 2px rgba(0,0,0,.18);}
+.analytics-subtabs+.analytics-section-intro,.analytics-subtabs+.time-analytics-overview>.analytics-section-intro{margin-top:0;padding-top:0;border-top:0;}
 .analytics-overview{margin-bottom:34px;}
 .analytics-scope-label{margin-bottom:7px;color:#777;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;}
 .analytics-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:24px;}

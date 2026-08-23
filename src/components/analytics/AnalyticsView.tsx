@@ -6,6 +6,13 @@ import AfnLesestandTab from './AfnLesestandTab';
 import GlobalPortfolioOverview from './GlobalPortfolioOverview';
 import TimeAnalyticsOverview from './TimeAnalyticsOverview';
 
+const ANALYTICS_TABS: { id: AnalyticsSubTab; label: string }[] = [
+  { id: 'projekte', label: 'Projektauswertung' },
+  { id: 'aufgaben', label: 'Aufgabenübersicht' },
+  { id: 'zeiten', label: 'Zeiten' },
+  { id: 'afn', label: 'AFN-Lesestand' },
+];
+
 export default function AnalyticsView() {
   const { analyticsSubTab, setAnalyticsSubTab } = useAnalyticsStore();
   const projects = useDataStore((s) => s.projects);
@@ -15,7 +22,7 @@ export default function AnalyticsView() {
   const workdayOverrides = useDataStore((s) => s.workdayOverrides);
 
   useEffect(() => {
-    if (analyticsSubTab !== 'aufgaben' || !projects) return;
+    if ((analyticsSubTab !== 'projekte' && analyticsSubTab !== 'aufgaben') || !projects) return;
     let cancelled = false;
     (async () => {
       const all: TaskWithMeta[] = [];
@@ -33,27 +40,32 @@ export default function AnalyticsView() {
   return (
     <div className="main-inner">
       <header className="page-header analytics-page-header"><div className="eyebrow">Gesamtunternehmen</div><h2>Globale Auswertung</h2><p>Projektportfolio, übergreifende Risiken und langfristige Leistungsentwicklung.</p></header>
-      <div className="tabs">
-        {(['aufgaben', 'afn'] as AnalyticsSubTab[]).map((t) => (
+      <div className="analytics-subtabs" role="tablist" aria-label="Bereich der globalen Auswertung">
+        {ANALYTICS_TABS.map((tab) => (
           <button
-            key={t}
-            className={`tab-btn${analyticsSubTab === t ? ' active' : ''}`}
-            onClick={() => setAnalyticsSubTab(t)}
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={analyticsSubTab === tab.id}
+            className={`analytics-subtab${analyticsSubTab === tab.id ? ' active' : ''}`}
+            onClick={() => setAnalyticsSubTab(tab.id)}
           >
-            {t === 'aufgaben' ? 'Projektportfolio' : 'AFN-Lesestand'}
+            {tab.label}
           </button>
         ))}
       </div>
       {analyticsSubTab === 'afn' ? (
         <AfnLesestandTab />
+      ) : analyticsSubTab === 'zeiten' ? (
+        <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" />
       ) : !allTasks ? (
         <div className="loading-note">Lade Auswertung…</div>
+      ) : analyticsSubTab === 'projekte' ? (
+        <GlobalPortfolioOverview projects={projects || []} tasks={allTasks} />
       ) : (
         <>
-          <GlobalPortfolioOverview projects={projects || []} tasks={allTasks} />
           <div className="analytics-section-intro"><div className="analytics-scope-label">Langfristige Entwicklung</div><h3>Projektübergreifende Aufgabenleistung</h3><p>Durchlaufzeiten, Abschlüsse pro Kalenderwoche und Entwicklung des offenen Bestands.</p></div>
           <TaskAnalytics allTasks={allTasks} showProjectBreakdown />
-          <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" />
         </>
       )}
     </div>

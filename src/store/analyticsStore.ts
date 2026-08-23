@@ -9,7 +9,7 @@ function client() {
   return c;
 }
 
-export type AnalyticsSubTab = 'aufgaben' | 'afn';
+export type AnalyticsSubTab = 'projekte' | 'aufgaben' | 'zeiten' | 'afn';
 
 interface AnalyticsStoreState {
   analyticsYear: number;
@@ -26,7 +26,7 @@ interface AnalyticsStoreState {
 
 export const useAnalyticsStore = create<AnalyticsStoreState>((set, get) => ({
   analyticsYear: new Date().getFullYear(),
-  analyticsSubTab: 'aufgaben',
+  analyticsSubTab: 'projekte',
   analyticsDailyRange: 30,
   afnLog: undefined,
 
