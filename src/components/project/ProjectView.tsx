@@ -11,6 +11,7 @@ import UpdateTab from './tabs/UpdateTab';
 import KiSucheTab from './tabs/KiSucheTab';
 import AuswertungTab from './tabs/AuswertungTab';
 import ModuleTab from './tabs/ModuleTab';
+import NotizenTab from './tabs/NotizenTab';
 import { ProjectUiScopeProvider, type ProjectUiScope } from '../../store/projectUiStore';
 import RtfField from '../shared/RtfField';
 import TimeTrackingButton from '../shared/TimeTrackingButton';
@@ -62,6 +63,7 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
   }
 
   const echtlauf = hasEchtlauf(project);
+  const pinnedNotes = data.notes.filter((note) => note.pinned).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
   let tabContent = null;
   if (activeTab === 'kommunikation') tabContent = <KommunikationTab projectId={project.id} data={data} />;
@@ -70,6 +72,7 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
   else if (activeTab === 'update') tabContent = <UpdateTab project={project} data={data} />;
   else if (activeTab === 'auswertung') tabContent = <AuswertungTab project={project} data={data} />;
   else if (activeTab === 'module') tabContent = <ModuleTab project={project} data={data} />;
+  else if (activeTab === 'notizen') tabContent = <NotizenTab project={project} />;
   else if (activeTab === 'ki-suche') tabContent = <KiSucheTab project={project} data={data} />;
   else tabContent = <AufgabenTab project={project} data={data} />;
 
@@ -95,6 +98,7 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
                 title="Projektinfo bearbeiten"
                 placeholder="Projektinfo direkt hier eingeben…"
               />
+              {pinnedNotes.length > 0 && <div className="pinned-project-notes"><strong>Angeheftete Notizen</strong>{pinnedNotes.map((note) => <button type="button" key={note.id} onClick={() => setActiveTab('notizen')}><span>{note.titel}</span>{note.inhalt && <small>{note.inhalt}</small>}</button>)}</div>}
             </div>
           )}
         </div>
@@ -114,6 +118,9 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
           onClick={() => setActiveTab('kommunikation')}
         >
           Kommunikation
+        </button>
+        <button className={`tab-btn${activeTab === 'notizen' ? ' active' : ''}`} onClick={() => setActiveTab('notizen')}>
+          Notizen{data.notes.length ? ` (${data.notes.length})` : ''}
         </button>
         <button className={`tab-btn${activeTab === 'module' ? ' active' : ''}`} onClick={() => setActiveTab('module')}>
           Module

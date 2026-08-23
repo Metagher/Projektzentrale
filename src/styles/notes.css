@@ -1,0 +1,40 @@
+.project-notes-page{min-width:0;}
+.project-note-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px;}
+.project-note-card,.project-note-editor{padding:15px;background:#fff;border:1px solid #ccc;border-radius:10px;box-shadow:var(--shadow-sm);}
+.project-note-card.pinned{border:2px solid #111;}
+.project-note-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:9px;}
+.project-note-card h4{margin:3px 0 0;font-size:14px;}
+.project-note-card header>small{flex:0 0 auto;color:#777;font-size:8px;}
+.project-note-card>p{min-height:42px;margin:0 0 13px;color:#333;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;}
+.project-note-flags{display:flex;flex-wrap:wrap;gap:4px;min-height:18px;}
+.project-note-flags span{padding:2px 6px;color:#fff;background:#111;border-radius:999px;font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+.project-note-actions{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding-top:9px;border-top:1px solid #ddd;}
+.note-toggle{padding:4px 7px;color:#555;background:#fff;border:1px solid #bbb;border-radius:6px;cursor:pointer;font-size:9px;font-weight:800;}
+.note-toggle:hover,.note-toggle.active{color:#fff;background:#111;border-color:#111;}
+.project-note-actions .icon-btn.edit{margin-left:auto;}
+.project-note-editor{grid-column:1/-1;margin-bottom:12px;border:2px solid #111;}
+.project-note-editor textarea{min-height:120px;}
+.project-note-options{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin:3px 0 12px;}
+.project-note-options label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;cursor:pointer;}
+.project-note-options input{accent-color:#111;}
+.pinned-project-notes{display:grid;gap:5px;margin-top:9px;padding-top:9px;border-top:1px solid #ccc;}
+.pinned-project-notes>strong{font-size:9px;letter-spacing:.07em;text-transform:uppercase;}
+.pinned-project-notes button{display:grid;gap:2px;padding:8px 10px;color:#111;background:#f0f0f0;border:1px solid #ccc;border-left:4px solid #111;border-radius:7px;cursor:pointer;text-align:left;}
+.pinned-project-notes button:hover{color:#fff;background:#111;border-color:#111;}
+.pinned-project-notes span{font-size:11px;font-weight:800;}
+.pinned-project-notes small{display:-webkit-box;overflow:hidden;color:#666;font-size:9px;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:pre-wrap;}
+.pinned-project-notes button:hover small{color:#ccc;}
+.global-project-notes{margin:0 0 18px;padding:14px;background:#111;border:1px solid #111;border-radius:12px;}
+.global-project-notes>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;color:#fff;}
+.global-project-notes>header .eyebrow{color:#aaa;}
+.global-project-notes>header h3{font-size:17px;}
+.global-project-notes>header>strong{display:grid;place-items:center;width:27px;height:27px;color:#111;background:#fff;border-radius:7px;font-size:10px;}
+.global-project-notes>div{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:7px;}
+.global-project-notes button{display:grid;grid-template-rows:auto auto 1fr auto;min-width:0;padding:11px;color:#111;background:#fff;border:1px solid #fff;border-radius:8px;cursor:pointer;text-align:left;}
+.global-project-notes button:hover{color:#fff;background:#111;box-shadow:inset 0 0 0 1px #fff;}
+.global-project-notes button>span{overflow:hidden;color:#666;font-size:8px;font-weight:800;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap;}
+.global-project-notes button>strong{margin-top:2px;font-size:12px;}
+.global-project-notes button>p{display:-webkit-box;overflow:hidden;margin:6px 0;color:#444;font-size:10px;line-height:1.4;-webkit-box-orient:vertical;-webkit-line-clamp:3;white-space:pre-wrap;}
+.global-project-notes button>small{color:#777;font-size:8px;}
+.global-project-notes button:hover>span,.global-project-notes button:hover>p,.global-project-notes button:hover>small{color:#ccc;}
+@media(max-width:700px){.project-note-grid,.global-project-notes>div{grid-template-columns:1fr}.project-note-actions .icon-btn.edit{margin-left:0}.project-note-options{align-items:flex-start;flex-direction:column}}

@@ -104,6 +104,13 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
     lines.push('Projektdokumentation:');
     lines.push(...docLines.map((l) => '- ' + l));
   }
+  if (data.notes.length) {
+    lines.push('Freie Projektnotizen:');
+    data.notes.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).forEach((note) => {
+      const flags = [note.global ? 'global' : '', note.pinned ? 'angeheftet' : ''].filter(Boolean);
+      lines.push(`- ${note.titel}${flags.length ? ` [${flags.join(', ')}]` : ''}: ${note.inhalt}`);
+    });
+  }
   if (data.tasks.length) {
     lines.push('Aufgaben:');
     data.tasks.forEach((t) => {

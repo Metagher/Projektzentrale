@@ -17,6 +17,7 @@ import type {
   ErpModule,
   CustomerModule,
   ProjectModuleConfig,
+  ProjectNote,
   TimeEntry,
   ActiveTimer,
   Project,
@@ -62,7 +63,7 @@ export interface DashboardData {
 }
 
 function emptyProjectCache(): ProjectCache {
-  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [] };
+  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [], notes: [] };
 }
 
 interface DataStoreState {
@@ -126,6 +127,8 @@ interface DataStoreState {
   saveCustomerModule: (entry: CustomerModule) => Promise<void>;
   deleteCustomerModule: (kunde: string, moduleId: string) => Promise<void>;
   saveProjectModuleConfig: (projectId: string, config: ProjectModuleConfig) => Promise<void>;
+  saveProjectNote: (projectId: string, note: ProjectNote) => Promise<void>;
+  deleteProjectNote: (projectId: string, noteId: string) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -146,7 +149,7 @@ interface DataStoreState {
     docDefs: DocSectionDef[];
     perProject: Record<
       string,
-      { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[] }
+      { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[]; notes: ProjectNote[] }
     >;
     timeEntries: TimeEntry[];
   }) => Promise<void>;
@@ -269,7 +272,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const existing = get().cache[id];
     if (existing) return existing;
     const sb = client();
-    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs] = await Promise.all([
+    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs, notes] = await Promise.all([
       sGet<Contact[]>(sb, 'contacts:' + id),
       sGet<Comm[]>(sb, 'comms:' + id),
       sGet<DocData>(sb, 'doc:' + id),
@@ -278,6 +281,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<UpdateEntry[]>(sb, 'updates:' + id),
       sGet<ProjectCache['aiSummary']>(sb, 'ai-summary:' + id),
       sGet<ProjectModuleConfig[]>(sb, 'module-configs:' + id),
+      sGet<ProjectNote[]>(sb, 'notes:' + id),
     ]);
     let tasks = rawTasks || [];
     let migrated = false;
@@ -300,6 +304,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       updates: updates || [],
       aiSummary: aiSummary || null,
       moduleConfigs: moduleConfigs || [],
+      notes: notes || [],
     };
     set({ cache: { ...get().cache, [id]: projectCache } });
     return projectCache;
@@ -390,7 +395,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const sb = client();
     await Promise.all([sSet(sb, 'projects', projects), sSet(sb, 'time-entries', timeEntries), activeTimer ? sSet(sb, 'active-timer', activeTimer) : sDelete(sb, 'active-timer')]);
     await Promise.all(
-      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:'].map((prefix) =>
+      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:', 'notes:'].map((prefix) =>
         sDelete(sb, prefix + id),
       ),
     );
@@ -732,6 +737,24 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await sSet(client(), 'module-configs:' + projectId, moduleConfigs);
   },
 
+  saveProjectNote: async (projectId, note) => {
+    const data = await get().ensureProjectData(projectId);
+    const notes = data.notes.some((item) => item.id === note.id)
+      ? data.notes.map((item) => item.id === note.id ? note : item)
+      : [...data.notes, note];
+    const cache = { ...get().cache, [projectId]: { ...data, notes } };
+    set({ cache });
+    await sSet(client(), 'notes:' + projectId, notes);
+  },
+
+  deleteProjectNote: async (projectId, noteId) => {
+    const data = await get().ensureProjectData(projectId);
+    const notes = data.notes.filter((item) => item.id !== noteId);
+    const cache = { ...get().cache, [projectId]: { ...data, notes } };
+    set({ cache });
+    await sSet(client(), 'notes:' + projectId, notes);
+  },
+
   startTimer: async (projectId, taskId = null) => {
     const current = get().activeTimer;
     if (current) {
@@ -821,19 +844,20 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const previousProjects = get().projects || [];
     for (const p of previousProjects) {
       await Promise.all(
-        ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'ai-summary:', 'updates:'].map((prefix) =>
+        ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'ai-summary:', 'updates:', 'module-configs:', 'notes:'].map((prefix) =>
           sDelete(sb, prefix + p.id),
         ),
       );
     }
     for (const p of projects) {
-      const d = perProject[p.id] || { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [] };
+      const d = perProject[p.id] || { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], notes: [] };
       await sSet(sb, 'contacts:' + p.id, d.contacts);
       await sSet(sb, 'comms:' + p.id, d.comms);
       await sSet(sb, 'doc:' + p.id, d.doc);
       await sSet(sb, 'tasks:' + p.id, d.tasks);
       await sSet(sb, 'timeline:' + p.id, d.timeline);
       await sSet(sb, 'updates:' + p.id, d.updates);
+      await sSet(sb, 'notes:' + p.id, d.notes);
     }
     await sSet(sb, 'projects', projects);
     await sSet(sb, 'doc-section-defs', docDefs);

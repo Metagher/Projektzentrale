@@ -50,6 +50,16 @@ export interface ProjectModuleConfig {
   updatedAt: string;
 }
 
+export interface ProjectNote {
+  id: string;
+  titel: string;
+  inhalt: string;
+  global: boolean;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TimeEntry {
   id: string;
   projectId: string;
@@ -240,4 +250,5 @@ export interface ProjectCache {
   updates: UpdateEntry[];
   aiSummary: AiSummary | null;
   moduleConfigs: ProjectModuleConfig[];
+  notes: ProjectNote[];
 }

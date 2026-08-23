@@ -40,4 +40,5 @@ export const CSV_COLUMNS = [
   'AufgabeId', 'Start', 'Ende', 'DauerMinuten',
   'SchnellwahlAusgeblendet',
   'VerknuepfteModulIds',
+  'Global', 'Angeheftet',
 ] as const;

@@ -8,6 +8,7 @@ import DashboardCockpit from './DashboardCockpit';
 import TaskRows from './TaskRows';
 import InlineEditTaskRow from './InlineEditTaskRow';
 import OverdueBanner from './OverdueBanner';
+import GlobalProjectNotes from './GlobalProjectNotes';
 import type { TaskColor } from '../../types/entities';
 
 type ActionFilter = 'all' | 'active' | 'overdue' | 'waiting';
@@ -40,6 +41,7 @@ export default function Dashboard() {
 
   return <div className="main-inner">
     <header className="page-header"><div className="eyebrow">Arbeitsbereich</div><h2>Guten Überblick.</h2><p>Alle Projekte, offenen Aufgaben und anstehenden Echtläufe an einem Ort.</p></header>
+    <GlobalProjectNotes projects={projects} />
     <OverdueBanner count={dashboardData.overdueTasks.length} />
     <DailyBriefingCard />
     <DailyPlanner />

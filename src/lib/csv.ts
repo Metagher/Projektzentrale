@@ -3,7 +3,7 @@ import { CSV_COLUMNS } from './constants';
 import { migratePrio } from './migrations';
 import { defLevel, todayStr } from './format';
 import { useDataStore } from '../store/dataStore';
-import type { Comm, Contact, DocData, DocEntryValue, DocSectionDef, Milestone, Project, ProjectDocumentationArea, ProjectStatusEntry, ProjectTyp, Task, TimeEntry, UpdateEntry } from '../types/entities';
+import type { Comm, Contact, DocData, DocEntryValue, DocSectionDef, Milestone, Project, ProjectDocumentationArea, ProjectNote, ProjectStatusEntry, ProjectTyp, Task, TimeEntry, UpdateEntry } from '../types/entities';
 
 type CsvRow = Record<string, string | number | undefined>;
 
@@ -97,6 +97,9 @@ export async function buildExportCsv(): Promise<string> {
         Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), VerknuepfteModulIds: (t.moduleIds || []).join(';'), Teilprojekt: t.teilprojekt || '',
       });
     });
+    data.notes.forEach((note) => {
+      rows.push({ Typ: 'notiz', ProjektId: p.id, Id: note.id, Titel: note.titel, Inhalt: note.inhalt, Global: note.global ? 'ja' : 'nein', Angeheftet: note.pinned ? 'ja' : 'nein', ErstelltAm: note.createdAt, AktualisiertAm: note.updatedAt });
+    });
     data.timeline.forEach((m) => {
       rows.push({ Typ: 'meilenstein', ProjektId: p.id, Id: m.id, Titel: m.titel, Datum: m.datum || '', Status: m.status || '', Notiz: m.notiz || '' });
     });
@@ -119,7 +122,7 @@ export interface ParsedImport {
   docDefs: DocSectionDef[];
   perProject: Record<
     string,
-    { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[] }
+    { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[]; notes: ProjectNote[] }
   >;
   timeEntries: TimeEntry[];
 }
@@ -161,7 +164,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
   const perProject: ParsedImport['perProject'] = {};
   const timeEntries: TimeEntry[] = [];
   for (const p of projects) {
-    perProject[p.id] = { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [] };
+    perProject[p.id] = { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], notes: [] };
   }
 
   rows
@@ -231,6 +234,22 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         nr: Number.isFinite(nrRaw) ? nrRaw : 0, tagesSortierung: Number(r.TagesSortierung) || 999, commIds: splitList(r.VerknuepfteKommIds as string), moduleIds: splitList(r.VerknuepfteModulIds as string),
         teilprojekt: String(r.Teilprojekt || ''),
         doku: false, dokuErledigt: false,
+      });
+    });
+
+  rows
+    .filter((r) => r.Typ === 'notiz')
+    .forEach((r) => {
+      const pid = String(r.ProjektId);
+      if (!perProject[pid]) return;
+      perProject[pid].notes.push({
+        id: String(r.Id),
+        titel: String(r.Titel || ''),
+        inhalt: String(r.Inhalt || ''),
+        global: String(r.Global || '').toLowerCase() === 'ja',
+        pinned: String(r.Angeheftet || '').toLowerCase() === 'ja',
+        createdAt: String(r.ErstelltAm || new Date().toISOString()),
+        updatedAt: String(r.AktualisiertAm || r.ErstelltAm || new Date().toISOString()),
       });
     });
 
