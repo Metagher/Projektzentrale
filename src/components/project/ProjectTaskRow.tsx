@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useDataStore } from '../../store/dataStore';
 import { fmtDate, slug, todayStr, waitingDurationLabel } from '../../lib/format';
@@ -12,6 +13,7 @@ import { useModalStore } from '../../store/modalStore';
 import TimeTrackingButton from '../shared/TimeTrackingButton';
 import { formatDuration } from '../../lib/timeTracking';
 import TaskColorBadge from '../shared/TaskColorBadge';
+import { copyPathToClipboard, normalizeExplorerBasePath, taskExplorerPath } from '../../lib/explorerPaths';
 
 interface Props {
   task: Task;
@@ -22,6 +24,7 @@ interface Props {
 }
 
 export default function ProjectTaskRow({ task, project, contact, data, onDelete }: Props) {
+  const [copiedPath, setCopiedPath] = useState<'task' | 'project' | null>(null);
   const { setEditingTaskId, jumpToComm } = useProjectUiStore();
   const dashboardData = useDataStore((state) => state.dashboardData);
   const saveTask = useDataStore((state) => state.saveTask);
@@ -36,6 +39,15 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
   const externalHref = toExternalHref(task.fremdverknuepfung);
   const ticketHref = toExternalHref(task.ticketsystemVerknuepfung);
   const trackedMinutes = useDataStore((state) => state.timeEntries).filter((entry) => entry.projectId === project.id && entry.taskId === task.id).reduce((sum, entry) => sum + entry.durationMinutes, 0);
+  const explorerBasePath = normalizeExplorerBasePath(project.explorerPath || '');
+  const explorerTaskPath = taskExplorerPath(explorerBasePath, task);
+
+  async function copyExplorerPath(kind: 'task' | 'project') {
+    const copied = await copyPathToClipboard(kind === 'task' ? explorerTaskPath : explorerBasePath);
+    if (!copied) return;
+    setCopiedPath(kind);
+    window.setTimeout(() => setCopiedPath((current) => current === kind ? null : current), 1600);
+  }
 
   return (
     <div
@@ -82,6 +94,7 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
           <div data-no-open>
             <LinkChipsView ids={task.commIds} items={data.comms} labelFn={commLinkLabel} onJump={jumpToComm} />
           </div>
+          {explorerBasePath && <div className="task-explorer-paths" data-no-open><button type="button" title={explorerTaskPath} onClick={() => copyExplorerPath('task')}>{copiedPath === 'task' ? 'Pfad kopiert' : 'Aufgabenordner kopieren'}</button><button type="button" title={explorerBasePath} onClick={() => copyExplorerPath('project')}>{copiedPath === 'project' ? 'Pfad kopiert' : 'Oberordner kopieren'}</button><small>Danach in die Explorer-Adresszeile einfügen.</small></div>}
         </div>
         <div className="actions" data-no-open>
           <button type="button" className={`meeting-task-toggle${task.naechsteBesprechung ? ' active' : ''}`} aria-pressed={!!task.naechsteBesprechung} title={task.naechsteBesprechung ? 'Vormerkung für die nächste Besprechung entfernen' : 'Für die nächste Besprechung vormerken'} onClick={() => void saveTask(project.id, { ...task, naechsteBesprechung: !task.naechsteBesprechung })}>Besprechung</button>

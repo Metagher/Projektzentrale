@@ -374,6 +374,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       aktuelleVersion: '',
       sortIndex: maxSortIndex + 1,
       quickbarHidden: false,
+      explorerPath: '',
     };
     const next = [...projects, newP];
     set({ projects: next });

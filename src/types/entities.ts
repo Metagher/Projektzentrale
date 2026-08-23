@@ -13,6 +13,8 @@ export interface Project {
   sortIndex: number;
   /** Blendet ausschließlich den Button in der oberen Projektschnellwahl aus. */
   quickbarHidden?: boolean;
+  /** Windows-Basisverzeichnis für aufgabenbezogene Projektdateien. */
+  explorerPath?: string;
 }
 
 export type ModuleCommercialStatus = 'vertrag' | 'nachlizenzierung';
