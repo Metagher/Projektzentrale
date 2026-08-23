@@ -13,6 +13,7 @@ import { compareTaskColors, compareWaitingPerson } from '../../../lib/taskColors
 import { writeTaskDrag } from '../../../lib/taskDrag';
 
 type BoardColumn = 'offen' | 'wartet' | 'erledigt';
+const WITHOUT_SUBPROJECT_FILTER = '__without-subproject__';
 
 const COLUMNS: { key: BoardColumn; label: string; hint: string }[] = [
   { key: 'offen', label: 'Offen', hint: 'Offen und in Arbeit' },
@@ -46,11 +47,12 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
 
   useEffect(() => { setTeilprojektFilter(''); }, [project.id]);
   useEffect(() => {
-    if (teilprojektFilter && !teilprojekte.includes(teilprojektFilter)) setTeilprojektFilter('');
+    if (teilprojektFilter && teilprojektFilter !== WITHOUT_SUBPROJECT_FILTER && !teilprojekte.includes(teilprojektFilter)) setTeilprojektFilter('');
   }, [teilprojektFilter, teilprojekte]);
 
   const filteredTasks = applyProjectTaskFilters(data.tasks, projectTaskFilter)
-    .filter((task) => !teilprojektFilter || task.teilprojekt?.trim() === teilprojektFilter);
+    .filter((task) => !teilprojektFilter
+      || (teilprojektFilter === WITHOUT_SUBPROJECT_FILTER ? !task.teilprojekt?.trim() : task.teilprojekt?.trim() === teilprojektFilter));
   const tasksByColumn = COLUMNS.reduce<Record<BoardColumn, Task[]>>((groups, column) => {
     groups[column.key] = filteredTasks
       .filter((task) => columnForStatus(task.status) === column.key)
@@ -149,6 +151,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
         <div className="task-subproject-filters" aria-label="Quickfilter nach Teilprojekt">
           <span>Teilprojekte</span>
           <button className={`btn secondary small${teilprojektFilter === '' ? ' active' : ''}`} onClick={() => setTeilprojektFilter('')}>Alle</button>
+          <button className={`btn secondary small${teilprojektFilter === WITHOUT_SUBPROJECT_FILTER ? ' active' : ''}`} onClick={() => setTeilprojektFilter(WITHOUT_SUBPROJECT_FILTER)}>Ohne Teilprojekt</button>
           {teilprojekte.map((name) => (
             <button key={name} className={`btn secondary small${teilprojektFilter === name ? ' active' : ''}`} onClick={() => setTeilprojektFilter(name)}>{name}</button>
           ))}
