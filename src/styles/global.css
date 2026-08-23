@@ -1,5 +1,5 @@
 *{box-sizing:border-box;}
-html{color-scheme:dark;}
+html{color-scheme:light;}
 html,body,#root{margin:0;padding:0;height:100%;}
 body{
   font-family:'IBM Plex Sans', sans-serif;
@@ -28,12 +28,12 @@ select.contact-select{max-width:260px;}
 /* Storage safety banner */
 #storage-banner{
   display:none;position:sticky;top:0;left:0;right:0;z-index:2000;
-  background:#3D2418;color:#FCEFE2;padding:10px 20px;font-size:13px;line-height:1.5;
+  background:#000;color:#fff;padding:10px 20px;font-size:13px;line-height:1.5;
   border-bottom:2px solid var(--rust);
 }
 #storage-banner.show{display:block;}
-#storage-banner strong{color:#FFB088;}
+#storage-banner strong{color:#fff;}
 #storage-banner .banner-close{
-  float:right;background:none;border:1px solid rgba(255,255,255,0.3);color:#FCEFE2;
+  float:right;background:none;border:1px solid rgba(255,255,255,0.3);color:#fff;
   border-radius:2px;padding:2px 8px;cursor:pointer;font-size:11px;margin-left:12px;
 }

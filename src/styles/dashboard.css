@@ -54,7 +54,7 @@
   font-size:10.5px;line-height:1.3;background:var(--paper);border-radius:2px;padding:2px 5px;cursor:pointer;
   border-left:2px solid var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;
 }
-.cal-task:hover{background:#2C362E;}
+.cal-task:hover{background:#eee;}
 .cal-task.prio-must{border-left-color:var(--rust);}
 .cal-task.prio-could{border-left-color:var(--sage);}
 .cal-task.prio-wont{border-left-color:var(--ink-soft);}

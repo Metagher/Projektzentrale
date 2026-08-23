@@ -13,11 +13,11 @@
 .setup-box .field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;font-family:'IBM Plex Mono',monospace;background:var(--field-bg);color:var(--ink);}
 .setup-box .field input:focus{border-color:var(--focus);outline:none;}
 .setup-box .btn{width:100%;padding:11px;font-size:14px;margin-top:6px;}
-.setup-error{background:#4A241C;color:#F3B8A9;border-radius:var(--radius);padding:9px 12px;font-size:12.5px;margin-bottom:14px;}
+.setup-error{background:#111;color:#fff;border-radius:var(--radius);padding:9px 12px;font-size:12.5px;margin-bottom:14px;}
 
 /* ===== MODAL ===== */
 .modal-overlay{
-  position:fixed;inset:0;background:rgba(21,32,25,0.55);display:flex;align-items:center;justify-content:center;
+  position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;
   z-index:1000;padding:20px;
 }
 .modal-box{

@@ -10,7 +10,7 @@
 .analytics-kpi-grid article small{margin-top:3px;color:var(--ink-soft);font-size:10px;}
 .analytics-kpi-grid article.critical{color:#fff;background:#111;border-color:#111;}
 .analytics-kpi-grid article.critical small{color:#ccc;}
-.analytics-kpi-grid article.attention{border-top-color:#c17a00;}
+.analytics-kpi-grid article.attention{border-top-color:#555;}
 .analytics-block-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:0 0 10px;}
 .analytics-block-head h3{font-size:17px;}
 .analytics-block-head p{margin:2px 0 0;color:var(--ink-soft);font-size:11px;}
@@ -21,8 +21,8 @@
 .portfolio-table td:first-child{min-width:210px;}
 .portfolio-table td:first-child strong,.portfolio-table td:first-child small{display:block;}
 .portfolio-table td:first-child small{margin-top:2px;color:var(--ink-soft);font-size:9px;}
-.portfolio-table .metric-critical{font-weight:900;color:#a32620;}
-.portfolio-table .metric-attention{font-weight:800;color:#8a5800;}
+.portfolio-table .metric-critical{font-weight:900;color:#111;}
+.portfolio-table .metric-attention{font-weight:800;color:#555;}
 .analytics-section-intro{margin:38px 0 14px;padding-top:24px;border-top:2px solid #111;}
 .analytics-section-intro h3{font-size:22px;}
 .analytics-section-intro p{margin:4px 0 0;color:var(--ink-soft);font-size:12px;}
@@ -53,7 +53,7 @@
 .an-week-cell .an-week-num{position:relative;z-index:1;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);}
 .an-week-cell .an-week-count{position:relative;z-index:1;font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-top:2px;}
 .an-week-cell.an-current{border-color:var(--amber);border-width:2px;}
-.an-week-bar{position:absolute;left:0;bottom:0;right:0;top:auto;background:#22402E;z-index:0;}
+.an-week-bar{position:absolute;left:0;bottom:0;right:0;top:auto;background:#333;z-index:0;}
 .an-year-select{padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;background:var(--field-bg);color:var(--ink);}
 .an-note{font-size:11.5px;color:var(--ink-soft);margin-bottom:18px;max-width:640px;}
 .an-daily-grid{grid-template-columns:repeat(auto-fill, minmax(48px,1fr));}
