@@ -27,6 +27,9 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const syncCommLinksForTask = useDataStore((s) => s.syncCommLinksForTask);
   const startTimer = useDataStore((s) => s.startTimer);
   const stopTimer = useDataStore((s) => s.stopTimer);
+  const modules = useDataStore((s) => s.modules);
+  const customerModules = useDataStore((s) => s.customerModules);
+  const project = useDataStore((s) => s.projects?.find((item) => item.id === projectId));
   const { setEditingTaskId } = useProjectUiStore();
   const confirm = useModalStore((s) => s.confirm);
   const alert = useModalStore((s) => s.alert);
@@ -44,11 +47,15 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const [verlauf, setVerlauf] = useState<TaskProgressEntry[]>(task.verlauf || []);
   const [afns, setAfns] = useState(task.afns || []);
   const [commIds, setCommIds] = useState(task.commIds || []);
+  const [moduleIds, setModuleIds] = useState(task.moduleIds || []);
   const [fremdverknuepfung, setFremdverknuepfung] = useState(task.fremdverknuepfung || '');
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState(task.ticketsystemVerknuepfung || '');
   const [teilprojekt, setTeilprojekt] = useState(task.teilprojekt || '');
   const teilprojekte = Array.from(new Set(data.tasks.map((item) => item.teilprojekt?.trim()).filter((value): value is string => !!value)))
     .sort((a, b) => a.localeCompare(b, 'de'));
+  const assignedModuleIds = new Set(customerModules.filter((item) => item.kunde === project?.kunde).map((item) => item.moduleId));
+  const moduleItems = modules.filter((module) => assignedModuleIds.has(module.id) || moduleIds.includes(module.id)).sort((a, b) => { const parentA = modules.find((item) => item.id === a.parentId) || a; const parentB = modules.find((item) => item.id === b.parentId) || b; return parentA.sortIndex - parentB.sortIndex || a.sortIndex - b.sortIndex; });
+  const moduleLabel = (module: (typeof modules)[number]) => { const parent = modules.find((item) => item.id === module.parentId); return parent ? `${parent.name} · ${module.name}` : module.name; };
 
   useEffect(() => {
     let disposed = false;
@@ -96,6 +103,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       verlauf,
       afns,
       commIds,
+      moduleIds,
       fremdverknuepfung: fremdverknuepfung.trim(),
       ticketsystemVerknuepfung: ticketsystemVerknuepfung.trim(),
       teilprojekt: teilprojekt.trim(),
@@ -144,7 +152,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
         <div className="field"><label>Ansprechpartner</label><select value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}><option value="">— kein Ansprechpartner —</option>{contacts.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rolle ? ` (${c.rolle})` : ''}</option>)}</select></div>
         <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-edit-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-edit-${projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
         <label className="doku-check-field"><input type="checkbox" checked={doku} onChange={(e) => setDoku(e.target.checked)} /> Für Dokumentation vormerken</label>
-      </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div></div> : <TaskTimePanel projectId={projectId} taskId={task.id} />}
+      </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div><div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div></div> : <TaskTimePanel projectId={projectId} taskId={task.id} />}
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn small" onClick={handleSave}>
           Speichern

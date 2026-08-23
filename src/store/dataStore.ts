@@ -692,8 +692,9 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await Promise.all(Object.entries(cache).map(async ([projectId, data]) => {
       if (!data) return;
       const moduleConfigs = data.moduleConfigs.filter((item) => !ids.has(item.moduleId));
-      cache[projectId] = { ...data, moduleConfigs };
-      await sSet(client(), 'module-configs:' + projectId, moduleConfigs);
+      const tasks = data.tasks.map((task) => ({ ...task, moduleIds: (task.moduleIds || []).filter((moduleId) => !ids.has(moduleId)) }));
+      cache[projectId] = { ...data, moduleConfigs, tasks };
+      await Promise.all([sSet(client(), 'module-configs:' + projectId, moduleConfigs), sSet(client(), 'tasks:' + projectId, tasks)]);
     }));
     set({ modules, customerModules, cache });
     await Promise.all([sSet(client(), 'erp-modules', modules), sSet(client(), 'customer-modules', customerModules)]);
@@ -710,7 +711,14 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
 
   deleteCustomerModule: async (kunde, moduleId) => {
     const customerModules = get().customerModules.filter((item) => !(item.kunde === kunde && item.moduleId === moduleId));
-    set({ customerModules });
+    const cache = { ...get().cache };
+    for (const project of (get().projects || []).filter((item) => item.kunde === kunde)) {
+      const data = await get().ensureProjectData(project.id);
+      const tasks = data.tasks.map((task) => ({ ...task, moduleIds: (task.moduleIds || []).filter((id) => id !== moduleId) }));
+      cache[project.id] = { ...data, tasks };
+      await sSet(client(), 'tasks:' + project.id, tasks);
+    }
+    set({ customerModules, cache });
     await sSet(client(), 'customer-modules', customerModules);
   },
 

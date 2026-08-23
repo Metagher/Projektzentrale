@@ -18,6 +18,9 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const syncCommLinksForTask = useDataStore((s) => s.syncCommLinksForTask);
   const setShowNewTaskForm = useProjectUiStore((s) => s.setShowNewTaskForm);
   const alert = useModalStore((s) => s.alert);
+  const modules = useDataStore((s) => s.modules);
+  const customerModules = useDataStore((s) => s.customerModules);
+  const project = useDataStore((s) => s.projects?.find((item) => item.id === projectId));
 
   const [titel, setTitel] = useState('');
   const [activeSection, setActiveSection] = useState<'task' | 'basics'>('task');
@@ -32,11 +35,15 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [verlauf, setVerlauf] = useState<TaskProgressEntry[]>([]);
   const [afns, setAfns] = useState<string[]>([]);
   const [commIds, setCommIds] = useState<string[]>([]);
+  const [moduleIds, setModuleIds] = useState<string[]>([]);
   const [fremdverknuepfung, setFremdverknuepfung] = useState('');
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState('');
   const [teilprojekt, setTeilprojekt] = useState('');
   const teilprojekte = Array.from(new Set(data.tasks.map((task) => task.teilprojekt?.trim()).filter((value): value is string => !!value)))
     .sort((a, b) => a.localeCompare(b, 'de'));
+  const assignedModuleIds = new Set(customerModules.filter((item) => item.kunde === project?.kunde).map((item) => item.moduleId));
+  const moduleItems = modules.filter((module) => assignedModuleIds.has(module.id)).sort((a, b) => { const parentA = modules.find((item) => item.id === a.parentId) || a; const parentB = modules.find((item) => item.id === b.parentId) || b; return parentA.sortIndex - parentB.sortIndex || a.sortIndex - b.sortIndex; });
+  const moduleLabel = (module: (typeof modules)[number]) => { const parent = modules.find((item) => item.id === module.parentId); return parent ? `${parent.name} · ${module.name}` : module.name; };
 
   async function handleSave() {
     const trimmed = titel.trim();
@@ -58,6 +65,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       verlauf,
       afns,
       commIds,
+      moduleIds,
       fremdverknuepfung: fremdverknuepfung.trim(),
       ticketsystemVerknuepfung: ticketsystemVerknuepfung.trim(),
       teilprojekt: teilprojekt.trim(),
@@ -107,6 +115,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
         <label>AFN-Nummer(n)</label>
         <AfnChipsField value={afns} onChange={setAfns} />
       </div>
+      <div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div>
       <div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div>
       </div>}
       <div className="btn-row">

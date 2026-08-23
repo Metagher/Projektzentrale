@@ -22,7 +22,8 @@ export function migrateTaskContent(task: Task): { task: Task; changed: boolean }
       anforderung: task.anforderung || '',
       aktuellerStand: task.aktuellerStand || legacyContent,
       verlauf: task.verlauf || [],
+      moduleIds: task.moduleIds || [],
     },
-    changed: hasLegacyFields || task.anforderung === undefined || task.aktuellerStand === undefined || task.verlauf === undefined,
+    changed: hasLegacyFields || task.anforderung === undefined || task.aktuellerStand === undefined || task.verlauf === undefined || task.moduleIds === undefined,
   };
 }

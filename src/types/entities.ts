@@ -158,6 +158,8 @@ export interface Task {
   notizen?: string;
   afns: string[];
   commIds: string[];
+  /** Projektspezifische Verknüpfung zu ERP-Modulen des Kunden. */
+  moduleIds?: string[];
   fremdverknuepfung?: string;
   ticketsystemVerknuepfung?: string;
   teilprojekt?: string;

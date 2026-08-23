@@ -94,7 +94,7 @@ export async function buildExportCsv(): Promise<string> {
         Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '', Farbe: t.farbe || '', TagesSortierung: t.tagesSortierung ?? 999,
         Status: t.status || '', KontaktId: t.kontaktId || '', Anforderung: t.anforderung || '', AktuellerStand: t.aktuellerStand || '', Verlauf: JSON.stringify(t.verlauf || []), ErstelltAm: t.erstelltAm || '',
         AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '',
-        Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), Teilprojekt: t.teilprojekt || '',
+        Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), VerknuepfteModulIds: (t.moduleIds || []).join(';'), Teilprojekt: t.teilprojekt || '',
       });
     });
     data.timeline.forEach((m) => {
@@ -228,7 +228,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         kontaktId: String(r.KontaktId || ''), anforderung: String(r.Anforderung || ''), aktuellerStand: importedTaskStand(r),
         erstelltAm: (r.ErstelltAm as string) || '', abgeschlossenAm: (r.AbgeschlossenAm as string) || null,
         afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), verlauf: parseTaskHistory(r.Verlauf),
-        nr: Number.isFinite(nrRaw) ? nrRaw : 0, tagesSortierung: Number(r.TagesSortierung) || 999, commIds: splitList(r.VerknuepfteKommIds as string),
+        nr: Number.isFinite(nrRaw) ? nrRaw : 0, tagesSortierung: Number(r.TagesSortierung) || 999, commIds: splitList(r.VerknuepfteKommIds as string), moduleIds: splitList(r.VerknuepfteModulIds as string),
         teilprojekt: String(r.Teilprojekt || ''),
         doku: false, dokuErledigt: false,
       });
