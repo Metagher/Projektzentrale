@@ -59,22 +59,41 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
 
   useEffect(() => {
     let disposed = false;
+    let finishing: Promise<void> | null = null;
+    let resumeProjectTimerId: string | null = null;
+
+    const stopTaskAndResumeProject = () => {
+      if (finishing) return finishing;
+      finishing = (async () => {
+        const active = useDataStore.getState().activeTimer;
+        if (active?.projectId !== projectId || active.taskId !== task.id) return;
+
+        await stopTimer();
+
+        if (resumeProjectTimerId && !useDataStore.getState().activeTimer) {
+          await startTimer(resumeProjectTimerId, null);
+        }
+      })();
+      return finishing;
+    };
+
     // Verzögert um einen Tick, damit Reacts Strict-Mode-Prüflauf keine Scheinbuchung erzeugt.
     const startId = window.setTimeout(() => {
       if (disposed) return;
       void (async () => {
+        const previousTimer = useDataStore.getState().activeTimer;
+        resumeProjectTimerId = previousTimer?.projectId === projectId && previousTimer.taskId === null
+          ? projectId
+          : null;
         await startTimer(projectId, task.id);
-        if (disposed) {
-          const active = useDataStore.getState().activeTimer;
-          if (active?.projectId === projectId && active.taskId === task.id) await stopTimer();
-        }
+        if (disposed) await stopTaskAndResumeProject();
       })();
     }, 0);
     return () => {
       disposed = true;
       window.clearTimeout(startId);
       const active = useDataStore.getState().activeTimer;
-      if (active?.projectId === projectId && active.taskId === task.id) void stopTimer();
+      if (active?.projectId === projectId && active.taskId === task.id) void stopTaskAndResumeProject();
     };
   }, [projectId, task.id, startTimer, stopTimer]);
 
