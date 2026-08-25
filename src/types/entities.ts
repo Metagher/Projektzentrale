@@ -62,10 +62,19 @@ export interface ProjectNote {
   updatedAt: string;
 }
 
+export interface ProjectTimeType {
+  id: string;
+  name: string;
+}
+
 export interface TimeEntry {
   id: string;
   projectId: string;
   taskId: string | null;
+  /** Globally configured category for project-level time. Empty for task time. */
+  timeTypeId?: string;
+  /** Label snapshot so historical entries remain understandable after a type is renamed or removed. */
+  timeTypeName?: string;
   startedAt: string;
   endedAt: string;
   durationMinutes: number;
@@ -76,6 +85,8 @@ export interface TimeEntry {
 export interface ActiveTimer {
   projectId: string;
   taskId: string | null;
+  timeTypeId?: string;
+  timeTypeName?: string;
   startedAt: string;
 }
 

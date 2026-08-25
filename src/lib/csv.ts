@@ -110,7 +110,7 @@ export async function buildExportCsv(): Promise<string> {
     (data.updates || []).forEach((u) => {
       rows.push({ Typ: 'update', ProjektId: p.id, Id: u.id, Titel: u.titel || '', Datum: u.datum || '', Revision: u.revision || '', Beschreibung: u.beschreibung || '', AFN: (u.afns || []).join(';') });
     });
-    timeEntries.filter((entry) => entry.projectId === p.id).forEach((entry) => rows.push({ Typ: 'zeit', ProjektId: p.id, Id: entry.id, AufgabeId: entry.taskId || '', Start: entry.startedAt, Ende: entry.endedAt, DauerMinuten: entry.durationMinutes, Notiz: entry.note, ErstelltAm: entry.createdAt }));
+    timeEntries.filter((entry) => entry.projectId === p.id).forEach((entry) => rows.push({ Typ: 'zeit', ProjektId: p.id, Id: entry.id, AufgabeId: entry.taskId || '', ZeittypId: entry.timeTypeId || '', Zeittyp: entry.timeTypeName || '', Start: entry.startedAt, Ende: entry.endedAt, DauerMinuten: entry.durationMinutes, Notiz: entry.note, ErstelltAm: entry.createdAt }));
   }
 
   return Papa.unparse({ fields: CSV_COLUMNS as unknown as string[], data: rows });
@@ -283,7 +283,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
   rows.filter((r) => r.Typ === 'zeit').forEach((r) => {
     const durationMinutes = Number(r.DauerMinuten) || 0;
     if (durationMinutes <= 0) return;
-    timeEntries.push({ id: String(r.Id), projectId: String(r.ProjektId), taskId: r.AufgabeId ? String(r.AufgabeId) : null, startedAt: String(r.Start || ''), endedAt: String(r.Ende || ''), durationMinutes, note: String(r.Notiz || ''), createdAt: String(r.ErstelltAm || r.Ende || new Date().toISOString()) });
+    timeEntries.push({ id: String(r.Id), projectId: String(r.ProjektId), taskId: r.AufgabeId ? String(r.AufgabeId) : null, timeTypeId: r.ZeittypId ? String(r.ZeittypId) : undefined, timeTypeName: r.Zeittyp ? String(r.Zeittyp) : undefined, startedAt: String(r.Start || ''), endedAt: String(r.Ende || ''), durationMinutes, note: String(r.Notiz || ''), createdAt: String(r.ErstelltAm || r.Ende || new Date().toISOString()) });
   });
 
   for (const p of projects) {

@@ -19,6 +19,7 @@ import type {
   CustomerModule,
   ProjectModuleConfig,
   ProjectNote,
+  ProjectTimeType,
   TimeEntry,
   ActiveTimer,
   Project,
@@ -30,6 +31,8 @@ import type {
   TaskColor,
   UpdateEntry,
 } from '../types/entities';
+
+export const DEFAULT_PROJECT_TIME_TYPES: ProjectTimeType[] = [{ id: 'allgemein', name: 'Allgemeine Projektzeit' }];
 
 function client() {
   const c = useConnectionStore.getState().client;
@@ -82,6 +85,7 @@ interface DataStoreState {
   taskColorOrder: TaskColor[];
   taskColorLabels: TaskColorLabels;
   waitingOptions: string[];
+  projectTimeTypes: ProjectTimeType[];
   workdayOverrides: WorkdayOverrides;
   customerOrder: string[];
   modules: ErpModule[];
@@ -127,6 +131,7 @@ interface DataStoreState {
   saveTaskColorOrder: (order: TaskColor[]) => Promise<void>;
   saveTaskColorLabels: (labels: TaskColorLabels) => Promise<void>;
   saveWaitingOptions: (options: string[]) => Promise<void>;
+  saveProjectTimeTypes: (types: ProjectTimeType[]) => Promise<void>;
   toggleWorkday: (date: string) => Promise<void>;
   saveModule: (module: ErpModule) => Promise<void>;
   reorderModule: (sourceId: string, targetId: string, placeAfter: boolean) => Promise<void>;
@@ -136,7 +141,7 @@ interface DataStoreState {
   saveProjectModuleConfig: (projectId: string, config: ProjectModuleConfig) => Promise<void>;
   saveProjectNote: (projectId: string, note: ProjectNote) => Promise<void>;
   deleteProjectNote: (projectId: string, noteId: string) => Promise<void>;
-  startTimer: (projectId: string, taskId?: string | null) => Promise<void>;
+  startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
   deleteTimeEntry: (id: string) => Promise<void>;
@@ -198,6 +203,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   taskColorOrder: DEFAULT_TASK_COLOR_ORDER,
   taskColorLabels: DEFAULT_TASK_COLOR_LABELS,
   waitingOptions: [],
+  projectTimeTypes: DEFAULT_PROJECT_TIME_TYPES,
   workdayOverrides: {},
   customerOrder: [],
   modules: [],
@@ -212,10 +218,11 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
+      sGet<ProjectTimeType[]>(sb, 'project-time-types'),
       sGet<WorkdayOverrides>(sb, 'workday-overrides'),
       sGet<string[]>(sb, 'customer-order'),
       sGet<ErpModule[]>(sb, 'erp-modules'),
@@ -232,6 +239,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     set({
       projects, taskColorOrder, taskColorLabels,
       waitingOptions: storedWaitingOptions || [],
+      projectTimeTypes: storedProjectTimeTypes?.length ? storedProjectTimeTypes : DEFAULT_PROJECT_TIME_TYPES,
       workdayOverrides: workdayOverrides || {},
       customerOrder: storedCustomerOrder || [],
       modules: normalizedModules,
@@ -247,6 +255,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       set({ waitingOptions: inferred });
       await sSet(sb, 'waiting-options', inferred);
     }
+    if (!storedProjectTimeTypes?.length) await sSet(sb, 'project-time-types', DEFAULT_PROJECT_TIME_TYPES);
   },
 
   loadDocDefs: async () => {
@@ -281,6 +290,15 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const normalized = Array.from(new Set(options.map((option) => option.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de'));
     set({ waitingOptions: normalized });
     await sSet(client(), 'waiting-options', normalized);
+  },
+
+  saveProjectTimeTypes: async (types) => {
+    const seen = new Set<string>();
+    const normalized = types.map((type) => ({ id: type.id || uid(), name: type.name.trim() }))
+      .filter((type) => type.name && !seen.has(type.name.toLocaleLowerCase('de')) && seen.add(type.name.toLocaleLowerCase('de')));
+    const next = normalized.length ? normalized : DEFAULT_PROJECT_TIME_TYPES;
+    set({ projectTimeTypes: next });
+    await sSet(client(), 'project-time-types', next);
   },
 
   toggleWorkday: async (date) => {
@@ -818,13 +836,14 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await sSet(client(), 'notes:' + projectId, notes);
   },
 
-  startTimer: async (projectId, taskId = null) => {
+  startTimer: async (projectId, taskId = null, timeTypeId) => {
     const current = get().activeTimer;
+    const selectedType = taskId ? undefined : get().projectTimeTypes.find((type) => type.id === timeTypeId) || get().projectTimeTypes[0];
     if (current) {
-      if (current.projectId === projectId && current.taskId === taskId) return;
+      if (current.projectId === projectId && current.taskId === taskId && (taskId || current.timeTypeId === selectedType?.id)) return;
       await get().stopTimer();
     }
-    const activeTimer: ActiveTimer = { projectId, taskId, startedAt: new Date().toISOString() };
+    const activeTimer: ActiveTimer = { projectId, taskId, startedAt: new Date().toISOString(), ...(selectedType ? { timeTypeId: selectedType.id, timeTypeName: selectedType.name } : {}) };
     set({ activeTimer });
     await sSet(client(), 'active-timer', activeTimer);
   },

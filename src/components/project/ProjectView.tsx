@@ -39,6 +39,7 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
   const data = selectedId ? cache[selectedId] : undefined;
   const aiAvailable = useAiStore((s) => s.keyPresent);
   const projectMinutes = useDataStore((s) => s.timeEntries).filter((entry) => entry.projectId === selectedId).reduce((sum, entry) => sum + entry.durationMinutes, 0);
+  const projectTimeTypes = useDataStore((s) => s.projectTimeTypes);
 
   useEffect(() => {
     if (selectedId) ensureProjectData(selectedId);
@@ -83,7 +84,7 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
           <div className="code">{projectCode(project)}</div>
           <h2>{project.name}</h2>
           <div className="sub"><span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span></div>
-          <div className="project-time-control"><TimeTrackingButton projectId={project.id} /><button className="project-time-total" onClick={() => setActiveTab('auswertung')}>{formatDuration(projectMinutes)} erfasst</button></div>
+          <div className="project-time-control"><div className="project-time-type-buttons">{projectTimeTypes.map((type) => <TimeTrackingButton key={type.id} projectId={project.id} timeTypeId={type.id} label={type.name} />)}</div><button className="project-time-total" onClick={() => setActiveTab('auswertung')}>{formatDuration(projectMinutes)} erfasst</button></div>
           <div className="project-info-head">
             <strong>Projektinfo</strong>
             <button className="icon-btn" onClick={() => setProjectInfoVisible((visible) => !visible)} aria-expanded={projectInfoVisible}>

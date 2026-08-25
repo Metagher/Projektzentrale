@@ -4,6 +4,7 @@ import { useUiStore } from '../../store/uiStore';
 import { useConnectionStore } from '../../store/connectionStore';
 import DataValidationSettings from './DataValidationSettings';
 import ModuleSettings from './ModuleSettings';
+import ProjectTimeTypeSettings from './ProjectTimeTypeSettings';
 
 export default function SettingsView() {
   const goTo = useUiStore((state) => state.goTo);
@@ -18,6 +19,7 @@ export default function SettingsView() {
     </div>
     <div className="settings-hub">
       <button onClick={() => document.getElementById('task-settings')?.scrollIntoView({ behavior: 'smooth' })}><span>◆</span><strong>Aufgaben &amp; Grunddaten</strong><small>Farben und „Wartet auf“</small></button>
+      <button onClick={() => document.getElementById('project-time-type-settings')?.scrollIntoView({ behavior: 'smooth' })}><span>◷</span><strong>Projektzeit</strong><small>Zeittypen festlegen</small></button>
       <button onClick={() => document.getElementById('validation-settings')?.scrollIntoView({ behavior: 'smooth' })}><span>✓</span><strong>Datenvalidierung</strong><small>Daten prüfen und bereinigen</small></button>
       <button onClick={() => goTo('data')}><span>⇄</span><strong>Daten</strong><small>CSV Import und Export</small></button>
       <button onClick={() => goTo('ai-settings')}><span>✦</span><strong>KI-Einstellungen</strong><small>Zugang und Konfiguration</small></button>
@@ -26,6 +28,7 @@ export default function SettingsView() {
     <div id="task-settings" className="settings-anchor" />
     <TaskColorSettings />
     <WaitingOptionsSettings />
+    <ProjectTimeTypeSettings />
     <DataValidationSettings />
   </div>;
 }

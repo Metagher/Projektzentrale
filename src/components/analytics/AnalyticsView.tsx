@@ -24,6 +24,7 @@ export default function AnalyticsView() {
   const saveTimeEntry = useDataStore((s) => s.saveTimeEntry);
   const deleteTimeEntry = useDataStore((s) => s.deleteTimeEntry);
   const workdayOverrides = useDataStore((s) => s.workdayOverrides);
+  const projectTimeTypes = useDataStore((s) => s.projectTimeTypes);
 
   useEffect(() => {
     if ((analyticsSubTab !== 'projekte' && analyticsSubTab !== 'aufgaben') || !projects) return;
@@ -51,13 +52,29 @@ export default function AnalyticsView() {
       for (const project of projects) {
         const data = await ensureProjectData(project.id);
         let taskMinutes = 0;
+        const billedDays = new Map<string, { taskMinutes: number; communicationMinutes: number }>();
         data.tasks.forEach((task) => {
           labels[task.id] = `${task.nr} · ${task.titel}`;
           if (countedTasks.has(task.id)) return;
           countedTasks.add(task.id);
-          taskMinutes += Number(task.billedMinutes) || 0;
+          const minutes = Number(task.billedMinutes) || 0;
+          taskMinutes += minutes;
+          if (minutes > 0 && task.billedDate) {
+            const day = billedDays.get(task.billedDate) || { taskMinutes: 0, communicationMinutes: 0 };
+            day.taskMinutes += minutes;
+            billedDays.set(task.billedDate, day);
+          }
         });
-        rows.push({ projectId: project.id, taskMinutes, communicationMinutes: data.comms.reduce((sum, comm) => sum + (Number(comm.billedMinutes) || 0), 0) });
+        const communicationMinutes = data.comms.reduce((sum, comm) => {
+          const minutes = Number(comm.billedMinutes) || 0;
+          if (minutes > 0 && comm.datum) {
+            const day = billedDays.get(comm.datum) || { taskMinutes: 0, communicationMinutes: 0 };
+            day.communicationMinutes += minutes;
+            billedDays.set(comm.datum, day);
+          }
+          return sum + minutes;
+        }, 0);
+        rows.push({ projectId: project.id, taskMinutes, communicationMinutes, days: Array.from(billedDays, ([date, values]) => ({ date, ...values })) });
       }
       if (!cancelled) { setBilledRows(rows); setTimeTaskLabels(labels); }
     })();
@@ -84,7 +101,7 @@ export default function AnalyticsView() {
       {analyticsSubTab === 'afn' ? (
         <AfnLesestandTab />
       ) : analyticsSubTab === 'zeiten' ? (
-        <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" billedRows={billedRows} taskLabels={timeTaskLabels} onSaveEntry={saveTimeEntry} onDeleteEntry={deleteTimeEntry} />
+        <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" billedRows={billedRows} taskLabels={timeTaskLabels} timeTypeLabels={Object.fromEntries(projectTimeTypes.map((type) => [type.id, type.name]))} onSaveEntry={saveTimeEntry} onDeleteEntry={deleteTimeEntry} />
       ) : !allTasks ? (
         <div className="loading-note">Lade Auswertung…</div>
       ) : analyticsSubTab === 'projekte' ? (

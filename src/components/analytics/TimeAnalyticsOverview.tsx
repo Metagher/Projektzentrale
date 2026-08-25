@@ -9,6 +9,7 @@ export interface BilledTimeRow {
   projectId: string;
   taskMinutes: number;
   communicationMinutes: number;
+  days?: { date: string; taskMinutes: number; communicationMinutes: number }[];
 }
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
   heading?: string;
   billedRows?: BilledTimeRow[];
   taskLabels?: Record<string, string>;
+  timeTypeLabels?: Record<string, string>;
   onSaveEntry?: (entry: TimeEntry) => Promise<void>;
   onDeleteEntry?: (id: string) => Promise<void>;
 }
@@ -43,6 +45,11 @@ function projectName(projectId: string, projects: Project[]) {
   return projects.find((project) => project.id === projectId)?.name || 'Unbekanntes Projekt';
 }
 
+function timeEntryLabel(entry: TimeEntry, taskLabels: Record<string, string>, timeTypeLabels: Record<string, string>) {
+  if (entry.taskId) return taskLabels[entry.taskId] || 'Aufgabenzeit';
+  return (entry.timeTypeId && timeTypeLabels[entry.timeTypeId]) || entry.timeTypeName || 'Allgemeine Projektzeit';
+}
+
 function minuteOfDay(value: string) {
   const date = new Date(value);
   return date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
@@ -64,7 +71,7 @@ function localInput(date: Date) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 19);
 }
 
-function TimeEntryEditor({ entry, projects, taskLabels, onSave, onClose }: { entry: TimeEntry; projects: Project[]; taskLabels: Record<string, string>; onSave: (entry: TimeEntry) => Promise<void>; onClose: () => void }) {
+function TimeEntryEditor({ entry, projects, taskLabels, timeTypeLabels, onSave, onClose }: { entry: TimeEntry; projects: Project[]; taskLabels: Record<string, string>; timeTypeLabels: Record<string, string>; onSave: (entry: TimeEntry) => Promise<void>; onClose: () => void }) {
   const [endedAt, setEndedAt] = useState(localInput(new Date(entry.endedAt)));
   const [minutes, setMinutes] = useState(Math.max(1, Math.round(entry.durationMinutes)));
   const [note, setNote] = useState(entry.note || '');
@@ -81,10 +88,10 @@ function TimeEntryEditor({ entry, projects, taskLabels, onSave, onClose }: { ent
     onClose();
   }
 
-  return <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Zeiteintrag bearbeiten"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Zeiteintrag</span><strong>Eintrag bearbeiten</strong></div></div><div className="field-grid"><div className="field"><label>Bis</label><input type="datetime-local" step="1" value={endedAt} onChange={(event) => setEndedAt(event.target.value)} /></div><div className="field"><label>Dauer (Minuten)</label><input type="number" min="1" step="1" value={minutes || ''} onChange={(event) => setMinutes(Math.max(0, Number(event.target.value) || 0))} /></div></div><div className="field"><label>Berechneter Start</label><input value={valid ? localInput(startDate).replace('T', ' ') : '—'} readOnly /></div><div className="field"><label>Zuordnung</label><input value={`${projectName(entry.projectId, projects)} · ${entry.taskId ? (taskLabels[entry.taskId] || 'Aufgabenzeit') : 'Allgemeine Projektzeit'}`} readOnly /></div><div className="field"><label>Notiz</label><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional, z. B. Workshop oder Abstimmung" /></div><div className="btn-row"><button className="btn" disabled={!valid || saving} onClick={save}>{saving ? 'Speichert…' : 'Änderungen speichern'}</button><button className="btn secondary" onClick={onClose}>Abbrechen</button></div></div></div>;
+  return <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Zeiteintrag bearbeiten"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Zeiteintrag</span><strong>Eintrag bearbeiten</strong></div></div><div className="field-grid"><div className="field"><label>Bis</label><input type="datetime-local" step="1" value={endedAt} onChange={(event) => setEndedAt(event.target.value)} /></div><div className="field"><label>Dauer (Minuten)</label><input type="number" min="1" step="1" value={minutes || ''} onChange={(event) => setMinutes(Math.max(0, Number(event.target.value) || 0))} /></div></div><div className="field"><label>Berechneter Start</label><input value={valid ? localInput(startDate).replace('T', ' ') : '—'} readOnly /></div><div className="field"><label>Zuordnung</label><input value={`${projectName(entry.projectId, projects)} · ${timeEntryLabel(entry, taskLabels, timeTypeLabels)}`} readOnly /></div><div className="field"><label>Notiz</label><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional, z. B. Workshop oder Abstimmung" /></div><div className="btn-row"><button className="btn" disabled={!valid || saving} onClick={save}>{saving ? 'Speichert…' : 'Änderungen speichern'}</button><button className="btn secondary" onClick={onClose}>Abbrechen</button></div></div></div>;
 }
 
-function DayDetail({ day, entries, projects, taskLabels, onEdit, onDelete }: { day: string; entries: TimeEntry[]; projects: Project[]; taskLabels: Record<string, string>; onEdit?: (entry: TimeEntry) => void; onDelete?: (entry: TimeEntry) => void }) {
+function DayDetail({ day, entries, projects, taskLabels, timeTypeLabels, onEdit, onDelete }: { day: string; entries: TimeEntry[]; projects: Project[]; taskLabels: Record<string, string>; timeTypeLabels: Record<string, string>; onEdit?: (entry: TimeEntry) => void; onDelete?: (entry: TimeEntry) => void }) {
   const sorted = entries.slice().sort((a, b) => a.startedAt.localeCompare(b.startedAt));
   const total = sorted.reduce((sum, entry) => sum + entry.durationMinutes, 0);
   const perProject = Array.from(sorted.reduce((map, entry) => map.set(entry.projectId, (map.get(entry.projectId) || 0) + entry.durationMinutes), new Map<string, number>()).entries()).sort((a, b) => b[1] - a[1]);
@@ -104,7 +111,7 @@ function DayDetail({ day, entries, projects, taskLabels, onEdit, onDelete }: { d
           const start = Math.max(0, Math.min(1440, minuteOfDay(entry.startedAt)));
           const width = Math.max(0.35, Math.min(1440 - start, entry.durationMinutes) / 1440 * 100);
           return <article key={entry.id}>
-            <div className="day-entry-label"><strong>{timeOnly.format(new Date(entry.startedAt))}–{timeOnly.format(new Date(entry.endedAt))}</strong><span>{projectName(entry.projectId, projects)}</span><small>{entry.taskId ? (taskLabels[entry.taskId] || 'Aufgabenzeit') : 'Allgemeine Projektzeit'}{entry.note ? ` · ${entry.note}` : ''}</small></div>
+            <div className="day-entry-label"><strong>{timeOnly.format(new Date(entry.startedAt))}–{timeOnly.format(new Date(entry.endedAt))}</strong><span>{projectName(entry.projectId, projects)}</span><small>{timeEntryLabel(entry, taskLabels, timeTypeLabels)}{entry.note ? ` · ${entry.note}` : ''}</small></div>
             <div className="day-entry-track"><i style={{ left: `${start / 1440 * 100}%`, width: `${width}%`, background: projectColor(entry.projectId, projects) }} title={`${projectName(entry.projectId, projects)} · ${formatDuration(entry.durationMinutes)}`} /></div>
             <b>{formatDuration(entry.durationMinutes)}</b>
             {(onEdit || onDelete) && <div className="day-entry-actions">{onEdit && <button type="button" className="icon-btn edit" onClick={() => onEdit(entry)}>Bearbeiten</button>}{onDelete && <button type="button" className="icon-btn" onClick={() => onDelete(entry)}>Löschen</button>}</div>}
@@ -119,7 +126,7 @@ function DayDetail({ day, entries, projects, taskLabels, onEdit, onDelete }: { d
   </div>;
 }
 
-export default function TimeAnalyticsOverview({ entries, projects = [], workdayOverrides, heading = 'Zeitauswertung', billedRows = [], taskLabels = {}, onSaveEntry, onDeleteEntry }: Props) {
+export default function TimeAnalyticsOverview({ entries, projects = [], workdayOverrides, heading = 'Zeitauswertung', billedRows = [], taskLabels = {}, timeTypeLabels = {}, onSaveEntry, onDeleteEntry }: Props) {
   const confirm = useModalStore((state) => state.confirm);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [minimumDuration, setMinimumDuration] = useState(5);
@@ -132,18 +139,24 @@ export default function TimeAnalyticsOverview({ entries, projects = [], workdayO
     return map;
   }, [entries]);
   const dailyMinutes = new Map(Array.from(daily.entries()).map(([key, items]) => [key, items.reduce((sum, entry) => sum + entry.durationMinutes, 0)]));
+  const billedDaily = useMemo(() => {
+    const map = new Map<string, number>();
+    billedRows.forEach((row) => row.days?.forEach((day) => map.set(day.date, (map.get(day.date) || 0) + day.taskMinutes + day.communicationMinutes)));
+    return map;
+  }, [billedRows]);
   const weekly = new Map<string, number>();
   entries.forEach((entry) => weekly.set(weekKey(entry.startedAt), (weekly.get(weekKey(entry.startedAt)) || 0) + entry.durationMinutes));
   const rawAllDays = useMemo(() => Array.from(daily.keys()).sort((a, b) => b.localeCompare(a)), [daily]);
   const todayKey = localDateKey(new Date());
   const currentWeekKey = weekKey(new Date());
-  const weekOptions = useMemo(() => Array.from(new Set([currentWeekKey, ...entries.map((entry) => weekKey(entry.startedAt))])).sort((a, b) => b.localeCompare(a)), [currentWeekKey, entries]);
+  const weekOptions = useMemo(() => Array.from(new Set([currentWeekKey, ...entries.map((entry) => weekKey(entry.startedAt)), ...Array.from(billedDaily.keys()).map((day) => weekKey(`${day}T12:00:00`))])).sort((a, b) => b.localeCompare(a)), [billedDaily, currentWeekKey, entries]);
   const [selectedWeekKey, setSelectedWeekKey] = useState(currentWeekKey);
   const selectedWeekReference = useMemo(() => {
     if (selectedWeekKey === currentWeekKey) return new Date(`${todayKey}T12:00:00`);
     const entry = entries.find((item) => weekKey(item.startedAt) === selectedWeekKey);
-    return entry ? new Date(entry.startedAt) : new Date(`${todayKey}T12:00:00`);
-  }, [currentWeekKey, entries, selectedWeekKey, todayKey]);
+    const billedDay = Array.from(billedDaily.keys()).find((day) => weekKey(`${day}T12:00:00`) === selectedWeekKey);
+    return entry ? new Date(entry.startedAt) : billedDay ? new Date(`${billedDay}T12:00:00`) : new Date(`${todayKey}T12:00:00`);
+  }, [billedDaily, currentWeekKey, entries, selectedWeekKey, todayKey]);
   const selectedWeekDays = useMemo(() => calendarWeekDays(selectedWeekReference), [selectedWeekReference]);
   const [selectedDay, setSelectedDay] = useState(rawAllDays.includes(todayKey) ? todayKey : rawAllDays[0] || '');
   useEffect(() => {
@@ -162,24 +175,29 @@ export default function TimeAnalyticsOverview({ entries, projects = [], workdayO
   const billedTaskTotal = billedRows.reduce((sum, row) => sum + row.taskMinutes, 0);
   const billedCommunicationTotal = billedRows.reduce((sum, row) => sum + row.communicationMinutes, 0);
   const billedByProject = new Map(billedRows.map((row) => [row.projectId, row]));
+  const billedProjectRows = billedRows.map((row) => ({ projectId: row.projectId, minutes: row.taskMinutes + row.communicationMinutes })).filter((row) => row.minutes > 0).sort((a, b) => b.minutes - a.minutes);
+  const billedTotal = billedTaskTotal + billedCommunicationTotal;
+  let billedCursor = 0;
+  const billedStops = billedProjectRows.map(({ projectId, minutes }) => { const start = billedCursor; billedCursor += billedTotal ? minutes / billedTotal * 100 : 0; return `${projectColor(projectId, projects)} ${start}% ${billedCursor}%`; }).join(', ');
   const projectRows = projects.map((project) => ({ project, minutes: entries.filter((entry) => entry.projectId === project.id).reduce((sum, entry) => sum + entry.durationMinutes, 0), billed: billedByProject.get(project.id) }))
     .filter((row) => row.minutes > 0 || row.billed?.taskMinutes || row.billed?.communicationMinutes).sort((a, b) => b.minutes - a.minutes);
 
   return <section className="time-analytics-overview">
     <div className="analytics-section-intro"><div className="analytics-scope-label">Arbeitszeit</div><h3>{heading}</h3><p>Getrackte Zeiten werden tagesgenau ausgewertet. Abgerechnete Zeiten stehen separat und fließen in keine Tracking-Kennzahl ein.</p></div>
     <div className="analytics-kpi-grid"><article><strong>{formatDuration(today)}</strong><span>Heute</span><small>aktueller Arbeitstag</small></article><article><strong>{formatDuration(currentWeek)}</strong><span>Aktuelle KW</span><small>{weekKey(new Date())}</small></article><article><strong>{formatDuration(total)}</strong><span>Getrackte Gesamtzeit</span><small>{entries.length} Buchungen</small></article><article><strong>{formatDuration(average)}</strong><span>Ø pro Arbeitstag</span><small>{activeDays.length} Tage mit Buchung</small></article></div>
-    {(billedTaskTotal > 0 || billedCommunicationTotal > 0) && <section className="billed-time-summary"><div><span className="analytics-scope-label">Zusatzwert · nicht verrechnet</span><h4>Abgerechnete Zeiten</h4></div><div><article><span>Aus Aufgaben</span><strong>{formatDuration(billedTaskTotal)}</strong></article><article><span>Aus Kommunikation</span><strong>{formatDuration(billedCommunicationTotal)}</strong></article><article><span>Abgerechnet gesamt</span><strong>{formatDuration(billedTaskTotal + billedCommunicationTotal)}</strong></article></div></section>}
-    {entries.length > 0 && <section className="daily-explorer analytics-detail-card">
+    {(entries.length > 0 || billedTotal > 0) && <section className="daily-explorer analytics-detail-card">
       <div className="analytics-block-head"><div><h3>Einzelne Tage öffnen</h3><p>Kalenderwoche auswählen und anschließend einen Tag öffnen.</p></div><label className="week-filter"><span>Kalenderwoche</span><select value={selectedWeekKey} onChange={(event) => setSelectedWeekKey(event.target.value)}>{weekOptions.map((key) => <option key={key} value={key}>{key} · {formatDuration(weekly.get(key) || 0)}</option>)}</select></label></div>
       <div className="current-week-day-grid">{selectedWeekDays.map((day) => {
         const minutes = dailyMinutes.get(day) || 0;
         const bookingCount = daily.get(day)?.length || 0;
-        return <button type="button" key={day} className={`${selectedDay === day ? 'active' : ''}${day === todayKey ? ' today' : ''}`} disabled={!bookingCount} onClick={() => setSelectedDay(day)}><span>{new Intl.DateTimeFormat('de-DE', { weekday: 'long' }).format(new Date(`${day}T12:00:00`))}</span><b>{new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' }).format(new Date(`${day}T12:00:00`))}</b><strong>{formatDuration(minutes)}</strong><small>{bookingCount ? `${bookingCount} Buchung${bookingCount === 1 ? '' : 'en'}` : 'Keine Buchung'}</small></button>;
+        const billedMinutes = billedDaily.get(day) || 0;
+        return <button type="button" key={day} className={`${selectedDay === day ? 'active' : ''}${day === todayKey ? ' today' : ''}`} disabled={!bookingCount} onClick={() => setSelectedDay(day)}><span>{new Intl.DateTimeFormat('de-DE', { weekday: 'long' }).format(new Date(`${day}T12:00:00`))}</span><b>{new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' }).format(new Date(`${day}T12:00:00`))}</b><strong>{formatDuration(minutes)}</strong><small>{bookingCount ? `${bookingCount} Buchung${bookingCount === 1 ? '' : 'en'}` : 'Keine Buchung'}</small><em>Abgerechnet {formatDuration(billedMinutes)}</em></button>;
       })}</div>
       {selectedDay && <div className="daily-duration-filter"><div><label htmlFor="daily-minimum-duration">Mindestdauer der angezeigten Einträge</label><div><input id="daily-minimum-duration" type="number" min="0" step="1" value={minimumDuration} onChange={(event) => setMinimumDuration(Math.max(0, Number(event.target.value) || 0))} /><span>Minuten</span></div></div><div className="daily-duration-presets"><button type="button" className={minimumDuration === 0 ? 'active' : ''} onClick={() => setMinimumDuration(0)}>Alle</button>{[5, 10, 15, 30].map((minutes) => <button type="button" key={minutes} className={minimumDuration === minutes ? 'active' : ''} onClick={() => setMinimumDuration(minutes)}>ab {minutes} Min.</button>)}</div><strong>{visibleSelectedDayEntries.length} von {selectedDayEntries.length} Einträgen sichtbar</strong></div>}
-      {selectedDay && visibleSelectedDayEntries.length > 0 ? <DayDetail day={selectedDay} entries={visibleSelectedDayEntries} projects={projects} taskLabels={taskLabels} onEdit={onSaveEntry ? setEditingEntry : undefined} onDelete={onDeleteEntry ? (entry) => void (async () => { if (await confirm(`Zeiteintrag über ${formatDuration(entry.durationMinutes)} löschen?`)) await onDeleteEntry(entry.id); })() : undefined} /> : <div className="daily-filter-empty">{selectedDay ? 'Keine Buchung erfüllt für diesen Tag die gewählte Mindestdauer.' : 'In dieser Kalenderwoche gibt es keine Buchungen.'}</div>}
+      {selectedDay && visibleSelectedDayEntries.length > 0 ? <DayDetail day={selectedDay} entries={visibleSelectedDayEntries} projects={projects} taskLabels={taskLabels} timeTypeLabels={timeTypeLabels} onEdit={onSaveEntry ? setEditingEntry : undefined} onDelete={onDeleteEntry ? (entry) => void (async () => { if (await confirm(`Zeiteintrag über ${formatDuration(entry.durationMinutes)} löschen?`)) await onDeleteEntry(entry.id); })() : undefined} /> : <div className="daily-filter-empty">{selectedDay ? 'Keine Buchung erfüllt für diesen Tag die gewählte Mindestdauer.' : 'In dieser Kalenderwoche gibt es keine Buchungen.'}</div>}
     </section>}
+    {billedTotal > 0 && <section className="billed-project-chart analytics-detail-card"><div><span className="analytics-scope-label">Zusatzwert · nicht mit Trackingzeit verrechnet</span><h3>Abgerechnete Zeit nach Projekt</h3><p>Aufgaben und Kommunikation zusammengefasst.</p></div><div className="billed-project-chart-content"><div className="day-donut" style={{ background: `conic-gradient(${billedStops})` }}><span>{formatDuration(billedTotal)}</span></div><div className="day-project-legend">{billedProjectRows.map(({ projectId, minutes }) => <div key={projectId}><i style={{ background: projectColor(projectId, projects) }} /><span>{projectName(projectId, projects)}</span><strong>{formatDuration(minutes)}</strong><small>{Math.round(minutes / billedTotal * 100)}%</small></div>)}</div></div></section>}
     {projectRows.length > 0 && <div className="analytics-table-wrap time-project-table"><table className="an-table"><thead><tr><th>Projekt</th><th>Kunde</th><th>Getrackte Zeit</th><th>Abgerechnet · Aufgaben</th><th>Abgerechnet · Kommunikation</th></tr></thead><tbody>{projectRows.map(({ project, minutes, billed }) => <tr key={project.id}><td><i className="project-color-dot" style={{ background: projectColor(project.id, projects) }} /><strong>{project.name}</strong></td><td>{project.kunde || '–'}</td><td>{formatDuration(minutes)}</td><td>{formatDuration(billed?.taskMinutes || 0)}</td><td>{formatDuration(billed?.communicationMinutes || 0)}</td></tr>)}</tbody></table></div>}
-    {editingEntry && onSaveEntry && <TimeEntryEditor key={editingEntry.id} entry={editingEntry} projects={projects} taskLabels={taskLabels} onSave={onSaveEntry} onClose={() => setEditingEntry(null)} />}
+    {editingEntry && onSaveEntry && <TimeEntryEditor key={editingEntry.id} entry={editingEntry} projects={projects} taskLabels={taskLabels} timeTypeLabels={timeTypeLabels} onSave={onSaveEntry} onClose={() => setEditingEntry(null)} />}
   </section>;
 }

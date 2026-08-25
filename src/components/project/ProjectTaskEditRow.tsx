@@ -74,6 +74,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
     let disposed = false;
     let finishing: Promise<void> | null = null;
     let resumeProjectTimerId: string | null = null;
+    let resumeProjectTimeTypeId: string | undefined;
 
     const stopTaskAndResumeProject = () => {
       if (finishing) return finishing;
@@ -84,7 +85,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
         await stopTimer();
 
         if (resumeProjectTimerId && !useDataStore.getState().activeTimer) {
-          await startTimer(resumeProjectTimerId, null);
+          await startTimer(resumeProjectTimerId, null, resumeProjectTimeTypeId);
         }
       })();
       return finishing;
@@ -98,6 +99,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
         resumeProjectTimerId = previousTimer?.projectId === projectId && previousTimer.taskId === null
           ? projectId
           : null;
+        resumeProjectTimeTypeId = previousTimer?.taskId === null ? previousTimer.timeTypeId : undefined;
         await startTimer(projectId, task.id);
         if (disposed) await stopTaskAndResumeProject();
       })();
