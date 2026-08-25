@@ -24,7 +24,6 @@ interface Props {
 
 const COLORS = ['#1f5f8b', '#b4532a', '#2f7d55', '#7b4fa3', '#a47a18', '#2b7a78', '#9b3d54', '#52616b'];
 const fullDate = new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
-const shortDate = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
 const timeOnly = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
 
 function weekKey(value: string | Date) {
@@ -132,68 +131,34 @@ export default function TimeAnalyticsOverview({ entries, projects = [], workdayO
     });
     return map;
   }, [entries]);
-  const explorerDaily = useMemo(() => {
-    const map = new Map<string, TimeEntry[]>();
-    entries.filter((entry) => entry.durationMinutes >= minimumDuration).forEach((entry) => {
-      const key = localDateKey(new Date(entry.startedAt));
-      map.set(key, [...(map.get(key) || []), entry]);
-    });
-    return map;
-  }, [entries, minimumDuration]);
   const dailyMinutes = new Map(Array.from(daily.entries()).map(([key, items]) => [key, items.reduce((sum, entry) => sum + entry.durationMinutes, 0)]));
-  const explorerDailyMinutes = new Map(Array.from(explorerDaily.entries()).map(([key, items]) => [key, items.reduce((sum, entry) => sum + entry.durationMinutes, 0)]));
   const weekly = new Map<string, number>();
   entries.forEach((entry) => weekly.set(weekKey(entry.startedAt), (weekly.get(weekKey(entry.startedAt)) || 0) + entry.durationMinutes));
   const rawAllDays = useMemo(() => Array.from(daily.keys()).sort((a, b) => b.localeCompare(a)), [daily]);
-  const allDays = useMemo(() => Array.from(explorerDaily.keys()).sort((a, b) => b.localeCompare(a)), [explorerDaily]);
   const todayKey = localDateKey(new Date());
   const currentWeekKey = weekKey(new Date());
-  const currentWeekDays = useMemo(() => calendarWeekDays(new Date(`${todayKey}T12:00:00`)), [todayKey]);
-  const archiveDays = useMemo(() => allDays.filter((day) => weekKey(new Date(`${day}T12:00:00`)) !== currentWeekKey), [allDays, currentWeekKey]);
-  const archiveYears = useMemo(() => Array.from(new Set(archiveDays.map((day) => isoWeekInfo(`${day}T12:00:00`).year))).sort((a, b) => b - a), [archiveDays]);
-  const defaultArchiveInfo = archiveDays[0] ? isoWeekInfo(`${archiveDays[0]}T12:00:00`) : null;
-  const [archiveYear, setArchiveYear] = useState(String(defaultArchiveInfo?.year || ''));
-  const archiveWeeks = useMemo(() => Array.from(new Set(archiveDays.filter((day) => String(isoWeekInfo(`${day}T12:00:00`).year) === archiveYear).map((day) => isoWeekInfo(`${day}T12:00:00`).week))).sort((a, b) => b - a), [archiveDays, archiveYear]);
-  const [archiveWeek, setArchiveWeek] = useState(String(defaultArchiveInfo?.week || ''));
-  const archiveWeekDays = useMemo(() => archiveDays.filter((day) => { const info = isoWeekInfo(`${day}T12:00:00`); return String(info.year) === archiveYear && String(info.week) === archiveWeek; }), [archiveDays, archiveWeek, archiveYear]);
+  const weekOptions = useMemo(() => Array.from(new Set([currentWeekKey, ...entries.map((entry) => weekKey(entry.startedAt))])).sort((a, b) => b.localeCompare(a)), [currentWeekKey, entries]);
+  const [selectedWeekKey, setSelectedWeekKey] = useState(currentWeekKey);
+  const selectedWeekReference = useMemo(() => {
+    if (selectedWeekKey === currentWeekKey) return new Date(`${todayKey}T12:00:00`);
+    const entry = entries.find((item) => weekKey(item.startedAt) === selectedWeekKey);
+    return entry ? new Date(entry.startedAt) : new Date(`${todayKey}T12:00:00`);
+  }, [currentWeekKey, entries, selectedWeekKey, todayKey]);
+  const selectedWeekDays = useMemo(() => calendarWeekDays(selectedWeekReference), [selectedWeekReference]);
   const [selectedDay, setSelectedDay] = useState(rawAllDays.includes(todayKey) ? todayKey : rawAllDays[0] || '');
   useEffect(() => {
-    if (!rawAllDays.length) setSelectedDay('');
-    else if (!rawAllDays.includes(selectedDay)) setSelectedDay(rawAllDays.includes(todayKey) ? todayKey : rawAllDays[0]);
-  }, [rawAllDays, selectedDay, todayKey]);
-  useEffect(() => {
-    if (!archiveYears.length) { setArchiveYear(''); setArchiveWeek(''); return; }
-    const nextYear = archiveYears.includes(Number(archiveYear)) ? archiveYear : String(archiveYears[0]);
-    if (nextYear !== archiveYear) { setArchiveYear(nextYear); return; }
-    if (!archiveWeeks.includes(Number(archiveWeek))) setArchiveWeek(String(archiveWeeks[0] || ''));
-  }, [archiveWeek, archiveWeeks, archiveYear, archiveYears]);
-
-  const workdays: { key: string; date: Date; minutes: number }[] = [];
-  const cursor = new Date();
-  cursor.setHours(12, 0, 0, 0);
-  while (workdays.length < 15) {
-    if (isWorkday(cursor, workdayOverrides)) {
-      const key = localDateKey(cursor);
-      workdays.push({ key, date: new Date(cursor), minutes: dailyMinutes.get(key) || 0 });
-    }
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  const weeks: { key: string; minutes: number }[] = [];
-  const weekCursor = new Date();
-  weekCursor.setHours(12, 0, 0, 0);
-  while (weeks.length < 12) {
-    const key = weekKey(weekCursor);
-    if (!weeks.some((item) => item.key === key)) weeks.push({ key, minutes: weekly.get(key) || 0 });
-    weekCursor.setDate(weekCursor.getDate() - 7);
-  }
+    const bookedDays = selectedWeekDays.filter((day) => daily.has(day));
+    if (selectedWeekDays.includes(selectedDay) && daily.has(selectedDay)) return;
+    setSelectedDay(selectedWeekDays.includes(todayKey) && daily.has(todayKey) ? todayKey : bookedDays[0] || '');
+  }, [daily, selectedDay, selectedWeekDays, todayKey]);
+  const selectedDayEntries = selectedDay ? daily.get(selectedDay) || [] : [];
+  const visibleSelectedDayEntries = selectedDayEntries.filter((entry) => entry.durationMinutes >= minimumDuration);
 
   const today = dailyMinutes.get(todayKey) || 0;
   const currentWeek = weekly.get(weekKey(new Date())) || 0;
   const total = entries.reduce((sum, entry) => sum + entry.durationMinutes, 0);
   const activeDays = [...dailyMinutes.entries()].filter(([key, minutes]) => minutes > 0 && isWorkday(new Date(`${key}T12:00:00`), workdayOverrides)).map(([, minutes]) => minutes);
   const average = activeDays.length ? activeDays.reduce((sum, minutes) => sum + minutes, 0) / activeDays.length : 0;
-  const maxDay = Math.max(1, ...workdays.map((item) => item.minutes));
-  const maxWeek = Math.max(1, ...weeks.map((item) => item.minutes));
   const billedTaskTotal = billedRows.reduce((sum, row) => sum + row.taskMinutes, 0);
   const billedCommunicationTotal = billedRows.reduce((sum, row) => sum + row.communicationMinutes, 0);
   const billedByProject = new Map(billedRows.map((row) => [row.projectId, row]));
@@ -205,17 +170,15 @@ export default function TimeAnalyticsOverview({ entries, projects = [], workdayO
     <div className="analytics-kpi-grid"><article><strong>{formatDuration(today)}</strong><span>Heute</span><small>aktueller Arbeitstag</small></article><article><strong>{formatDuration(currentWeek)}</strong><span>Aktuelle KW</span><small>{weekKey(new Date())}</small></article><article><strong>{formatDuration(total)}</strong><span>Getrackte Gesamtzeit</span><small>{entries.length} Buchungen</small></article><article><strong>{formatDuration(average)}</strong><span>Ø pro Arbeitstag</span><small>{activeDays.length} Tage mit Buchung</small></article></div>
     {(billedTaskTotal > 0 || billedCommunicationTotal > 0) && <section className="billed-time-summary"><div><span className="analytics-scope-label">Zusatzwert · nicht verrechnet</span><h4>Abgerechnete Zeiten</h4></div><div><article><span>Aus Aufgaben</span><strong>{formatDuration(billedTaskTotal)}</strong></article><article><span>Aus Kommunikation</span><strong>{formatDuration(billedCommunicationTotal)}</strong></article><article><span>Abgerechnet gesamt</span><strong>{formatDuration(billedTaskTotal + billedCommunicationTotal)}</strong></article></div></section>}
     {entries.length > 0 && <section className="daily-explorer analytics-detail-card">
-      <div className="analytics-block-head"><div><h3>Einzelne Tage öffnen</h3><p>Die aktuelle Kalenderwoche direkt im Blick. Ältere Tage lassen sich gezielt über Jahr und KW öffnen.</p></div><span className="current-week-badge">{currentWeekKey}</span></div>
-      <div className="daily-duration-filter"><div><label htmlFor="daily-minimum-duration">Mindestdauer je Buchung</label><div><input id="daily-minimum-duration" type="number" min="0" step="1" value={minimumDuration} onChange={(event) => setMinimumDuration(Math.max(0, Number(event.target.value) || 0))} /><span>Minuten</span></div></div><div className="daily-duration-presets"><button type="button" className={minimumDuration === 0 ? 'active' : ''} onClick={() => setMinimumDuration(0)}>Alle</button>{[5, 10, 15, 30].map((minutes) => <button type="button" key={minutes} className={minimumDuration === minutes ? 'active' : ''} onClick={() => setMinimumDuration(minutes)}>ab {minutes} Min.</button>)}</div><strong>{entries.filter((entry) => entry.durationMinutes >= minimumDuration).length} von {entries.length} Buchungen sichtbar</strong></div>
-      <div className="current-week-day-grid">{currentWeekDays.map((day) => {
-        const minutes = explorerDailyMinutes.get(day) || 0;
-        const bookingCount = explorerDaily.get(day)?.length || 0;
+      <div className="analytics-block-head"><div><h3>Einzelne Tage öffnen</h3><p>Kalenderwoche auswählen und anschließend einen Tag öffnen.</p></div><label className="week-filter"><span>Kalenderwoche</span><select value={selectedWeekKey} onChange={(event) => setSelectedWeekKey(event.target.value)}>{weekOptions.map((key) => <option key={key} value={key}>{key} · {formatDuration(weekly.get(key) || 0)}</option>)}</select></label></div>
+      <div className="current-week-day-grid">{selectedWeekDays.map((day) => {
+        const minutes = dailyMinutes.get(day) || 0;
+        const bookingCount = daily.get(day)?.length || 0;
         return <button type="button" key={day} className={`${selectedDay === day ? 'active' : ''}${day === todayKey ? ' today' : ''}`} disabled={!bookingCount} onClick={() => setSelectedDay(day)}><span>{new Intl.DateTimeFormat('de-DE', { weekday: 'long' }).format(new Date(`${day}T12:00:00`))}</span><b>{new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' }).format(new Date(`${day}T12:00:00`))}</b><strong>{formatDuration(minutes)}</strong><small>{bookingCount ? `${bookingCount} Buchung${bookingCount === 1 ? '' : 'en'}` : 'Keine Buchung'}</small></button>;
       })}</div>
-      {archiveDays.length > 0 && <div className="archive-day-picker"><div><span className="analytics-scope-label">Weitere Zeiträume</span><h4>Andere Kalenderwoche öffnen</h4></div><label><span>Jahr</span><select value={archiveYear} onChange={(event) => { const year = event.target.value; setArchiveYear(year); const first = archiveDays.find((day) => String(isoWeekInfo(`${day}T12:00:00`).year) === year); if (first) { const info = isoWeekInfo(`${first}T12:00:00`); setArchiveWeek(String(info.week)); setSelectedDay(first); } }}>{archiveYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label><label><span>Kalenderwoche</span><select value={archiveWeek} onChange={(event) => { const selectedWeek = event.target.value; setArchiveWeek(selectedWeek); const first = archiveDays.find((day) => { const info = isoWeekInfo(`${day}T12:00:00`); return String(info.year) === archiveYear && String(info.week) === selectedWeek; }); if (first) setSelectedDay(first); }}>{archiveWeeks.map((week) => <option key={week} value={week}>KW {String(week).padStart(2, '0')}</option>)}</select></label><label className="archive-day-select"><span>Tag</span><select value={archiveWeekDays.includes(selectedDay) ? selectedDay : ''} onChange={(event) => event.target.value && setSelectedDay(event.target.value)}><option value="" disabled>Tag auswählen</option>{archiveWeekDays.map((day) => <option key={day} value={day}>{shortDate.format(new Date(`${day}T12:00:00`))} · {formatDuration(explorerDailyMinutes.get(day) || 0)}</option>)}</select></label></div>}
-      {selectedDay && explorerDaily.has(selectedDay) ? <DayDetail day={selectedDay} entries={explorerDaily.get(selectedDay) || []} projects={projects} taskLabels={taskLabels} onEdit={onSaveEntry ? setEditingEntry : undefined} onDelete={onDeleteEntry ? (entry) => void (async () => { if (await confirm(`Zeiteintrag über ${formatDuration(entry.durationMinutes)} löschen?`)) await onDeleteEntry(entry.id); })() : undefined} /> : <div className="daily-filter-empty">Keine Buchung erfüllt für diesen Tag die gewählte Mindestdauer.</div>}
+      {selectedDay && <div className="daily-duration-filter"><div><label htmlFor="daily-minimum-duration">Mindestdauer der angezeigten Einträge</label><div><input id="daily-minimum-duration" type="number" min="0" step="1" value={minimumDuration} onChange={(event) => setMinimumDuration(Math.max(0, Number(event.target.value) || 0))} /><span>Minuten</span></div></div><div className="daily-duration-presets"><button type="button" className={minimumDuration === 0 ? 'active' : ''} onClick={() => setMinimumDuration(0)}>Alle</button>{[5, 10, 15, 30].map((minutes) => <button type="button" key={minutes} className={minimumDuration === minutes ? 'active' : ''} onClick={() => setMinimumDuration(minutes)}>ab {minutes} Min.</button>)}</div><strong>{visibleSelectedDayEntries.length} von {selectedDayEntries.length} Einträgen sichtbar</strong></div>}
+      {selectedDay && visibleSelectedDayEntries.length > 0 ? <DayDetail day={selectedDay} entries={visibleSelectedDayEntries} projects={projects} taskLabels={taskLabels} onEdit={onSaveEntry ? setEditingEntry : undefined} onDelete={onDeleteEntry ? (entry) => void (async () => { if (await confirm(`Zeiteintrag über ${formatDuration(entry.durationMinutes)} löschen?`)) await onDeleteEntry(entry.id); })() : undefined} /> : <div className="daily-filter-empty">{selectedDay ? 'Keine Buchung erfüllt für diesen Tag die gewählte Mindestdauer.' : 'In dieser Kalenderwoche gibt es keine Buchungen.'}</div>}
     </section>}
-    <div className="time-analysis-columns"><article className="analytics-detail-card"><div className="analytics-block-head"><div><h3>Letzte Arbeitstage</h3><p>Die letzten 15 konfigurierten Arbeitstage.</p></div></div><div className="time-period-list">{workdays.map((item) => <button type="button" key={item.key} onClick={() => daily.has(item.key) && setSelectedDay(item.key)} disabled={!daily.has(item.key)}><span>{shortDate.format(item.date)}</span><i><b style={{ width: `${item.minutes / maxDay * 100}%` }} /></i><strong>{formatDuration(item.minutes)}</strong></button>)}</div></article><article className="analytics-detail-card"><div className="analytics-block-head"><div><h3>Nach Kalenderwoche</h3><p>Die letzten zwölf ISO-Kalenderwochen.</p></div></div><div className="time-period-list">{weeks.map((item) => <div key={item.key}><span>{item.key}</span><i><b style={{ width: `${item.minutes / maxWeek * 100}%` }} /></i><strong>{formatDuration(item.minutes)}</strong></div>)}</div></article></div>
     {projectRows.length > 0 && <div className="analytics-table-wrap time-project-table"><table className="an-table"><thead><tr><th>Projekt</th><th>Kunde</th><th>Getrackte Zeit</th><th>Abgerechnet · Aufgaben</th><th>Abgerechnet · Kommunikation</th></tr></thead><tbody>{projectRows.map(({ project, minutes, billed }) => <tr key={project.id}><td><i className="project-color-dot" style={{ background: projectColor(project.id, projects) }} /><strong>{project.name}</strong></td><td>{project.kunde || '–'}</td><td>{formatDuration(minutes)}</td><td>{formatDuration(billed?.taskMinutes || 0)}</td><td>{formatDuration(billed?.communicationMinutes || 0)}</td></tr>)}</tbody></table></div>}
     {editingEntry && onSaveEntry && <TimeEntryEditor key={editingEntry.id} entry={editingEntry} projects={projects} taskLabels={taskLabels} onSave={onSaveEntry} onClose={() => setEditingEntry(null)} />}
   </section>;
