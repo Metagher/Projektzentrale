@@ -2,6 +2,7 @@ import { fmtDate, hasEchtlauf, htmlToPlainText, todayStr, truncateText, waitingD
 import { computeDocLabels } from './docOutline';
 import { useDataStore, type DashboardData } from '../store/dataStore';
 import type { DocEntryValue, Project, ProjectCache, ProjectDocumentationArea, ProjectStatusEntry } from '../types/entities';
+import { linkedContactIds } from './contacts';
 
 export function buildDailyBriefingContext(dashboardData: DashboardData | null): string {
   const lines: string[] = [];
@@ -70,11 +71,11 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
       .slice()
       .sort((a, b) => (a.datum || '').localeCompare(b.datum || ''))
       .forEach((c) => {
-        const contact = data.contacts.find((x) => x.id === c.kontaktId);
+        const contacts = data.contacts.filter((contact) => linkedContactIds(c).includes(contact.id));
         const notizText = htmlToPlainText(c.notiz);
         const afnText = c.afns && c.afns.length ? ` [AFN: ${c.afns.join(', ')}]` : '';
         const teilprojektText = c.teilprojekt ? ` [Teilprojekt: ${c.teilprojekt}]` : '';
-        lines.push(`- ${fmtDate(c.datum)} | ${c.kanal}${contact ? ' | ' + contact.name : ''} | ${c.betreff || '(kein Betreff)'}${teilprojektText}${afnText}${notizText ? ': ' + notizText : ''}`);
+        lines.push(`- ${fmtDate(c.datum)} | ${c.kanal}${contacts.length ? ' | ' + contacts.map((contact) => contact.name).join(', ') : ''} | ${c.betreff || '(kein Betreff)'}${teilprojektText}${afnText}${notizText ? ': ' + notizText : ''}`);
       });
   }
   const hidden = (data.doc._hidden as string[] | undefined) || [];
@@ -114,7 +115,7 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
   if (data.tasks.length) {
     lines.push('Aufgaben:');
     data.tasks.forEach((t) => {
-      const contact = data.contacts.find((x) => x.id === t.kontaktId);
+      const contacts = data.contacts.filter((contact) => linkedContactIds(t).includes(contact.id));
       const anforderungText = htmlToPlainText(t.anforderung);
       const standText = htmlToPlainText(t.aktuellerStand);
       const verlaufText = (t.verlauf || []).slice().sort((a, b) => b.datum.localeCompare(a.datum)).map((entry) => `${fmtDate(entry.datum)} ${entry.titel}: ${htmlToPlainText(entry.content)}`).join(' | ');
@@ -122,7 +123,7 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
       const wartetText = t.status === 'wartet' && t.wartetAuf ? `, wartet auf: ${t.wartetAuf}${t.wartetSeit ? `, ${waitingDurationLabel(t.wartetSeit)}` : ''}` : '';
       const meetingText = t.naechsteBesprechung ? ' [für nächste Besprechung vorgemerkt]' : '';
       lines.push(
-        `- [${t.status}] ${t.titel}${meetingText}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${wartetText}${contact ? `, Ansprechpartner: ${contact.name}` : ''}${anforderungText ? ` | Anforderung: ${anforderungText}` : ''}${standText ? ` | Aktueller Stand: ${standText}` : ''}${verlaufText ? ` | Verlauf: ${verlaufText}` : ''}`,
+        `- [${t.status}] ${t.titel}${meetingText}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${wartetText}${contacts.length ? `, Ansprechpartner: ${contacts.map((contact) => contact.name).join(', ')}` : ''}${anforderungText ? ` | Anforderung: ${anforderungText}` : ''}${standText ? ` | Aktueller Stand: ${standText}` : ''}${verlaufText ? ` | Verlauf: ${verlaufText}` : ''}`,
       );
     });
   }

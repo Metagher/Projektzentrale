@@ -6,7 +6,8 @@ import { DEFAULT_TASK_COLOR_LABELS, DEFAULT_TASK_COLOR_ORDER, compareTaskColors,
 import { isDefaultWorkday, type WorkdayOverrides } from '../lib/workdays';
 import { migratePrio, migrateTaskContent } from '../lib/migrations';
 import { hasEchtlauf, todayStr, uid } from '../lib/format';
-import { effectiveCustomerOrder, groupProjectsByCustomer } from '../lib/projectGroups';
+import { customerKey, effectiveCustomerOrder, groupProjectsByCustomer } from '../lib/projectGroups';
+import { linkedContactIds, normalizeContactLinks } from '../lib/contacts';
 import type {
   Comm,
   Contact,
@@ -162,6 +163,26 @@ async function persistTasks(get: () => DataStoreState, set: (p: Partial<DataStor
   await sSet(client(), 'tasks:' + projectId, tasks);
 }
 
+function linkedProjectIds(projects: Project[], projectId: string, requested?: string[]): string[] {
+  const existing = new Set(projects.map((project) => project.id));
+  const ids = Array.from(new Set((requested?.length ? requested : [projectId]).filter((id) => existing.has(id))));
+  return ids.length ? ids : [projectId];
+}
+
+function customerProjectIds(projects: Project[], projectId: string): string[] {
+  const project = projects.find((item) => item.id === projectId);
+  if (!project?.kunde.trim()) return [projectId];
+  const key = customerKey(project.kunde).key;
+  return projects.filter((item) => item.kunde.trim() && customerKey(item.kunde).key === key).map((item) => item.id);
+}
+
+function taskWithoutMeta(task: TaskWithMeta): Task {
+  const { projectId: _projectId, projectName: _projectName, ...base } = task;
+  void _projectId;
+  void _projectName;
+  return base;
+}
+
 export const useDataStore = create<DataStoreState>((set, get) => ({
   projects: null,
   docDefs: null,
@@ -283,22 +304,33 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<ProjectModuleConfig[]>(sb, 'module-configs:' + id),
       sGet<ProjectNote[]>(sb, 'notes:' + id),
     ]);
+    const siblingIds = customerProjectIds(get().projects || [], id).filter((projectId) => projectId !== id);
+    const siblingContacts = await Promise.all(siblingIds.map((projectId) => sGet<Contact[]>(sb, 'contacts:' + projectId)));
+    const mergedContacts = new Map<string, Contact>();
+    [...(contacts || []), ...siblingContacts.flatMap((items) => items || [])].forEach((contact) => mergedContacts.set(contact.id, contact));
+    const customerContacts = Array.from(mergedContacts.values()).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    if (customerContacts.length !== (contacts || []).length) await sSet(sb, 'contacts:' + id, customerContacts);
     let tasks = rawTasks || [];
     let migrated = false;
     tasks = tasks.map((t) => {
       const fixed = migratePrio(t.prioritaet);
       const contentMigration = migrateTaskContent(t);
       const dokuZiel = t.dokuZiel ?? (t.doku ? 'project' : '');
-      if (fixed !== t.prioritaet || contentMigration.changed || t.dokuZiel === undefined) {
+      const projectIds = linkedProjectIds(get().projects || [], id, t.projectIds);
+      if (fixed !== t.prioritaet || contentMigration.changed || t.dokuZiel === undefined || !t.projectIds?.length) {
         migrated = true;
-        return { ...contentMigration.task, prioritaet: fixed, dokuZiel };
+        return { ...contentMigration.task, prioritaet: fixed, dokuZiel, projectIds };
       }
-      return contentMigration.task;
+      return { ...contentMigration.task, projectIds };
     });
     if (migrated) await sSet(sb, 'tasks:' + id, tasks);
+    const normalizedComms = (comms || []).map((comm) => normalizeContactLinks(comm, linkedContactIds(comm)));
+    if ((comms || []).some((comm, index) => comm.kontaktIds === undefined || comm.kontaktId !== normalizedComms[index].kontaktId)) {
+      await sSet(sb, 'comms:' + id, normalizedComms);
+    }
     const projectCache: ProjectCache = {
-      contacts: contacts || [],
-      comms: comms || [],
+      contacts: customerContacts,
+      comms: normalizedComms,
       doc: doc || {},
       tasks,
       timeline: timeline || [],
@@ -318,15 +350,22 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const completedTasks: TaskWithMeta[] = [];
     const allMilestones: MilestoneWithMeta[] = [];
     const allContacts: ContactWithMeta[] = [];
+    const seenTaskIds = new Set<string>();
+    const seenContacts = new Set<string>();
     for (const p of projects) {
       const c = await get().ensureProjectData(p.id);
       c.tasks.forEach((t) => {
+        if (seenTaskIds.has(t.id)) return;
+        seenTaskIds.add(t.id);
         const withMeta: TaskWithMeta = { ...t, projectId: p.id, projectName: p.name };
         if (t.status === 'erledigt') completedTasks.push(withMeta);
         else if (t.status === 'wartet') waitingTasks.push(withMeta);
         else allTasks.push(withMeta);
       });
       c.contacts.forEach((ct) => {
+        const contactKey = `${customerKey(p.kunde).key}:${ct.id}`;
+        if (seenContacts.has(contactKey)) return;
+        seenContacts.add(contactKey);
         allContacts.push({ id: ct.id, name: ct.name, projectId: p.id, projectName: p.name });
       });
       if (hasEchtlauf(p)) {
@@ -384,16 +423,32 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   },
 
   updateProject: async (id, patch) => {
+    const previous = (get().projects || []).find((project) => project.id === id);
     const projects = (get().projects || []).map((p) => (p.id === id ? { ...p, ...patch } : p));
-    set({ projects });
+    const cache = { ...get().cache };
+    if (patch.kunde !== undefined && patch.kunde !== previous?.kunde) delete cache[id];
+    set({ projects, cache });
     await sSet(client(), 'projects', projects);
   },
 
   deleteProject: async (id) => {
-    const projects = (get().projects || []).filter((p) => p.id !== id);
+    const allProjects = get().projects || [];
+    const projects = allProjects.filter((p) => p.id !== id);
     const timeEntries = get().timeEntries.filter((entry) => entry.projectId !== id);
     const activeTimer = get().activeTimer?.projectId === id ? null : get().activeTimer;
-    set({ projects, timeEntries, activeTimer });
+    const cache = { ...get().cache };
+    for (const project of projects) {
+      const data = await get().ensureProjectData(project.id);
+      const tasks = data.tasks.flatMap((task) => {
+        const currentLinks = linkedProjectIds(allProjects, project.id, task.projectIds);
+        if (!currentLinks.includes(id)) return [task];
+        const remainingLinks = currentLinks.filter((linkedId) => linkedId !== id && projects.some((item) => item.id === linkedId));
+        return remainingLinks.length ? [{ ...task, projectIds: remainingLinks }] : [];
+      });
+      cache[project.id] = { ...data, tasks };
+      await sSet(client(), 'tasks:' + project.id, tasks);
+    }
+    set({ projects, timeEntries, activeTimer, cache });
     const sb = client();
     await Promise.all([sSet(sb, 'projects', projects), sSet(sb, 'time-entries', timeEntries), activeTimer ? sSet(sb, 'active-timer', activeTimer) : sDelete(sb, 'active-timer')]);
     await Promise.all(
@@ -401,7 +456,6 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
         sDelete(sb, prefix + id),
       ),
     );
-    const cache = { ...get().cache };
     delete cache[id];
     set({ cache });
   },
@@ -459,120 +513,115 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   },
 
   saveTask: async (projectId, task) => {
-    const data = await get().ensureProjectData(projectId);
-    const idx = data.tasks.findIndex((t) => t.id === task.id);
-    const normalizedTask = idx >= 0 && data.tasks[idx].faelligAm !== task.faelligAm ? { ...task, tagesSortierung: 999 } : task;
-    const tasks = idx >= 0 ? data.tasks.map((t, i) => (i === idx ? normalizedTask : t)) : [...data.tasks, normalizedTask];
-    await persistTasks(get, set, projectId, tasks);
+    const projects = get().projects || [];
+    await Promise.all(projects.map((project) => get().ensureProjectData(project.id)));
+    const origin = get().cache[projectId] || emptyProjectCache();
+    const previous = origin.tasks.find((item) => item.id === task.id);
+    const projectIds = linkedProjectIds(projects, projectId, task.projectIds);
+    const taskWithContacts = normalizeContactLinks(task, linkedContactIds(task));
+    const normalizedTask = previous && previous.faelligAm !== task.faelligAm
+      ? { ...taskWithContacts, projectIds, tagesSortierung: 999 }
+      : { ...taskWithContacts, projectIds };
+    const cache = { ...get().cache };
+    await Promise.all(projects.map(async (project) => {
+      const data = cache[project.id] || emptyProjectCache();
+      const exists = data.tasks.some((item) => item.id === task.id);
+      const shouldExist = projectIds.includes(project.id);
+      if (!exists && !shouldExist) return;
+      const tasks = shouldExist
+        ? (exists ? data.tasks.map((item) => item.id === task.id ? normalizedTask : item) : [...data.tasks, normalizedTask])
+        : data.tasks.filter((item) => item.id !== task.id);
+      cache[project.id] = { ...data, tasks };
+      await sSet(client(), 'tasks:' + project.id, tasks);
+    }));
+    set({ cache });
     await get().loadDashboardData();
   },
 
   createTask: async (projectId, partial) => {
     const nr = await get().nextTaskNr();
-    const task: Task = {
+    const projectIds = linkedProjectIds(get().projects || [], projectId, partial.projectIds);
+    const task: Task = normalizeContactLinks({
       ...partial,
+      projectIds,
       id: uid(),
       nr,
       erstelltAm: new Date().toISOString(),
       abgeschlossenAm: null,
       tagesSortierung: 999,
-    };
-    const data = await get().ensureProjectData(projectId);
-    await persistTasks(get, set, projectId, [...data.tasks, task]);
+    }, linkedContactIds(partial));
+    for (const linkedId of projectIds) {
+      const data = await get().ensureProjectData(linkedId);
+      await persistTasks(get, set, linkedId, [...data.tasks.filter((item) => item.id !== task.id), task]);
+    }
     await get().loadDashboardData();
     return task.id;
   },
 
-  deleteTask: async (projectId, taskId) => {
-    if (get().activeTimer?.projectId === projectId && get().activeTimer?.taskId === taskId) await get().stopTimer();
-    const data = await get().ensureProjectData(projectId);
-    const tasks = data.tasks.filter((t) => t.id !== taskId);
-    await persistTasks(get, set, projectId, tasks);
+  deleteTask: async (_projectId, taskId) => {
+    if (get().activeTimer?.taskId === taskId) await get().stopTimer();
+    for (const project of get().projects || []) {
+      const data = await get().ensureProjectData(project.id);
+      if (!data.tasks.some((task) => task.id === taskId)) continue;
+      await persistTasks(get, set, project.id, data.tasks.filter((task) => task.id !== taskId));
+    }
     await get().loadDashboardData();
   },
 
   setAllOverdueTasksToToday: async () => {
     const today = todayStr();
-    const byProject: Record<string, string[]> = {};
-    (get().dashboardData?.overdueTasks || []).forEach((t) => {
-      (byProject[t.projectId] = byProject[t.projectId] || []).push(t.id);
-    });
-    for (const projectId of Object.keys(byProject)) {
-      const data = await get().ensureProjectData(projectId);
-      const ids = byProject[projectId];
-      const tasks = data.tasks.map((t) => (ids.includes(t.id) ? { ...t, faelligAm: today, tagesSortierung: 999 } : t));
-      await persistTasks(get, set, projectId, tasks);
-    }
-    await get().loadDashboardData();
+    for (const task of get().dashboardData?.overdueTasks || []) await get().saveTask(task.projectId, { ...taskWithoutMeta(task), faelligAm: today, tagesSortierung: 999 });
   },
 
   setAllNoDateTasksToToday: async () => {
     const today = todayStr();
-    const byProject: Record<string, string[]> = {};
-    (get().dashboardData?.tasksNoDate || []).forEach((t) => {
-      (byProject[t.projectId] = byProject[t.projectId] || []).push(t.id);
-    });
-    for (const projectId of Object.keys(byProject)) {
-      const data = await get().ensureProjectData(projectId);
-      const ids = byProject[projectId];
-      const tasks = data.tasks.map((t) => (ids.includes(t.id) ? { ...t, faelligAm: today } : t));
-      await persistTasks(get, set, projectId, tasks);
-    }
-    await get().loadDashboardData();
+    for (const task of get().dashboardData?.tasksNoDate || []) await get().saveTask(task.projectId, { ...taskWithoutMeta(task), faelligAm: today, tagesSortierung: 999 });
   },
 
   reorderDailyTasks: async (date, orderedTasks) => {
-    const byProject = new Map<string, Map<string, number>>();
-    orderedTasks.forEach((task, index) => {
-      if (task.faelligAm !== date) return;
-      if (!byProject.has(task.projectId)) byProject.set(task.projectId, new Map());
-      byProject.get(task.projectId)!.set(task.id, index + 1);
-    });
-    const projectIds = new Set((get().dashboardData?.tasksWithDate || []).filter((task) => task.faelligAm === date).map((task) => task.projectId));
-    orderedTasks.forEach((task) => projectIds.add(task.projectId));
-    for (const projectId of projectIds) {
-      const ranks = byProject.get(projectId) || new Map<string, number>();
-      const data = await get().ensureProjectData(projectId);
-      const tasks = data.tasks.map((task) => task.faelligAm === date
-        ? { ...task, tagesSortierung: ranks.get(task.id) ?? 999 }
-        : task);
-      await persistTasks(get, set, projectId, tasks);
-    }
-    await get().loadDashboardData();
+    const rankById = new Map(orderedTasks.filter((task) => task.faelligAm === date).map((task, index) => [task.id, index + 1]));
+    const affected = (get().dashboardData?.tasksWithDate || []).filter((task) => task.faelligAm === date);
+    for (const task of affected) await get().saveTask(task.projectId, { ...taskWithoutMeta(task), tagesSortierung: rankById.get(task.id) ?? 999 });
   },
 
   moveTaskToDailyDate: async (projectId, taskId, date) => {
     const data = await get().ensureProjectData(projectId);
-    const tasks = data.tasks.map((task) => task.id === taskId
-      ? { ...task, faelligAm: date, tagesSortierung: 999 }
-      : task);
-    await persistTasks(get, set, projectId, tasks);
-    await get().loadDashboardData();
+    const task = data.tasks.find((item) => item.id === taskId);
+    if (task) await get().saveTask(projectId, { ...task, faelligAm: date, tagesSortierung: 999 });
   },
 
   saveContact: async (projectId, contact) => {
-    const data = await get().ensureProjectData(projectId);
-    const idx = data.contacts.findIndex((c) => c.id === contact.id);
-    const contacts = idx >= 0 ? data.contacts.map((c, i) => (i === idx ? contact : c)) : [...data.contacts, contact];
-    const cache = { ...get().cache, [projectId]: { ...data, contacts } };
+    const cache = { ...get().cache };
+    for (const linkedId of customerProjectIds(get().projects || [], projectId)) {
+      const data = await get().ensureProjectData(linkedId);
+      const contacts = data.contacts.some((item) => item.id === contact.id)
+        ? data.contacts.map((item) => item.id === contact.id ? contact : item)
+        : [...data.contacts, contact];
+      contacts.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+      cache[linkedId] = { ...data, contacts };
+      await sSet(client(), 'contacts:' + linkedId, contacts);
+    }
     set({ cache });
-    await sSet(client(), 'contacts:' + projectId, contacts);
     await get().loadDashboardData();
   },
 
   deleteContact: async (projectId, contactId) => {
-    const data = await get().ensureProjectData(projectId);
-    const contacts = data.contacts.filter((c) => c.id !== contactId);
-    const cache = { ...get().cache, [projectId]: { ...data, contacts } };
+    const cache = { ...get().cache };
+    for (const linkedId of customerProjectIds(get().projects || [], projectId)) {
+      const data = await get().ensureProjectData(linkedId);
+      const contacts = data.contacts.filter((contact) => contact.id !== contactId);
+      cache[linkedId] = { ...data, contacts };
+      await sSet(client(), 'contacts:' + linkedId, contacts);
+    }
     set({ cache });
-    await sSet(client(), 'contacts:' + projectId, contacts);
     await get().loadDashboardData();
   },
 
   saveComm: async (projectId, comm) => {
     const data = await get().ensureProjectData(projectId);
+    const normalizedComm = normalizeContactLinks(comm, linkedContactIds(comm));
     const idx = data.comms.findIndex((c) => c.id === comm.id);
-    const comms = idx >= 0 ? data.comms.map((c, i) => (i === idx ? comm : c)) : [...data.comms, comm];
+    const comms = idx >= 0 ? data.comms.map((c, i) => (i === idx ? normalizedComm : c)) : [...data.comms, normalizedComm];
     const cache = { ...get().cache, [projectId]: { ...data, comms } };
     set({ cache });
     await sSet(client(), 'comms:' + projectId, comms);

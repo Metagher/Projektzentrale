@@ -3,6 +3,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { toExternalHref } from '../../lib/externalLinks';
 import type { ProjectDocumentationArea, ProjectStatusEntry } from '../../types/entities';
+import { linkedContactIds } from '../../lib/contacts';
 
 interface Finding {
   id: string;
@@ -54,7 +55,8 @@ export default function DataValidationSettings() {
         const invalidWaitingSince = !!task.wartetSeit && !validDate(task.wartetSeit);
         const invalid = !task.titel?.trim() || !TASK_STATUSES.has(task.status) || (!!task.faelligAm && !validDate(task.faelligAm)) || invalidWaitingSince || (task.status === 'wartet' && !task.wartetAuf?.trim());
         if (invalid) add({ ...prefix, area: 'Aufgabe', problem: !task.titel?.trim() ? 'Titel fehlt' : !TASK_STATUSES.has(task.status) ? `Ungültiger Status: ${task.status}` : task.status === 'wartet' && !task.wartetAuf?.trim() ? 'Wartet auf ohne Person' : invalidWaitingSince ? `Ungültiges Wartedatum: ${task.wartetSeit}` : `Ungültiges Datum: ${task.faelligAm}`, detail: `#${task.nr || '—'} · ${task.titel || task.id}`, actionLabel: 'Löschen', run: () => store.deleteTask(project.id, task.id) });
-        if (task.kontaktId && !contactIds.has(task.kontaktId)) add({ ...prefix, area: 'Aufgabe', problem: 'Ansprechpartner existiert nicht mehr', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, kontaktId: '' }) });
+        const validContactIds = linkedContactIds(task).filter((id) => contactIds.has(id));
+        if (validContactIds.length !== linkedContactIds(task).length) add({ ...prefix, area: 'Aufgabe', problem: 'Mindestens ein Ansprechpartner existiert nicht mehr', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, kontaktId: validContactIds[0] || '', kontaktIds: validContactIds }) });
         const validCommIds = (task.commIds || []).filter((id) => commIds.has(id));
         if (validCommIds.length !== (task.commIds || []).length) add({ ...prefix, area: 'Aufgabe', problem: 'Verknüpfte Kommunikation existiert nicht mehr', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, commIds: validCommIds }) });
         if (task.fremdverknuepfung?.trim() && !toExternalHref(task.fremdverknuepfung)) add({ ...prefix, area: 'Aufgabe', problem: 'Ungültige Fremdverknüpfung', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, fremdverknuepfung: '' }) });
@@ -66,7 +68,8 @@ export default function DataValidationSettings() {
       data.comms.forEach((comm) => {
         const invalid = !validDate(comm.datum) || !CHANNELS.has(comm.kanal);
         if (invalid) add({ ...prefix, area: 'Kommunikation', problem: !validDate(comm.datum) ? `Ungültiges Datum: ${comm.datum || 'leer'}` : `Ungültiger Kanal: ${comm.kanal}`, detail: comm.betreff || comm.id, actionLabel: 'Löschen', run: () => store.deleteComm(project.id, comm.id) });
-        if (comm.kontaktId && !contactIds.has(comm.kontaktId)) add({ ...prefix, area: 'Kommunikation', problem: 'Ansprechpartner existiert nicht mehr', detail: comm.betreff || comm.id, actionLabel: 'Bereinigen', run: () => store.saveComm(project.id, { ...comm, kontaktId: '' }) });
+        const validContactIds = linkedContactIds(comm).filter((id) => contactIds.has(id));
+        if (validContactIds.length !== linkedContactIds(comm).length) add({ ...prefix, area: 'Kommunikation', problem: 'Mindestens ein Ansprechpartner existiert nicht mehr', detail: comm.betreff || comm.id, actionLabel: 'Bereinigen', run: () => store.saveComm(project.id, { ...comm, kontaktId: validContactIds[0] || '', kontaktIds: validContactIds }) });
         const validTaskIds = (comm.taskIds || []).filter((id) => taskIds.has(id));
         if (validTaskIds.length !== (comm.taskIds || []).length) add({ ...prefix, area: 'Kommunikation', problem: 'Verknüpfte Aufgabe existiert nicht mehr', detail: comm.betreff || comm.id, actionLabel: 'Bereinigen', run: () => store.saveComm(project.id, { ...comm, taskIds: validTaskIds }) });
       });

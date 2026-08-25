@@ -4,13 +4,14 @@ import { useUiStore } from '../../store/uiStore';
 import { getProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
 import { htmlToPlainText } from '../../lib/format';
+import { linkedContactIds } from '../../lib/contacts';
 import type { ProjectCache, Task } from '../../types/entities';
 
 function searchableText(task: Task, projectName: string, data: ProjectCache): string {
-  const contact = data.contacts.find((item) => item.id === task.kontaktId);
+  const contacts = data.contacts.filter((item) => linkedContactIds(task).includes(item.id));
   const history = (task.verlauf || []).flatMap((entry) => [entry.datum, entry.titel, htmlToPlainText(entry.content)]);
   return [
-    projectName, task.nr, task.titel, task.status, task.wartetAuf, task.wartetSeit, contact?.name, contact?.rolle,
+    projectName, task.nr, task.titel, task.status, task.wartetAuf, task.wartetSeit, ...contacts.flatMap((contact) => [contact.name, contact.rolle]),
     task.teilprojekt, task.naechsteBesprechung ? 'nächste Besprechung vorgemerkt' : '', task.afns?.join(' '), htmlToPlainText(task.anforderung), htmlToPlainText(task.aktuellerStand),
     ...history,
   ].filter(Boolean).join(' ').toLocaleLowerCase('de');

@@ -19,12 +19,12 @@ import { taskDocumentationLabel } from '../../lib/taskDocumentation';
 interface Props {
   task: Task;
   project: Project;
-  contact: Contact | undefined;
+  contacts: Contact[];
   data: ProjectCache;
   onDelete: () => void;
 }
 
-export default function ProjectTaskRow({ task, project, contact, data, onDelete }: Props) {
+export default function ProjectTaskRow({ task, project, contacts, data, onDelete }: Props) {
   const [copiedPath, setCopiedPath] = useState<'task' | 'project' | null>(null);
   const { setEditingTaskId, jumpToComm } = useProjectUiStore();
   const dashboardData = useDataStore((state) => state.dashboardData);
@@ -80,7 +80,7 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
 
         <div className="task-card-meta">
           <span><b>Fällig</b>{fmtDate(task.faelligAm)}</span>
-          {contact && <span><b>Kontakt</b>{contact.name}</span>}
+          {contacts.length > 0 && <span><b>Ansprechpartner</b>{contacts.map((contact) => contact.name).join(', ')}</span>}
           {task.erstelltAm && <span><b>Erstellt</b>{fmtDate(task.erstelltAm.slice(0, 10))}</span>}
           {task.abgeschlossenAm && <span><b>Erledigt</b>{fmtDate(task.abgeschlossenAm.slice(0, 10))}</span>}
         </div>
@@ -96,7 +96,7 @@ export default function ProjectTaskRow({ task, project, contact, data, onDelete 
           <button type="button" className={`meeting-task-toggle${task.naechsteBesprechung ? ' active' : ''}`} aria-pressed={!!task.naechsteBesprechung} title={task.naechsteBesprechung ? 'Vormerkung für die nächste Besprechung entfernen' : 'Für die nächste Besprechung vormerken'} onClick={() => void saveTask(project.id, { ...task, naechsteBesprechung: !task.naechsteBesprechung })}>Besprechung</button>
           {trackedMinutes > 0 && <span className="task-time-total">{formatDuration(trackedMinutes)}</span>}
           <TimeTrackingButton projectId={project.id} taskId={task.id} compact />
-          <button type="button" className="icon-btn" onClick={async () => { try { exportTaskToPdf(project, task, contact); } catch (error) { await alert((error as Error).message); } }}>PDF</button>
+          <button type="button" className="icon-btn" onClick={async () => { try { exportTaskToPdf(project, task, contacts[0]); } catch (error) { await alert((error as Error).message); } }}>PDF</button>
           <button type="button" className="icon-btn" onClick={onDelete}>Löschen</button>
         </footer>
       </div>

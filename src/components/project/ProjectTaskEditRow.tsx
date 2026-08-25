@@ -3,6 +3,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
 import { commLinkLabel, todayStr } from '../../lib/format';
+import { contactLinkLabel, linkedContactIds } from '../../lib/contacts';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
@@ -12,6 +13,7 @@ import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import TaskStatusButtons from '../shared/TaskStatusButtons';
 import TaskWaitingFields from '../shared/TaskWaitingFields';
 import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSelect';
+import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import { taskDocumentationTarget } from '../../lib/taskDocumentation';
 import type { Contact, ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
 import TaskTimePanel from './TaskTimePanel';
@@ -42,7 +44,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const [farbe, setFarbe] = useState<TaskColor | ''>(task.farbe || '');
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [faelligAm, setFaelligAm] = useState(task.faelligAm || '');
-  const [kontaktId, setKontaktId] = useState(task.kontaktId || '');
+  const [kontaktIds, setKontaktIds] = useState<string[]>(linkedContactIds(task));
   const [dokuZiel, setDokuZiel] = useState<TaskDocumentationTarget>(taskDocumentationTarget(task));
   const [dokuZielChanged, setDokuZielChanged] = useState(false);
   const [naechsteBesprechung, setNaechsteBesprechung] = useState(!!task.naechsteBesprechung);
@@ -57,6 +59,9 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const [fremdverknuepfung, setFremdverknuepfung] = useState(task.fremdverknuepfung || '');
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState(task.ticketsystemVerknuepfung || '');
   const [teilprojekt, setTeilprojekt] = useState(task.teilprojekt || '');
+  const [projectIds, setProjectIds] = useState<string[]>(task.projectIds?.length ? task.projectIds : [projectId]);
+  const [billedMinutes, setBilledMinutes] = useState(Math.max(0, Number(task.billedMinutes) || 0));
+  const [billedDate, setBilledDate] = useState(task.billedDate || todayStr());
   const teilprojekte = Array.from(new Set(data.tasks.map((item) => item.teilprojekt?.trim()).filter((value): value is string => !!value)))
     .sort((a, b) => a.localeCompare(b, 'de'));
   const assignedModuleIds = new Set(customerModules.filter((item) => item.kunde === project?.kunde).map((item) => item.moduleId));
@@ -123,7 +128,8 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
       wartetSeit: status === 'wartet' ? wartetSeit : '',
       faelligAm,
-      kontaktId,
+      kontaktId: kontaktIds[0] || '',
+      kontaktIds,
       anforderung,
       aktuellerStand,
       verlauf,
@@ -138,6 +144,9 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       dokuZiel,
       dokuErledigt: dokuZielChanged ? false : task.dokuErledigt,
       naechsteBesprechung,
+      projectIds,
+      billedMinutes,
+      billedDate: billedMinutes > 0 ? billedDate : '',
     });
     await syncCommLinksForTask(projectId, task.id, prevCommIds, commIds);
     setEditingTaskId(null);
@@ -175,11 +184,11 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       </div> : activeSection === 'basics' ? <div className="task-form-section"><div className="task-basics-grid">
         <div className="field"><label>Ticket</label><input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" /></div>
         <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
-        <div className="field"><label>Ansprechpartner</label><select value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}><option value="">— kein Ansprechpartner —</option>{contacts.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rolle ? ` (${c.rolle})` : ''}</option>)}</select></div>
+        <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} /></div>
         <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-edit-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-edit-${projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
         <TaskDocumentationTargetSelect value={dokuZiel} onChange={(value) => { if (value !== dokuZiel) setDokuZielChanged(true); setDokuZiel(value); }} />
         <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
-      </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div><div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div></div> : <TaskTimePanel projectId={projectId} taskId={task.id} />}
+      </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div><div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div><TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} /><div className="field-grid billed-time-fields"><div className="field"><label>Abgerechnete Zeit (Minuten)</label><input type="number" min="0" step="1" value={billedMinutes || ''} onChange={(event) => setBilledMinutes(Math.max(0, Number(event.target.value) || 0))} placeholder="0" /></div><div className="field"><label>Abrechnungsdatum</label><input type="date" value={billedDate} disabled={billedMinutes <= 0} onChange={(event) => setBilledDate(event.target.value)} /></div></div></div> : <TaskTimePanel projectId={projectId} taskId={task.id} />}
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn small" onClick={handleSave}>
           Speichern

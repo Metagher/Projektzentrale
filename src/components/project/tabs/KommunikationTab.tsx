@@ -6,6 +6,7 @@ import { useAiStore } from '../../../store/aiStore';
 import { CHANNELS } from '../../../lib/constants';
 import { escapeHtml, fmtDate, htmlToPlainText, isEmptyHtml, taskLinkLabel, todayStr, uid } from '../../../lib/format';
 import { extractTasksFromComm } from '../../../lib/ai';
+import { contactLinkLabel, linkedContactIds } from '../../../lib/contacts';
 import RtfField from '../../shared/RtfField';
 import AfnChipsField from '../../shared/AfnChipsField';
 import AfnChipsView from '../../shared/AfnChipsView';
@@ -33,12 +34,13 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
 
   const [datum, setDatum] = useState(editObj?.datum || todayStr());
   const [kanal, setKanal] = useState<Kanal>(editObj?.kanal || CHANNELS[0]);
-  const [kontaktId, setKontaktId] = useState(editObj?.kontaktId || '');
+  const [kontaktIds, setKontaktIds] = useState<string[]>(editObj ? linkedContactIds(editObj) : []);
   const [betreff, setBetreff] = useState(editObj?.betreff || '');
   const [notiz, setNotiz] = useState(editObj?.notiz || '');
   const [afns, setAfns] = useState<string[]>(editObj?.afns || []);
   const [taskIds, setTaskIds] = useState<string[]>(editObj?.taskIds || []);
   const [teilprojekt, setTeilprojekt] = useState(editObj?.teilprojekt || '');
+  const [billedMinutes, setBilledMinutes] = useState(Math.max(0, Number(editObj?.billedMinutes) || 0));
   const teilprojekte = Array.from(new Set([
     ...data.tasks.map((task) => task.teilprojekt?.trim()),
     ...data.comms.map((comm) => comm.teilprojekt?.trim()),
@@ -47,24 +49,26 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   function resetForm() {
     setDatum(todayStr());
     setKanal(CHANNELS[0]);
-    setKontaktId('');
+    setKontaktIds([]);
     setBetreff('');
     setNotiz('');
     setAfns([]);
     setTaskIds([]);
     setTeilprojekt('');
+    setBilledMinutes(0);
   }
 
   function startEdit(c: Comm) {
     setEditingComm(c.id);
     setDatum(c.datum);
     setKanal(c.kanal);
-    setKontaktId(c.kontaktId);
+    setKontaktIds(linkedContactIds(c));
     setBetreff(c.betreff);
     setNotiz(c.notiz);
     setAfns(c.afns || []);
     setTaskIds(c.taskIds || []);
     setTeilprojekt(c.teilprojekt || '');
+    setBilledMinutes(Math.max(0, Number(c.billedMinutes) || 0));
   }
 
   async function handleSave() {
@@ -72,12 +76,14 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
       id: editObj ? editObj.id : uid(),
       datum: datum || todayStr(),
       kanal,
-      kontaktId,
+      kontaktId: kontaktIds[0] || '',
+      kontaktIds,
       betreff: betreff.trim(),
       notiz,
       afns,
       taskIds,
       teilprojekt: teilprojekt.trim(),
+      billedMinutes,
     };
     const prevTaskIds = editObj?.taskIds || [];
     await saveComm(projectId, comm);
@@ -97,8 +103,8 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   async function handleExtractTasks(c: Comm) {
     setExtractingId(c.id);
     try {
-      const contact = data.contacts.find((x) => x.id === c.kontaktId);
-      const extracted = await extractTasksFromComm(c, contact?.name, todayStr(), htmlToPlainText);
+      const contacts = data.contacts.filter((contact) => linkedContactIds(c).includes(contact.id));
+      const extracted = await extractTasksFromComm(c, contacts.map((contact) => contact.name).join(', ') || undefined, todayStr(), htmlToPlainText);
       const selected = await taskExtractionReview(extracted);
       if (selected && selected.length) {
         const newTaskIds: string[] = [];
@@ -109,7 +115,8 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
             status: 'offen',
             wartetAuf: '',
             wartetSeit: '',
-            kontaktId: c.kontaktId || '',
+            kontaktId: linkedContactIds(c)[0] || '',
+            kontaktIds: linkedContactIds(c),
             anforderung: t.beschreibung ? `<p>${escapeHtml(t.beschreibung)}</p>` : '',
             aktuellerStand: '',
             verlauf: [],
@@ -169,15 +176,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
             </div>
             <div className="field">
               <label>Ansprechpartner</label>
-              <select className="contact-select" value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}>
-                <option value="">— kein Ansprechpartner —</option>
-                {data.contacts.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.rolle ? ` (${c.rolle})` : ''}
-                  </option>
-                ))}
-              </select>
+              <LinkChipsField ids={kontaktIds} items={data.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} />
             </div>
             <div className="field">
               <label>Betreff</label>
@@ -194,6 +193,10 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
               <datalist id={`kommunikation-teilprojekte-${projectId}`}>
                 {teilprojekte.map((name) => <option key={name} value={name} />)}
               </datalist>
+            </div>
+            <div className="field">
+              <label>Abgerechnete Zeit (Minuten)</label>
+              <input type="number" min="0" step="1" value={billedMinutes || ''} onChange={(event) => setBilledMinutes(Math.max(0, Number(event.target.value) || 0))} placeholder="0" />
             </div>
           </div>
           <div className="field">
@@ -247,14 +250,15 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
         </div>
       ) : (
         sorted.map((c) => {
-          const contact = data.contacts.find((x) => x.id === c.kontaktId);
+          const contacts = data.contacts.filter((contact) => linkedContactIds(c).includes(contact.id));
           return (
             <div className="list-item" key={c.id}>
               <div className="top-row">
                 <div>
                   <span className="channel-tag">{c.kanal}</span> <span className="meta mono">{fmtDate(c.datum)}</span>
-                  {contact && <span className="meta">· {contact.name}</span>}
+                  {contacts.length > 0 && <span className="meta">· {contacts.map((contact) => contact.name).join(', ')}</span>}
                   {c.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{c.teilprojekt.trim()}</span>}
+                  {!!c.billedMinutes && <span className="badge billed-time" style={{ marginLeft: 6 }}>{c.billedMinutes} Min. abgerechnet</span>}
                   {c.afns && c.afns.length > 0 && <AfnChipsView afns={c.afns} />}
                   <div style={{ marginTop: 5 }}>
                     <strong>{c.betreff || '(kein Betreff)'}</strong>

@@ -12,6 +12,7 @@ import type { Project, ProjectCache, Task, TaskStatus } from '../../../types/ent
 import { compareTaskColors, compareWaitingPerson } from '../../../lib/taskColors';
 import { writeTaskDrag } from '../../../lib/taskDrag';
 import { todayStr } from '../../../lib/format';
+import { linkedContactIds } from '../../../lib/contacts';
 
 type BoardColumn = 'offen' | 'wartet' | 'erledigt';
 const WITHOUT_SUBPROJECT_FILTER = '__without-subproject__';
@@ -130,7 +131,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
         onDragStart={(event) => { setDraggedTaskId(task.id); event.dataTransfer.effectAllowed = 'move'; writeTaskDrag(event.dataTransfer, { projectId: project.id, taskId: task.id }); }}
         onDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); setDragOverPerson(null); }}
       >
-        <ProjectTaskRow task={task} project={project} contact={data.contacts.find((contact) => contact.id === task.kontaktId)} data={data} onDelete={() => handleDelete(task.id)} />
+        <ProjectTaskRow task={task} project={project} contacts={data.contacts.filter((contact) => linkedContactIds(task).includes(contact.id))} data={data} onDelete={() => handleDelete(task.id)} />
       </div>
     );
   }

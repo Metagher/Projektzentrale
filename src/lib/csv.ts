@@ -4,6 +4,7 @@ import { migratePrio } from './migrations';
 import { defLevel, todayStr } from './format';
 import { useDataStore } from '../store/dataStore';
 import type { Comm, Contact, DocData, DocEntryValue, DocSectionDef, Milestone, Project, ProjectDocumentationArea, ProjectNote, ProjectStatusEntry, ProjectTyp, Task, TimeEntry, UpdateEntry } from '../types/entities';
+import { linkedContactIds } from './contacts';
 
 type CsvRow = Record<string, string | number | undefined>;
 
@@ -72,8 +73,8 @@ export async function buildExportCsv(): Promise<string> {
     data.comms.forEach((c) => {
       rows.push({
         Typ: 'kommunikation', ProjektId: p.id, Id: c.id, Datum: c.datum || '', Kanal: c.kanal || '',
-        KontaktId: c.kontaktId || '', Betreff: c.betreff || '', Notiz: c.notiz || '',
-        AFN: (c.afns || []).join(';'), VerknuepfteAufgabenIds: (c.taskIds || []).join(';'), Teilprojekt: c.teilprojekt || '',
+        KontaktId: c.kontaktId || '', KontaktIds: linkedContactIds(c).join(';'), Betreff: c.betreff || '', Notiz: c.notiz || '',
+        AFN: (c.afns || []).join(';'), VerknuepfteAufgabenIds: (c.taskIds || []).join(';'), Teilprojekt: c.teilprojekt || '', AbgerechneteMinuten: c.billedMinutes || '',
       });
     });
     (docDefs || []).forEach((def) => {
@@ -93,10 +94,11 @@ export async function buildExportCsv(): Promise<string> {
     data.tasks.forEach((t) => {
       rows.push({
         Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '', Farbe: t.farbe || '', TagesSortierung: t.tagesSortierung ?? 999,
-        Status: t.status || '', KontaktId: t.kontaktId || '', Anforderung: t.anforderung || '', AktuellerStand: t.aktuellerStand || '', Verlauf: JSON.stringify(t.verlauf || []), ErstelltAm: t.erstelltAm || '',
+        Status: t.status || '', KontaktId: t.kontaktId || '', KontaktIds: linkedContactIds(t).join(';'), Anforderung: t.anforderung || '', AktuellerStand: t.aktuellerStand || '', Verlauf: JSON.stringify(t.verlauf || []), ErstelltAm: t.erstelltAm || '',
         AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '', WartetSeit: t.wartetSeit || '',
         Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), VerknuepfteModulIds: (t.moduleIds || []).join(';'), Teilprojekt: t.teilprojekt || '', NaechsteBesprechung: t.naechsteBesprechung ? 'ja' : 'nein',
         DokuZiel: t.dokuZiel || (t.doku ? 'project' : ''), DokuErledigt: t.dokuErledigt ? 'ja' : 'nein',
+        VerknuepfteProjektIds: (t.projectIds || [p.id]).join(';'), AbgerechneteMinuten: t.billedMinutes || '', Abrechnungsdatum: t.billedDate || '',
       });
     });
     data.notes.forEach((note) => {
@@ -185,8 +187,8 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
       if (!perProject[pid]) return;
       perProject[pid].comms.push({
         id: String(r.Id), datum: String(r.Datum || ''), kanal: (r.Kanal as Comm['kanal']) || 'Sonstiges',
-        kontaktId: String(r.KontaktId || ''), betreff: String(r.Betreff || ''), notiz: String(r.Notiz || ''),
-        afns: splitList(r.AFN as string), taskIds: splitList(r.VerknuepfteAufgabenIds as string), teilprojekt: String(r.Teilprojekt || ''),
+        kontaktId: String(r.KontaktId || ''), kontaktIds: splitList(r.KontaktIds as string).length ? splitList(r.KontaktIds as string) : (r.KontaktId ? [String(r.KontaktId)] : []), betreff: String(r.Betreff || ''), notiz: String(r.Notiz || ''),
+        afns: splitList(r.AFN as string), taskIds: splitList(r.VerknuepfteAufgabenIds as string), teilprojekt: String(r.Teilprojekt || ''), billedMinutes: Math.max(0, Number(r.AbgerechneteMinuten) || 0),
       });
     });
 
@@ -231,7 +233,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
       perProject[pid].tasks.push({
         id: String(r.Id), titel: String(r.Titel || ''), faelligAm: String(r.Datum || ''),
         prioritaet: migratePrio(r.Prioritaet as string), farbe: (r.Farbe as Task['farbe']) || '', status: (r.Status as Task['status']) || 'offen',
-        kontaktId: String(r.KontaktId || ''), anforderung: String(r.Anforderung || ''), aktuellerStand: importedTaskStand(r),
+        kontaktId: String(r.KontaktId || ''), kontaktIds: splitList(r.KontaktIds as string).length ? splitList(r.KontaktIds as string) : (r.KontaktId ? [String(r.KontaktId)] : []), anforderung: String(r.Anforderung || ''), aktuellerStand: importedTaskStand(r),
         erstelltAm: (r.ErstelltAm as string) || '', abgeschlossenAm: (r.AbgeschlossenAm as string) || null,
         afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), wartetSeit: String(r.WartetSeit || ''), verlauf: parseTaskHistory(r.Verlauf),
         nr: Number.isFinite(nrRaw) ? nrRaw : 0, tagesSortierung: Number(r.TagesSortierung) || 999, commIds: splitList(r.VerknuepfteKommIds as string), moduleIds: splitList(r.VerknuepfteModulIds as string),
@@ -240,6 +242,9 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         dokuZiel: r.DokuZiel === 'global' ? 'global' : r.DokuZiel === 'project' ? 'project' : '',
         dokuErledigt: String(r.DokuErledigt || '').toLowerCase() === 'ja',
         naechsteBesprechung: String(r.NaechsteBesprechung || '').toLowerCase() === 'ja',
+        projectIds: splitList(r.VerknuepfteProjektIds as string).length ? splitList(r.VerknuepfteProjektIds as string) : [pid],
+        billedMinutes: Math.max(0, Number(r.AbgerechneteMinuten) || 0),
+        billedDate: String(r.Abrechnungsdatum || ''),
       });
     });
 

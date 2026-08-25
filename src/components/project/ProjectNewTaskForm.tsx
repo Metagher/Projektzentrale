@@ -3,6 +3,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
 import { commLinkLabel, todayStr } from '../../lib/format';
+import { contactLinkLabel } from '../../lib/contacts';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
@@ -12,6 +13,7 @@ import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import TaskStatusButtons from '../shared/TaskStatusButtons';
 import TaskWaitingFields from '../shared/TaskWaitingFields';
 import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSelect';
+import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import type { ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
@@ -29,7 +31,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [faelligAm, setFaelligAm] = useState('');
   const [farbe, setFarbe] = useState<TaskColor | ''>('');
   const [status, setStatus] = useState<TaskStatus>('offen');
-  const [kontaktId, setKontaktId] = useState('');
+  const [kontaktIds, setKontaktIds] = useState<string[]>([]);
   const [wartetAuf, setWartetAuf] = useState('');
   const [wartetSeit, setWartetSeit] = useState('');
   const [dokuZiel, setDokuZiel] = useState<TaskDocumentationTarget>('');
@@ -43,6 +45,9 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [fremdverknuepfung, setFremdverknuepfung] = useState('');
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState('');
   const [teilprojekt, setTeilprojekt] = useState('');
+  const [projectIds, setProjectIds] = useState<string[]>([projectId]);
+  const [billedMinutes, setBilledMinutes] = useState(0);
+  const [billedDate, setBilledDate] = useState(todayStr());
   const teilprojekte = Array.from(new Set(data.tasks.map((task) => task.teilprojekt?.trim()).filter((value): value is string => !!value)))
     .sort((a, b) => a.localeCompare(b, 'de'));
   const assignedModuleIds = new Set(customerModules.filter((item) => item.kunde === project?.kunde).map((item) => item.moduleId));
@@ -64,7 +69,8 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       status,
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
       wartetSeit: status === 'wartet' ? wartetSeit : '',
-      kontaktId,
+      kontaktId: kontaktIds[0] || '',
+      kontaktIds,
       anforderung,
       aktuellerStand,
       verlauf,
@@ -78,6 +84,9 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       dokuErledigt: false,
       dokuZiel,
       naechsteBesprechung,
+      projectIds,
+      billedMinutes,
+      billedDate: billedMinutes > 0 ? billedDate : '',
     };
     const newTaskId = await createTask(projectId, partial);
     if (commIds.length) await syncCommLinksForTask(projectId, newTaskId, [], commIds);
@@ -115,7 +124,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       </div> : <div className="task-form-section"><div className="task-basics-grid">
       <div className="field"><label>Ticket</label><input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" /></div>
       <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
-      <div className="field"><label>Ansprechpartner</label><select className="contact-select" value={kontaktId} onChange={(e) => setKontaktId(e.target.value)}><option value="">— kein Ansprechpartner —</option>{data.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rolle ? ` (${c.rolle})` : ''}</option>)}</select></div>
+      <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={data.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} /></div>
       <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-${projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
       <TaskDocumentationTargetSelect value={dokuZiel} onChange={setDokuZiel} />
       <div className="doku-check-field"><label><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label></div>
@@ -126,6 +135,8 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       </div>
       <div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div>
       <div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div>
+      <TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} />
+      <div className="field-grid billed-time-fields"><div className="field"><label>Abgerechnete Zeit (Minuten)</label><input type="number" min="0" step="1" value={billedMinutes || ''} onChange={(event) => setBilledMinutes(Math.max(0, Number(event.target.value) || 0))} placeholder="0" /></div><div className="field"><label>Abrechnungsdatum</label><input type="date" value={billedDate} disabled={billedMinutes <= 0} onChange={(event) => setBilledDate(event.target.value)} /></div></div>
       </div>}
       <div className="btn-row">
         <button type="button" className="btn" onClick={handleSave}>

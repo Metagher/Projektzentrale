@@ -8,6 +8,7 @@ import type { Contact, ProjectCache } from '../../types/entities';
 const EMPTY_CONTACT = { name: '', rolle: '', telefon: '', email: '', notiz: '' };
 
 export default function ContactsManager({ projectId, data }: { projectId: string; data: ProjectCache }) {
+  const customer = useDataStore((state) => state.projects?.find((project) => project.id === projectId)?.kunde || '');
   const saveContact = useDataStore((state) => state.saveContact);
   const deleteContact = useDataStore((state) => state.deleteContact);
   const confirm = useModalStore((state) => state.confirm);
@@ -53,7 +54,8 @@ export default function ContactsManager({ projectId, data }: { projectId: string
 
   return (
     <div className="contacts-admin">
-      <div className="section-title">Ansprechpartner ({data.contacts.length})</div>
+      <div className="section-title">Ansprechpartner für {customer || 'dieses Projekt'} ({data.contacts.length})</div>
+      {customer && <p className="settings-explanation">Diese Ansprechpartner gelten für alle Projekte des Kunden {customer}.</p>}
       <div className="contacts-admin-grid">
         <div className="contact-form-panel">
           <h4>{editingId ? 'Ansprechpartner bearbeiten' : 'Ansprechpartner hinzufügen'}</h4>

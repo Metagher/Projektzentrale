@@ -95,11 +95,15 @@ export interface Comm {
   datum: string; // YYYY-MM-DD
   kanal: Kanal;
   kontaktId: string;
+  /** All linked contacts. kontaktId remains as a legacy first-contact value. */
+  kontaktIds?: string[];
   betreff: string;
   notiz: string; // RTF html
   afns: string[];
   taskIds: string[];
   teilprojekt?: string;
+  /** Separately recorded time that has already been billed, in minutes. */
+  billedMinutes?: number;
 }
 
 export type DocLevel = 1 | 2 | 3;
@@ -163,6 +167,8 @@ export interface Task {
   /** Lokales Datum (YYYY-MM-DD), seit dem die Aufgabe im Status "wartet" ist. */
   wartetSeit?: string;
   kontaktId: string;
+  /** All linked contacts. kontaktId remains as a legacy first-contact value. */
+  kontaktIds?: string[];
   anforderung?: string; // RTF html
   aktuellerStand?: string; // RTF html
   verlauf?: TaskProgressEntry[];
@@ -185,6 +191,12 @@ export interface Task {
   dokuZiel?: TaskDocumentationTarget;
   /** Für die Themenliste der nächsten Projektbesprechung vorgemerkt. */
   naechsteBesprechung?: boolean;
+  /** All projects in which this shared task is displayed and editable. */
+  projectIds?: string[];
+  /** Separately recorded time that has already been billed, in minutes. */
+  billedMinutes?: number;
+  /** Optional service/billing date (YYYY-MM-DD). */
+  billedDate?: string;
 }
 
 export type TaskDocumentationTarget = '' | 'project' | 'global';

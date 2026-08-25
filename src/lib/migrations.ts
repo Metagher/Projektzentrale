@@ -1,4 +1,5 @@
 import type { Task, TaskPrio } from '../types/entities';
+import { linkedContactIds } from './contacts';
 
 const LEGACY_PRIO: Record<string, TaskPrio> = { hoch: 'must', mittel: 'should', niedrig: 'could' };
 
@@ -23,7 +24,9 @@ export function migrateTaskContent(task: Task): { task: Task; changed: boolean }
       aktuellerStand: task.aktuellerStand || legacyContent,
       verlauf: task.verlauf || [],
       moduleIds: task.moduleIds || [],
+      billedMinutes: Math.max(0, Number(task.billedMinutes) || 0),
+      kontaktIds: linkedContactIds(task),
     },
-    changed: hasLegacyFields || task.anforderung === undefined || task.aktuellerStand === undefined || task.verlauf === undefined || task.moduleIds === undefined,
+    changed: hasLegacyFields || task.anforderung === undefined || task.aktuellerStand === undefined || task.verlauf === undefined || task.moduleIds === undefined || task.billedMinutes === undefined || task.kontaktIds === undefined,
   };
 }
