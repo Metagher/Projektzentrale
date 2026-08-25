@@ -158,6 +158,8 @@ export interface Task {
   nr: number;
   titel: string;
   faelligAm: string;
+  /** Additional date-only appointments shown independently in the calendar. */
+  termine?: string[];
   /** @deprecated Legacy value retained for import compatibility. */
   prioritaet?: TaskPrio;
   farbe?: TaskColor | '';

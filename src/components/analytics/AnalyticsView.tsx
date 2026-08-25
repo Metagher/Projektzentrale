@@ -21,6 +21,8 @@ export default function AnalyticsView() {
   const [billedRows, setBilledRows] = useState<BilledTimeRow[]>([]);
   const [timeTaskLabels, setTimeTaskLabels] = useState<Record<string, string>>({});
   const timeEntries = useDataStore((s) => s.timeEntries);
+  const saveTimeEntry = useDataStore((s) => s.saveTimeEntry);
+  const deleteTimeEntry = useDataStore((s) => s.deleteTimeEntry);
   const workdayOverrides = useDataStore((s) => s.workdayOverrides);
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export default function AnalyticsView() {
       {analyticsSubTab === 'afn' ? (
         <AfnLesestandTab />
       ) : analyticsSubTab === 'zeiten' ? (
-        <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" billedRows={billedRows} taskLabels={timeTaskLabels} />
+        <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" billedRows={billedRows} taskLabels={timeTaskLabels} onSaveEntry={saveTimeEntry} onDeleteEntry={deleteTimeEntry} />
       ) : !allTasks ? (
         <div className="loading-note">Lade Auswertung…</div>
       ) : analyticsSubTab === 'projekte' ? (

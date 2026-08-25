@@ -64,7 +64,7 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
             <div className="task-card-kicker">
               {task.farbe && <TaskColorBadge color={task.farbe} compact />}
               {dailyRank > 0 && <span className={`project-task-rank${task.faelligAm === todayStr() ? '' : ' next-workday'}`} title={task.faelligAm === todayStr() ? 'Tagesrang heute' : `Tagesrang am ${fmtDate(task.faelligAm)}`}>#{dailyRank}</span>}
-              <span className="task-nr">ID {task.nr || '—'}</span>
+              <span className="task-nr">{task.nr || '—'}</span>
             </div>
             <strong className="task-card-title">{task.titel}</strong>
           </div>
@@ -80,6 +80,7 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
 
         <div className="task-card-meta">
           <span><b>Fällig</b>{fmtDate(task.faelligAm)}</span>
+          {!!task.termine?.length && <span><b>Termine</b>{task.termine.map(fmtDate).join(', ')}</span>}
           {contacts.length > 0 && <span><b>Ansprechpartner</b>{contacts.map((contact) => contact.name).join(', ')}</span>}
           {task.erstelltAm && <span><b>Erstellt</b>{fmtDate(task.erstelltAm.slice(0, 10))}</span>}
           {task.abgeschlossenAm && <span><b>Erledigt</b>{fmtDate(task.abgeschlossenAm.slice(0, 10))}</span>}

@@ -1,22 +1,22 @@
 import { useUiStore } from '../../store/uiStore';
 import { buildCalendarWeeks, dateKey, MONTH_NAMES, WEEKDAY_LABELS } from '../../lib/calendar';
 import { openTaskInDashboard } from '../../lib/navigation';
-import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
+import { useDataStore, type CalendarTaskWithMeta } from '../../store/dataStore';
 import { isWorkday } from '../../lib/workdays';
 import TaskColorBadge from '../shared/TaskColorBadge';
 
 const MAX_VISIBLE_PER_DAY = 2;
 
-export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: TaskWithMeta[] }) {
+export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: CalendarTaskWithMeta[] }) {
   const { calendarMonth, setCalendarMonth } = useUiStore();
   const now = new Date();
   const workdayOverrides = useDataStore((state) => state.workdayOverrides);
   const toggleWorkday = useDataStore((state) => state.toggleWorkday);
   const { year, month } = calendarMonth || { year: now.getFullYear(), month: now.getMonth() };
 
-  const tasksByDate: Record<string, TaskWithMeta[]> = {};
+  const tasksByDate: Record<string, CalendarTaskWithMeta[]> = {};
   tasksWithDate.forEach((t) => {
-    (tasksByDate[t.faelligAm] = tasksByDate[t.faelligAm] || []).push(t);
+    (tasksByDate[t.calendarDate] = tasksByDate[t.calendarDate] || []).push(t);
   });
   const weeks = buildCalendarWeeks(year, month);
   const todayKey = dateKey(new Date());
@@ -73,12 +73,12 @@ export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: TaskWit
               <div className="cal-tasks">
                 {dayTasks.slice(0, MAX_VISIBLE_PER_DAY).map((t) => (
                   <div
-                    key={t.id}
+                    key={t.calendarEntryId}
                     className={`cal-task${t.farbe ? ` task-color-border-${t.farbe}` : ''}`}
                     title={`ID ${t.nr || '?'} · ${t.projectName}: ${t.titel}`}
                     onClick={() => openTaskInDashboard(t.id)}
                   >
-                    <span>{t.titel}</span>{t.farbe && <TaskColorBadge color={t.farbe} compact />}
+                    <span><b className={`calendar-entry-kind ${t.calendarKind}`}>{t.calendarKind === 'appointment' ? 'Termin' : 'Fällig'}</b>{t.titel}</span>{t.farbe && <TaskColorBadge color={t.farbe} compact />}
                   </div>
                 ))}
               </div>

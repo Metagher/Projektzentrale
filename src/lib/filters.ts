@@ -4,7 +4,7 @@ import type { TaskWithMeta } from '../store/dataStore';
 import type { Task } from '../types/entities';
 import { linkedContactIds } from './contacts';
 
-export function applyDashboardFilters(tasks: TaskWithMeta[], f: DashFilter, dateAware: boolean): TaskWithMeta[] {
+export function applyDashboardFilters<T extends TaskWithMeta>(tasks: T[], f: DashFilter, dateAware: boolean): T[] {
   return tasks.filter((t) => {
     if (f.projectId && t.projectId !== f.projectId) return false;
     if (f.kontaktId && !linkedContactIds(t).includes(f.kontaktId)) return false;

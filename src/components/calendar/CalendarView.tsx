@@ -17,7 +17,7 @@ export default function CalendarView() {
   }, [projects, loadDashboardData]);
 
   if (!data) return <div className="main-inner"><div className="loading-note">Kalender wird geladen…</div></div>;
-  const tasks = applyDashboardFilters(data.tasksWithDate, dashFilter, false);
+  const tasks = applyDashboardFilters(data.calendarTasks, dashFilter, false);
 
   return (
     <div className="main-inner">

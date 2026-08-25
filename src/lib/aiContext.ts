@@ -14,7 +14,7 @@ export function buildDailyBriefingContext(dashboardData: DashboardData | null): 
       const overdue = t.faelligAm && t.faelligAm < todayStr();
       const desc = htmlToPlainText(t.aktuellerStand || t.anforderung);
       lines.push(
-        `- [${t.projectName}] ${t.titel} | Fällig: ${t.faelligAm ? fmtDate(t.faelligAm) : 'kein Datum'}${overdue ? ' (ÜBERFÄLLIG)' : ''}${desc ? ' — ' + desc : ''}`,
+        `- [${t.projectName}] ${t.titel} | Fällig: ${t.faelligAm ? fmtDate(t.faelligAm) : 'kein Datum'}${t.termine?.length ? ` | Termine: ${t.termine.map(fmtDate).join(', ')}` : ''}${overdue ? ' (ÜBERFÄLLIG)' : ''}${desc ? ' — ' + desc : ''}`,
       );
     });
   } else {
@@ -122,8 +122,9 @@ export function buildProjectContextBlock(p: Project, data: ProjectCache, labels:
       const afnText = t.afns && t.afns.length ? ` [AFN: ${t.afns.join(', ')}]` : '';
       const wartetText = t.status === 'wartet' && t.wartetAuf ? `, wartet auf: ${t.wartetAuf}${t.wartetSeit ? `, ${waitingDurationLabel(t.wartetSeit)}` : ''}` : '';
       const meetingText = t.naechsteBesprechung ? ' [für nächste Besprechung vorgemerkt]' : '';
+      const appointmentText = t.termine?.length ? `, Termine: ${t.termine.map(fmtDate).join(', ')}` : '';
       lines.push(
-        `- [${t.status}] ${t.titel}${meetingText}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${wartetText}${contacts.length ? `, Ansprechpartner: ${contacts.map((contact) => contact.name).join(', ')}` : ''}${anforderungText ? ` | Anforderung: ${anforderungText}` : ''}${standText ? ` | Aktueller Stand: ${standText}` : ''}${verlaufText ? ` | Verlauf: ${verlaufText}` : ''}`,
+        `- [${t.status}] ${t.titel}${meetingText}${afnText}${t.faelligAm ? ` (Fällig: ${fmtDate(t.faelligAm)})` : ''}${appointmentText}${wartetText}${contacts.length ? `, Ansprechpartner: ${contacts.map((contact) => contact.name).join(', ')}` : ''}${anforderungText ? ` | Anforderung: ${anforderungText}` : ''}${standText ? ` | Aktueller Stand: ${standText}` : ''}${verlaufText ? ` | Verlauf: ${verlaufText}` : ''}`,
       );
     });
   }

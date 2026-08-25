@@ -41,6 +41,11 @@ export interface TaskWithMeta extends Task {
   projectId: string;
   projectName: string;
 }
+export interface CalendarTaskWithMeta extends TaskWithMeta {
+  calendarDate: string;
+  calendarKind: 'due' | 'appointment';
+  calendarEntryId: string;
+}
 export interface MilestoneWithMeta extends Milestone {
   projectId: string;
   projectName: string;
@@ -55,6 +60,7 @@ export interface ContactWithMeta {
 export interface DashboardData {
   openTasks: TaskWithMeta[];
   tasksWithDate: TaskWithMeta[];
+  calendarTasks: CalendarTaskWithMeta[];
   tasksNoDate: TaskWithMeta[];
   waitingTasks: TaskWithMeta[];
   completedTasks: TaskWithMeta[];
@@ -350,6 +356,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const completedTasks: TaskWithMeta[] = [];
     const allMilestones: MilestoneWithMeta[] = [];
     const allContacts: ContactWithMeta[] = [];
+    const calendarTasks: CalendarTaskWithMeta[] = [];
     const seenTaskIds = new Set<string>();
     const seenContacts = new Set<string>();
     for (const p of projects) {
@@ -358,6 +365,10 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
         if (seenTaskIds.has(t.id)) return;
         seenTaskIds.add(t.id);
         const withMeta: TaskWithMeta = { ...t, projectId: p.id, projectName: p.name };
+        if (t.status !== 'erledigt') {
+          if (t.faelligAm) calendarTasks.push({ ...withMeta, calendarDate: t.faelligAm, calendarKind: 'due', calendarEntryId: `${t.id}:due:${t.faelligAm}` });
+          (t.termine || []).forEach((date, index) => calendarTasks.push({ ...withMeta, calendarDate: date, calendarKind: 'appointment', calendarEntryId: `${t.id}:appointment:${date}:${index}` }));
+        }
         if (t.status === 'erledigt') completedTasks.push(withMeta);
         else if (t.status === 'wartet') waitingTasks.push(withMeta);
         else allTasks.push(withMeta);
@@ -390,6 +401,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       dashboardData: {
         openTasks: allTasks,
         tasksWithDate: withDate,
+        calendarTasks,
         tasksNoDate: noDate,
         waitingTasks,
         completedTasks,

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useDataStore } from '../../../store/dataStore';
-import { useModalStore } from '../../../store/modalStore';
-import { formatDuration, formatTimeStamp } from '../../../lib/timeTracking';
+import { formatDuration } from '../../../lib/timeTracking';
 import { uid } from '../../../lib/format';
 import type { Project, ProjectCache, TimeEntry } from '../../../types/entities';
 import TimeAnalyticsOverview from '../../analytics/TimeAnalyticsOverview';
@@ -10,19 +9,18 @@ function localInput(date: Date) { const offset = date.getTimezoneOffset() * 6000
 
 export default function ZeitenTab({ project, data }: { project: Project; data: ProjectCache }) {
   const entries = useDataStore((s) => s.timeEntries).filter((entry) => entry.projectId === project.id).slice().sort((a, b) => b.startedAt.localeCompare(a.startedAt));
-  const saveTimeEntry = useDataStore((s) => s.saveTimeEntry); const deleteTimeEntry = useDataStore((s) => s.deleteTimeEntry); const confirm = useModalStore((s) => s.confirm);
+  const saveTimeEntry = useDataStore((s) => s.saveTimeEntry); const deleteTimeEntry = useDataStore((s) => s.deleteTimeEntry);
   const workdayOverrides = useDataStore((s) => s.workdayOverrides);
   const [manual, setManual] = useState(false);
   const total = entries.reduce((sum, entry) => sum + entry.durationMinutes, 0); const general = entries.filter((entry) => !entry.taskId).reduce((sum, entry) => sum + entry.durationMinutes, 0);
   const billedTaskMinutes = data.tasks.reduce((sum, task) => sum + (Number(task.billedMinutes) || 0), 0);
   const billedCommunicationMinutes = data.comms.reduce((sum, comm) => sum + (Number(comm.billedMinutes) || 0), 0);
   const taskTotals = data.tasks.map((task) => ({ task, minutes: entries.filter((entry) => entry.taskId === task.id).reduce((sum, entry) => sum + entry.durationMinutes, 0) })).filter((row) => row.minutes > 0).sort((a, b) => b.minutes - a.minutes);
-  async function remove(entry: TimeEntry) { if (await confirm(`Zeiteintrag über ${formatDuration(entry.durationMinutes)} löschen?`)) await deleteTimeEntry(entry.id); }
   return <section className="time-tab"><div className="module-section-head"><div><span className="eyebrow">Zeiterfassung</span><h3>{formatDuration(total)} Gesamtzeit</h3><p>Allgemeine Projektzeit und aufgabenbezogene Arbeit werden getrennt ausgewiesen.</p></div><button className="btn small" onClick={() => setManual(true)}>+ Zeit nachtragen</button></div>
     <div className="time-summary-grid"><article><span>Allgemeine Projektzeit</span><strong>{formatDuration(general)}</strong></article><article><span>Aufgabenzeit</span><strong>{formatDuration(total - general)}</strong></article><article><span>Buchungen</span><strong>{entries.length}</strong></article></div>
-    <TimeAnalyticsOverview entries={entries} projects={[project]} workdayOverrides={workdayOverrides} heading="Projektzeit nach Tag und Kalenderwoche" billedRows={[{ projectId: project.id, taskMinutes: billedTaskMinutes, communicationMinutes: billedCommunicationMinutes }]} taskLabels={Object.fromEntries(data.tasks.map((task) => [task.id, `${task.nr} · ${task.titel}`]))} />
+    <TimeAnalyticsOverview entries={entries} projects={[project]} workdayOverrides={workdayOverrides} heading="Projektzeit nach Tag und Kalenderwoche" billedRows={[{ projectId: project.id, taskMinutes: billedTaskMinutes, communicationMinutes: billedCommunicationMinutes }]} taskLabels={Object.fromEntries(data.tasks.map((task) => [task.id, `${task.nr} · ${task.titel}`]))} onSaveEntry={saveTimeEntry} onDeleteEntry={deleteTimeEntry} />
     {taskTotals.length > 0 && <section className="time-task-breakdown"><h4>Zeit nach Aufgabe</h4>{taskTotals.map(({ task, minutes }) => <div key={task.id}><span><b className="task-nr">{task.nr}</b>{task.titel}</span><strong>{formatDuration(minutes)}</strong></div>)}</section>}
-    <div className="time-history-head"><h4>Zeiteinträge mit vollständigem Datumsstempel</h4></div>{entries.length === 0 ? <div className="empty-state"><h3>Noch keine Zeit erfasst</h3><div>Starte den Timer im Projektkopf oder direkt an einer Aufgabe.</div></div> : <div className="time-entry-list">{entries.map((entry) => { const task = data.tasks.find((item) => item.id === entry.taskId); return <article key={entry.id}><time><span>Start: {formatTimeStamp(entry.startedAt)}</span><span>Ende: {formatTimeStamp(entry.endedAt)}</span></time><div><strong>{task ? `${task.nr} · ${task.titel}` : entry.taskId ? 'Gelöschte Aufgabe' : 'Allgemeine Projektzeit'}</strong>{entry.note && <small>{entry.note}</small>}</div><b>{formatDuration(entry.durationMinutes)}</b><button className="icon-btn" onClick={() => remove(entry)}>Löschen</button></article>; })}</div>}
+    {entries.length === 0 && <div className="empty-state"><h3>Noch keine Zeit erfasst</h3><div>Starte den Timer im Projektkopf oder direkt an einer Aufgabe.</div></div>}
     {manual && <ManualTimeEntry projectId={project.id} tasks={data.tasks} onSave={async (entry) => { await saveTimeEntry(entry); setManual(false); }} onClose={() => setManual(false)} />}
   </section>;
 }

@@ -12,7 +12,7 @@ function searchableText(task: Task, projectName: string, data: ProjectCache): st
   const history = (task.verlauf || []).flatMap((entry) => [entry.datum, entry.titel, htmlToPlainText(entry.content)]);
   return [
     projectName, task.nr, task.titel, task.status, task.wartetAuf, task.wartetSeit, ...contacts.flatMap((contact) => [contact.name, contact.rolle]),
-    task.teilprojekt, task.naechsteBesprechung ? 'nächste Besprechung vorgemerkt' : '', task.afns?.join(' '), htmlToPlainText(task.anforderung), htmlToPlainText(task.aktuellerStand),
+    task.teilprojekt, task.termine?.join(' '), task.naechsteBesprechung ? 'nächste Besprechung vorgemerkt' : '', task.afns?.join(' '), htmlToPlainText(task.anforderung), htmlToPlainText(task.aktuellerStand),
     ...history,
   ].filter(Boolean).join(' ').toLocaleLowerCase('de');
 }

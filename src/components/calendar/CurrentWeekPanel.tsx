@@ -1,12 +1,12 @@
 import { dateKey, getWeekDates, startOfWeek, WEEKDAY_LABELS } from '../../lib/calendar';
 import { isoWeekInfo } from '../../lib/analytics';
 import { openTaskInDashboard } from '../../lib/navigation';
-import type { TaskWithMeta } from '../../store/dataStore';
+import type { CalendarTaskWithMeta } from '../../store/dataStore';
 import { useDataStore } from '../../store/dataStore';
 import { compareTaskColors } from '../../lib/taskColors';
 import TaskColorBadge from '../shared/TaskColorBadge';
 
-export default function CurrentWeekPanel({ tasksWithDate }: { tasksWithDate: TaskWithMeta[] }) {
+export default function CurrentWeekPanel({ tasksWithDate }: { tasksWithDate: CalendarTaskWithMeta[] }) {
   const colorOrder = useDataStore((state) => state.taskColorOrder);
   const today = new Date();
   const monday = startOfWeek(today);
@@ -14,9 +14,9 @@ export default function CurrentWeekPanel({ tasksWithDate }: { tasksWithDate: Tas
   const todayKey = dateKey(today);
   const { year, week } = isoWeekInfo(today.toISOString());
 
-  const byDay: Record<string, TaskWithMeta[]> = {};
+  const byDay: Record<string, CalendarTaskWithMeta[]> = {};
   tasksWithDate.forEach((t) => {
-    (byDay[t.faelligAm] = byDay[t.faelligAm] || []).push(t);
+    (byDay[t.calendarDate] = byDay[t.calendarDate] || []).push(t);
   });
 
   return (
@@ -48,12 +48,12 @@ export default function CurrentWeekPanel({ tasksWithDate }: { tasksWithDate: Tas
                 <div className="current-week-tasks">
                   {dayTasks.map((t) => (
                     <div
-                      key={t.id}
+                      key={t.calendarEntryId}
                       className={`current-week-task${t.farbe ? ` task-color-border-${t.farbe}` : ''}`}
                       title={`${t.projectName}: ${t.titel}`}
                       onClick={() => openTaskInDashboard(t.id)}
                     >
-                      <span className="current-week-task-title">{t.titel}</span>
+                      <span className="current-week-task-title"><b className={`calendar-entry-kind ${t.calendarKind}`}>{t.calendarKind === 'appointment' ? 'Termin' : 'Fällig'}</b>{t.titel}</span>
                       {t.farbe && <TaskColorBadge color={t.farbe} compact />}
                     </div>
                   ))}

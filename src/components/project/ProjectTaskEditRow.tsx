@@ -14,6 +14,7 @@ import TaskStatusButtons from '../shared/TaskStatusButtons';
 import TaskWaitingFields from '../shared/TaskWaitingFields';
 import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSelect';
 import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
+import TaskAppointmentsField from '../shared/TaskAppointmentsField';
 import { taskDocumentationTarget } from '../../lib/taskDocumentation';
 import type { Contact, ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
 import TaskTimePanel from './TaskTimePanel';
@@ -44,6 +45,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const [farbe, setFarbe] = useState<TaskColor | ''>(task.farbe || '');
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [faelligAm, setFaelligAm] = useState(task.faelligAm || '');
+  const [termine, setTermine] = useState<string[]>(task.termine || []);
   const [kontaktIds, setKontaktIds] = useState<string[]>(linkedContactIds(task));
   const [dokuZiel, setDokuZiel] = useState<TaskDocumentationTarget>(taskDocumentationTarget(task));
   const [dokuZielChanged, setDokuZielChanged] = useState(false);
@@ -128,6 +130,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
       wartetSeit: status === 'wartet' ? wartetSeit : '',
       faelligAm,
+      termine,
       kontaktId: kontaktIds[0] || '',
       kontaktIds,
       anforderung,
@@ -169,6 +172,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       {activeSection === 'task' ? <div className="task-form-section">
       <div className="field task-title-field"><label>Titel</label><input type="text" value={titel} onChange={(e) => setTitel(e.target.value)} /></div>
       <div className="task-primary-controls"><div className="task-primary-control"><label>Status</label><TaskStatusButtons value={status} onChange={(value) => { setStatus(value); if (value === 'wartet' && !wartetSeit) setWartetSeit(todayStr()); }} /><label>Farbmarkierung</label><TaskColorSelect value={farbe} onChange={setFarbe} /></div><div className="task-primary-control"><label>Fällig am</label><div className="task-date-control"><input type="date" value={faelligAm} onChange={(e) => setFaelligAm(e.target.value)} /><TaskDateQuickSelect value={faelligAm} onChange={setFaelligAm} /></div></div></div>
+      <TaskAppointmentsField value={termine} onChange={setTermine} />
       {status === 'wartet' && (
         <TaskWaitingFields waitingFor={wartetAuf} waitingSince={wartetSeit} waitingOptions={waitingOptions} onWaitingForChange={setWartetAuf} onWaitingSinceChange={setWartetSeit} />
       )}

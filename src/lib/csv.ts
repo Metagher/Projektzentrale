@@ -93,7 +93,7 @@ export async function buildExportCsv(): Promise<string> {
     statusHistory.forEach((entry) => rows.push({ Typ: 'projektstandverlauf', ProjektId: p.id, Id: entry.id, Titel: entry.titel, Datum: entry.datum, Inhalt: entry.content, AFN: entry.afns.join(';'), ErstelltAm: entry.createdAt, AktualisiertAm: entry.updatedAt, BereichId: entry.bereichId || 'general' }));
     data.tasks.forEach((t) => {
       rows.push({
-        Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Prioritaet: t.prioritaet || '', Farbe: t.farbe || '', TagesSortierung: t.tagesSortierung ?? 999,
+        Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Termine: (t.termine || []).join(';'), Prioritaet: t.prioritaet || '', Farbe: t.farbe || '', TagesSortierung: t.tagesSortierung ?? 999,
         Status: t.status || '', KontaktId: t.kontaktId || '', KontaktIds: linkedContactIds(t).join(';'), Anforderung: t.anforderung || '', AktuellerStand: t.aktuellerStand || '', Verlauf: JSON.stringify(t.verlauf || []), ErstelltAm: t.erstelltAm || '',
         AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '', WartetSeit: t.wartetSeit || '',
         Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), VerknuepfteModulIds: (t.moduleIds || []).join(';'), Teilprojekt: t.teilprojekt || '', NaechsteBesprechung: t.naechsteBesprechung ? 'ja' : 'nein',
@@ -231,7 +231,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
       if (!perProject[pid]) return;
       const nrRaw = r.Nr !== undefined && r.Nr !== '' ? parseInt(String(r.Nr)) : NaN;
       perProject[pid].tasks.push({
-        id: String(r.Id), titel: String(r.Titel || ''), faelligAm: String(r.Datum || ''),
+        id: String(r.Id), titel: String(r.Titel || ''), faelligAm: String(r.Datum || ''), termine: splitList(r.Termine as string),
         prioritaet: migratePrio(r.Prioritaet as string), farbe: (r.Farbe as Task['farbe']) || '', status: (r.Status as Task['status']) || 'offen',
         kontaktId: String(r.KontaktId || ''), kontaktIds: splitList(r.KontaktIds as string).length ? splitList(r.KontaktIds as string) : (r.KontaktId ? [String(r.KontaktId)] : []), anforderung: String(r.Anforderung || ''), aktuellerStand: importedTaskStand(r),
         erstelltAm: (r.ErstelltAm as string) || '', abgeschlossenAm: (r.AbgeschlossenAm as string) || null,

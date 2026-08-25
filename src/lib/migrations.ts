@@ -26,7 +26,8 @@ export function migrateTaskContent(task: Task): { task: Task; changed: boolean }
       moduleIds: task.moduleIds || [],
       billedMinutes: Math.max(0, Number(task.billedMinutes) || 0),
       kontaktIds: linkedContactIds(task),
+      termine: Array.from(new Set((task.termine || []).filter(Boolean))).sort(),
     },
-    changed: hasLegacyFields || task.anforderung === undefined || task.aktuellerStand === undefined || task.verlauf === undefined || task.moduleIds === undefined || task.billedMinutes === undefined || task.kontaktIds === undefined,
+    changed: hasLegacyFields || task.anforderung === undefined || task.aktuellerStand === undefined || task.verlauf === undefined || task.moduleIds === undefined || task.billedMinutes === undefined || task.kontaktIds === undefined || task.termine === undefined,
   };
 }

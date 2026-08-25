@@ -26,6 +26,7 @@
 .current-week-task:hover{background:var(--field-bg);}
 .current-week-task .prio-dot{margin-top:4px;}
 .current-week-task-title{flex:1;}
+.calendar-entry-kind{display:inline-block;margin:0 5px 1px 0;padding:1px 4px;border:1px solid currentColor;border-radius:4px;font-size:7px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;vertical-align:1px}.calendar-entry-kind.appointment{color:#1f5f8b;background:#e8f2f8}.calendar-entry-kind.due{color:#7a3925;background:#f8ece7}.cal-task .calendar-entry-kind{color:#fff;background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.55)}.cal-task:hover .calendar-entry-kind{color:#111;background:#eee;border-color:#777}
 
 @media (max-width:900px){
   .current-week-grid{grid-template-columns:repeat(4,1fr);}
