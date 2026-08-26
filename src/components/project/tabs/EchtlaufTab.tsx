@@ -5,6 +5,7 @@ import { useModalStore } from '../../../store/modalStore';
 import { MILESTONE_STATUS } from '../../../lib/constants';
 import { fmtDate, isEmptyHtml, slug, uid } from '../../../lib/format';
 import RtfField from '../../shared/RtfField';
+import LinkChipsField from '../../shared/LinkChipsField';
 import type { Milestone, MilestoneStatus, ProjectCache } from '../../../types/entities';
 
 export default function EchtlaufTab({ projectId, data }: { projectId: string; data: ProjectCache }) {
@@ -13,6 +14,9 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
   const { editingMilestone, setEditingMilestone } = useProjectUiStore();
   const confirm = useModalStore((s) => s.confirm);
   const alert = useModalStore((s) => s.alert);
+  const projects = useDataStore((s) => s.projects) || [];
+  const project = projects.find((item) => item.id === projectId);
+  const customerProjects = projects.filter((item) => item.kunde === project?.kunde && (item.id === projectId || item.typ === 'Bestandskunde mit Echtläufen'));
 
   const editObj = editingMilestone ? data.timeline.find((m) => m.id === editingMilestone) : null;
 
@@ -20,6 +24,7 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
   const [datum, setDatum] = useState(editObj?.datum || '');
   const [status, setStatus] = useState<MilestoneStatus>(editObj?.status || 'geplant');
   const [notiz, setNotiz] = useState(editObj?.notiz || '');
+  const [projectIds, setProjectIds] = useState<string[]>(editObj?.projectIds?.length ? editObj.projectIds : [projectId]);
   const [showForm, setShowForm] = useState(false);
 
   function resetForm() {
@@ -27,6 +32,7 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
     setDatum('');
     setStatus('geplant');
     setNotiz('');
+    setProjectIds([projectId]);
   }
 
   function startEdit(m: Milestone) {
@@ -36,6 +42,7 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
     setDatum(m.datum || '');
     setStatus(m.status);
     setNotiz(m.notiz);
+    setProjectIds(m.projectIds?.length ? m.projectIds : [projectId]);
   }
 
   async function handleSave() {
@@ -44,7 +51,7 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
       await alert('Bitte einen Titel angeben.');
       return;
     }
-    await saveMilestone(projectId, { id: editObj ? editObj.id : uid(), titel: trimmed, datum, status, notiz });
+    await saveMilestone(projectId, { id: editObj ? editObj.id : uid(), titel: trimmed, datum, status, notiz, projectIds });
     setEditingMilestone(null);
     setShowForm(false);
     resetForm();
@@ -83,6 +90,7 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
             </select>
           </div>
         </div>
+        <div className="field"><label>Verknüpfte Projekte dieses Kunden</label><LinkChipsField ids={projectIds} items={customerProjects} labelFn={(item) => item.name} placeholder="— Weiteres Projekt auswählen —" onChange={(ids) => { if (ids.length) setProjectIds(ids); }} /></div>
         <div className="field">
           <label>Notiz</label>
           <RtfField value={notiz} onChange={setNotiz} title="Notiz" placeholder="Klicken, um eine Notiz zu erfassen…" />
@@ -108,6 +116,7 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
               <div className="t-title">
                 {m.titel} <span className={`badge ${slug(m.status)}`}>{m.status}</span>
               </div>
+              {(m.projectIds?.length || 0) > 1 && <div className="meta">Synchron in: {m.projectIds?.map((id) => projects.find((item) => item.id === id)?.name).filter(Boolean).join(', ')}</div>}
               {!isEmptyHtml(m.notiz) && (
                 <div className="rtf-content rtf-field-preview-compact" dangerouslySetInnerHTML={{ __html: m.notiz }} />
               )}

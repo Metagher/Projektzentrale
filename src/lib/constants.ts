@@ -47,4 +47,5 @@ export const CSV_COLUMNS = [
   'VerknuepfteProjektIds', 'AbgerechneteMinuten', 'Abrechnungsdatum',
   'KontaktIds',
   'Termine',
+  'OrdnerId',
 ] as const;

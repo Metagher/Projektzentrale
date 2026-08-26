@@ -3,7 +3,7 @@ import { CSV_COLUMNS } from './constants';
 import { migratePrio } from './migrations';
 import { defLevel, todayStr } from './format';
 import { useDataStore } from '../store/dataStore';
-import type { Comm, Contact, DocData, DocEntryValue, DocSectionDef, Milestone, Project, ProjectDocumentationArea, ProjectNote, ProjectStatusEntry, ProjectTyp, Task, TimeEntry, UpdateEntry } from '../types/entities';
+import type { Comm, Contact, DocData, DocEntryValue, DocSectionDef, Milestone, Project, ProjectDocumentationArea, ProjectNote, ProjectNoteFolder, ProjectStatusEntry, ProjectTyp, Task, TimeEntry, UpdateEntry } from '../types/entities';
 import { linkedContactIds } from './contacts';
 
 type CsvRow = Record<string, string | number | undefined>;
@@ -101,11 +101,12 @@ export async function buildExportCsv(): Promise<string> {
         VerknuepfteProjektIds: (t.projectIds || [p.id]).join(';'), AbgerechneteMinuten: t.billedMinutes || '', Abrechnungsdatum: t.billedDate || '',
       });
     });
+    data.noteFolders.forEach((folder) => rows.push({ Typ: 'notizordner', ProjektId: p.id, Id: folder.id, Titel: folder.name, OrdnerId: folder.parentId || '', Reihenfolge: folder.sortIndex, ErstelltAm: folder.createdAt }));
     data.notes.forEach((note) => {
-      rows.push({ Typ: 'notiz', ProjektId: p.id, Id: note.id, Titel: note.titel, Inhalt: note.inhalt, Global: note.global ? 'ja' : 'nein', Angeheftet: note.pinned ? 'ja' : 'nein', ErstelltAm: note.createdAt, AktualisiertAm: note.updatedAt });
+      rows.push({ Typ: 'notiz', ProjektId: p.id, Id: note.id, Titel: note.titel, Inhalt: note.inhalt, OrdnerId: note.folderId || '', Reihenfolge: note.sortIndex ?? '', Global: note.global ? 'ja' : 'nein', Angeheftet: note.pinned ? 'ja' : 'nein', ErstelltAm: note.createdAt, AktualisiertAm: note.updatedAt });
     });
     data.timeline.forEach((m) => {
-      rows.push({ Typ: 'meilenstein', ProjektId: p.id, Id: m.id, Titel: m.titel, Datum: m.datum || '', Status: m.status || '', Notiz: m.notiz || '' });
+      rows.push({ Typ: 'meilenstein', ProjektId: p.id, Id: m.id, Titel: m.titel, Datum: m.datum || '', Status: m.status || '', Notiz: m.notiz || '', VerknuepfteProjektIds: (m.projectIds || [p.id]).join(';') });
     });
     (data.updates || []).forEach((u) => {
       rows.push({ Typ: 'update', ProjektId: p.id, Id: u.id, Titel: u.titel || '', Datum: u.datum || '', Revision: u.revision || '', Beschreibung: u.beschreibung || '', AFN: (u.afns || []).join(';') });
@@ -126,7 +127,7 @@ export interface ParsedImport {
   docDefs: DocSectionDef[];
   perProject: Record<
     string,
-    { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[]; notes: ProjectNote[] }
+    { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[]; notes: ProjectNote[]; noteFolders: ProjectNoteFolder[] }
   >;
   timeEntries: TimeEntry[];
 }
@@ -169,8 +170,16 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
   const perProject: ParsedImport['perProject'] = {};
   const timeEntries: TimeEntry[] = [];
   for (const p of projects) {
-    perProject[p.id] = { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], notes: [] };
+    perProject[p.id] = { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], notes: [], noteFolders: [] };
   }
+
+  rows
+    .filter((r) => r.Typ === 'notizordner')
+    .forEach((r) => {
+      const pid = String(r.ProjektId);
+      if (!perProject[pid]) return;
+      perProject[pid].noteFolders.push({ id: String(r.Id), name: String(r.Titel || ''), parentId: r.OrdnerId ? String(r.OrdnerId) : null, sortIndex: Number(r.Reihenfolge) || 0, createdAt: String(r.ErstelltAm || new Date().toISOString()) });
+    });
 
   rows
     .filter((r) => r.Typ === 'kontakt')
@@ -257,6 +266,8 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         id: String(r.Id),
         titel: String(r.Titel || ''),
         inhalt: String(r.Inhalt || ''),
+        folderId: r.OrdnerId ? String(r.OrdnerId) : null,
+        sortIndex: Number(r.Reihenfolge) || 0,
         global: String(r.Global || '').toLowerCase() === 'ja',
         pinned: String(r.Angeheftet || '').toLowerCase() === 'ja',
         createdAt: String(r.ErstelltAm || new Date().toISOString()),
@@ -269,7 +280,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
     .forEach((r) => {
       const pid = String(r.ProjektId);
       if (!perProject[pid]) return;
-      perProject[pid].timeline.push({ id: String(r.Id), titel: String(r.Titel || ''), datum: String(r.Datum || ''), status: (r.Status as Milestone['status']) || 'geplant', notiz: String(r.Notiz || '') });
+      perProject[pid].timeline.push({ id: String(r.Id), titel: String(r.Titel || ''), datum: String(r.Datum || ''), status: (r.Status as Milestone['status']) || 'geplant', notiz: String(r.Notiz || ''), projectIds: splitList(r.VerknuepfteProjektIds as string).length ? splitList(r.VerknuepfteProjektIds as string) : [pid] });
     });
 
   rows

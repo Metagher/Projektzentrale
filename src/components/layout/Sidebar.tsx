@@ -10,10 +10,6 @@ import type { Project, ProjectStatus } from '../../types/entities';
 
 const STATUS_ORDER: Record<ProjectStatus, number> = { aktiv: 0, pausiert: 1, abgeschlossen: 2 };
 const STATUS_LABELS: Record<ProjectStatus, string> = { aktiv: 'Aktiv', pausiert: 'Pausiert', abgeschlossen: 'Abgeschlossen' };
-const BUILD_DATE = new Intl.DateTimeFormat('de-DE', {
-  dateStyle: 'short',
-  timeStyle: 'short',
-}).format(new Date(__BUILD_TIME__));
 
 function sortProjects(projects: Project[]): Project[] {
   return projects.slice().sort((a, b) => {
@@ -94,15 +90,6 @@ export default function Sidebar() {
             <ProjectTicket project={project} active={view === 'project' && selectedId === project.id} dragEnabled={!query} dragProps={getItemProps(project.id)} onClick={() => useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'aufgaben', sidebarOpen: false })} />
           </div>;
         })}
-      </div>
-      <div
-        className="sidebar-release"
-        title={`Release ${__APP_VERSION__}, Commit ${__COMMIT_HASH__}, gebaut am ${BUILD_DATE}`}
-        aria-label={`Release ${__APP_VERSION__}, Commit ${__COMMIT_HASH__}`}
-      >
-        <span>Release v{__APP_VERSION__}</span>
-        <span className="sidebar-release-commit">{__COMMIT_HASH__ === 'local' ? 'lokaler Build' : `Commit ${__COMMIT_HASH__}`}</span>
-        <span className="sidebar-release-date">Build {BUILD_DATE}</span>
       </div>
     </aside>
   );

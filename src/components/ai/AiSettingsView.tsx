@@ -3,7 +3,7 @@ import { useModalStore } from '../../store/modalStore';
 import { useAiStore } from '../../store/aiStore';
 import { getAiKey } from '../../lib/ai';
 
-export default function AiSettingsView() {
+export default function AiSettingsView({ embedded = false }: { embedded?: boolean }) {
   const alert = useModalStore((s) => s.alert);
   const keyPresent = useAiStore((s) => s.keyPresent);
   const saveKey = useAiStore((s) => s.saveKey);
@@ -26,8 +26,7 @@ export default function AiSettingsView() {
     removeKey();
   }
 
-  return (
-    <div className="main-inner">
+  const content = <>
       <h2>🔑 KI-Einstellungen</h2>
       <div className="sub" style={{ color: 'var(--ink-soft)', margin: '4px 0 18px', maxWidth: 640 }}>
         Für alle KI-Funktionen (KI-Suche, KI-Übersicht, Wissensdatenbank, Aufgaben-Erkennung, persönlicher Berater)
@@ -65,6 +64,6 @@ export default function AiSettingsView() {
         einsehbar. Das ist für die persönliche Nutzung auf deinen eigenen Geräten unkritisch, teile den Key oder
         dieses Gerät aber nicht mit anderen. Achte außerdem darauf, dass das GitHub-Repository privat bleibt.
       </div>
-    </div>
-  );
+    </>;
+  return embedded ? <div className="settings-embedded-view">{content}</div> : <div className="main-inner">{content}</div>;
 }

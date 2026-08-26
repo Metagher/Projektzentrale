@@ -8,6 +8,11 @@ import { useInstallApp } from '../../hooks/useInstallApp';
 import AfnQuickSearch from './AfnQuickSearch';
 import TaskFullTextSearch from './TaskFullTextSearch';
 
+const BUILD_DATE = new Intl.DateTimeFormat('de-DE', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+}).format(new Date(__BUILD_TIME__));
+
 export default function ProjectQuickBar() {
   const { canInstall, install } = useInstallApp();
   const projects = useDataStore((state) => state.projects);
@@ -83,6 +88,10 @@ export default function ProjectQuickBar() {
         <button onClick={create} title="Neues Projekt" aria-label="Neues Projekt">＋</button>
         <button className={view === 'project-management' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('project-management')} title="Projektverwaltung" aria-label="Projektverwaltung">▦</button>
         <button className={view === 'settings' || view === 'data' || view === 'ai-settings' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('settings')} title="Einstellungen" aria-label="Einstellungen">⚙</button>
+        <span className="top-release" title={`Release ${__APP_VERSION__}, Commit ${__COMMIT_HASH__}, gebaut am ${BUILD_DATE}`} aria-label={`Release ${__APP_VERSION__}, Commit ${__COMMIT_HASH__}`}>
+          <strong>v{__APP_VERSION__}</strong>
+          <small>{__COMMIT_HASH__ === 'local' ? 'lokal' : __COMMIT_HASH__}</small>
+        </span>
       </div>
     </nav>
   );

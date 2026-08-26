@@ -4,7 +4,7 @@ import { useUiStore } from '../../store/uiStore';
 import { useModalStore } from '../../store/modalStore';
 import { exportAllDataToCsv, parseImportCsv } from '../../lib/csv';
 
-export default function DataView() {
+export default function DataView({ embedded = false }: { embedded?: boolean }) {
   const importAllData = useDataStore((s) => s.importAllData);
   const goTo = useUiStore((s) => s.goTo);
   const confirm = useModalStore((s) => s.confirm);
@@ -30,8 +30,7 @@ export default function DataView() {
     await alert(`Import abgeschlossen: ${result.data.projects.length} Projekt(e) geladen.`);
   }
 
-  return (
-    <div className="main-inner">
+  const content = <>
       <h2>CSV Import / Export</h2>
       <div className="sub" style={{ color: 'var(--ink-soft)', margin: '4px 0 22px', maxWidth: 640 }}>
         Sichere alle Daten (Projekte, Ansprechpartner, Kommunikation, Dokumentation, Aufgaben, Echtlauf-Zeitpläne und
@@ -65,6 +64,6 @@ export default function DataView() {
           }}
         />
       </div>
-    </div>
-  );
+    </>;
+  return embedded ? <div className="settings-embedded-view">{content}</div> : <div className="main-inner">{content}</div>;
 }

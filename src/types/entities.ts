@@ -60,6 +60,16 @@ export interface ProjectNote {
   pinned: boolean;
   createdAt: string;
   updatedAt: string;
+  folderId?: string | null;
+  sortIndex?: number;
+}
+
+export interface ProjectNoteFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  sortIndex: number;
+  createdAt: string;
 }
 
 export interface ProjectTimeType {
@@ -222,6 +232,8 @@ export interface Milestone {
   datum: string;
   status: MilestoneStatus;
   notiz: string; // RTF html
+  /** Projects of the same customer that share this milestone. */
+  projectIds?: string[];
 }
 
 export interface UpdateEntry {
@@ -284,4 +296,5 @@ export interface ProjectCache {
   aiSummary: AiSummary | null;
   moduleConfigs: ProjectModuleConfig[];
   notes: ProjectNote[];
+  noteFolders: ProjectNoteFolder[];
 }

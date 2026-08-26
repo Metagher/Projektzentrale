@@ -9,6 +9,7 @@ import TaskRows from './TaskRows';
 import InlineEditTaskRow from './InlineEditTaskRow';
 import OverdueBanner from './OverdueBanner';
 import GlobalProjectNotes from './GlobalProjectNotes';
+import MilestonesList from './MilestonesList';
 import type { TaskColor } from '../../types/entities';
 
 type ActionFilter = 'all' | 'active' | 'overdue' | 'waiting';
@@ -45,6 +46,7 @@ export default function Dashboard() {
     <OverdueBanner count={dashboardData.overdueTasks.length} />
     <DailyBriefingCard />
     <DailyPlanner />
+    <section className="dashboard-milestones"><div className="dashboard-section-head"><div><span className="eyebrow">Zeitplan</span><h3>Anstehende Meilensteine</h3><p>Offene Meilensteine aus den Projektzeitplänen.</p></div></div><MilestonesList milestones={dashboardData.upcomingMilestones} /></section>
     <section className="dashboard-global-steering"><div className="analytics-scope-label">Projektübergreifende Steuerung</div><div className="analytics-kpi-grid">
       <article><strong>{summary.activeProjects}</strong><span>Aktive Projekte</span><small>von {projects.length} insgesamt</small></article>
       <article><strong>{unfinishedTasks.length}</strong><span>Offene Aufgaben</span><small>alle nicht erledigten Aufgaben</small></article>

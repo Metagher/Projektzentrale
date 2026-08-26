@@ -6,12 +6,11 @@ export default function MilestonesList({ milestones }: { milestones: MilestoneWi
   if (milestones.length === 0) return null;
 
   function goToProject(projectId: string) {
-    useUiStore.setState({ view: 'project', selectedId: projectId, activeTab: 'aufgaben' });
+    useUiStore.setState({ view: 'project', selectedId: projectId, activeTab: 'zeitplan' });
   }
 
   return (
-    <>
-      <div className="section-title">Anstehende Echtlauf-Meilensteine</div>
+    <div className="dashboard-milestone-list">
       {milestones.slice(0, 15).map((m) => (
         <div className="agg-row" key={m.id}>
           <span className={`badge ${slug(m.status)}`}>{m.status}</span>
@@ -22,6 +21,6 @@ export default function MilestonesList({ milestones }: { milestones: MilestoneWi
           <span className="agg-date">{fmtDate(m.datum)}</span>
         </div>
       ))}
-    </>
+    </div>
   );
 }

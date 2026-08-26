@@ -19,6 +19,7 @@ import type {
   CustomerModule,
   ProjectModuleConfig,
   ProjectNote,
+  ProjectNoteFolder,
   ProjectTimeType,
   TimeEntry,
   ActiveTimer,
@@ -73,7 +74,7 @@ export interface DashboardData {
 }
 
 function emptyProjectCache(): ProjectCache {
-  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [], notes: [] };
+  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [], notes: [], noteFolders: [] };
 }
 
 interface DataStoreState {
@@ -141,6 +142,7 @@ interface DataStoreState {
   saveProjectModuleConfig: (projectId: string, config: ProjectModuleConfig) => Promise<void>;
   saveProjectNote: (projectId: string, note: ProjectNote) => Promise<void>;
   deleteProjectNote: (projectId: string, noteId: string) => Promise<void>;
+  saveProjectNoteFolders: (projectId: string, folders: ProjectNoteFolder[]) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -161,7 +163,7 @@ interface DataStoreState {
     docDefs: DocSectionDef[];
     perProject: Record<
       string,
-      { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[]; notes: ProjectNote[] }
+      { contacts: Contact[]; comms: Comm[]; doc: DocData; tasks: Task[]; timeline: Milestone[]; updates: UpdateEntry[]; notes: ProjectNote[]; noteFolders: ProjectNoteFolder[] }
     >;
     timeEntries: TimeEntry[];
   }) => Promise<void>;
@@ -317,7 +319,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const existing = get().cache[id];
     if (existing) return existing;
     const sb = client();
-    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs, notes] = await Promise.all([
+    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs, notes, noteFolders] = await Promise.all([
       sGet<Contact[]>(sb, 'contacts:' + id),
       sGet<Comm[]>(sb, 'comms:' + id),
       sGet<DocData>(sb, 'doc:' + id),
@@ -327,6 +329,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<ProjectCache['aiSummary']>(sb, 'ai-summary:' + id),
       sGet<ProjectModuleConfig[]>(sb, 'module-configs:' + id),
       sGet<ProjectNote[]>(sb, 'notes:' + id),
+      sGet<ProjectNoteFolder[]>(sb, 'note-folders:' + id),
     ]);
     const siblingIds = customerProjectIds(get().projects || [], id).filter((projectId) => projectId !== id);
     const siblingContacts = await Promise.all(siblingIds.map((projectId) => sGet<Contact[]>(sb, 'contacts:' + projectId)));
@@ -362,6 +365,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       aiSummary: aiSummary || null,
       moduleConfigs: moduleConfigs || [],
       notes: notes || [],
+      noteFolders: noteFolders || [],
     };
     set({ cache: { ...get().cache, [id]: projectCache } });
     return projectCache;
@@ -373,6 +377,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const waitingTasks: TaskWithMeta[] = [];
     const completedTasks: TaskWithMeta[] = [];
     const allMilestones: MilestoneWithMeta[] = [];
+    const seenMilestones = new Set<string>();
     const allContacts: ContactWithMeta[] = [];
     const calendarTasks: CalendarTaskWithMeta[] = [];
     const seenTaskIds = new Set<string>();
@@ -399,7 +404,10 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       });
       if (hasEchtlauf(p)) {
         c.timeline.forEach((m) => {
-          if (m.status !== 'erledigt') allMilestones.push({ ...m, projectId: p.id, projectName: p.name });
+          if (m.status === 'erledigt' || seenMilestones.has(m.id)) return;
+          seenMilestones.add(m.id);
+          const linkedProjects = (m.projectIds?.length ? m.projectIds : [p.id]).map((id) => projects.find((project) => project.id === id)).filter((project): project is Project => !!project);
+          allMilestones.push({ ...m, projectId: linkedProjects[0]?.id || p.id, projectName: linkedProjects.map((project) => project.name).join(', ') || p.name });
         });
       }
     }
@@ -482,7 +490,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const sb = client();
     await Promise.all([sSet(sb, 'projects', projects), sSet(sb, 'time-entries', timeEntries), activeTimer ? sSet(sb, 'active-timer', activeTimer) : sDelete(sb, 'active-timer')]);
     await Promise.all(
-      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:', 'notes:'].map((prefix) =>
+      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:', 'notes:', 'note-folders:'].map((prefix) =>
         sDelete(sb, prefix + id),
       ),
     );
@@ -666,21 +674,36 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   },
 
   saveMilestone: async (projectId, m) => {
-    const data = await get().ensureProjectData(projectId);
-    const idx = data.timeline.findIndex((x) => x.id === m.id);
-    const timeline = idx >= 0 ? data.timeline.map((x, i) => (i === idx ? m : x)) : [...data.timeline, m];
-    const cache = { ...get().cache, [projectId]: { ...data, timeline } };
-    set({ cache });
-    await sSet(client(), 'timeline:' + projectId, timeline);
+    const projects = get().projects || [];
+    const origin = projects.find((project) => project.id === projectId);
+    const allowedIds = new Set(projects.filter((project) => project.kunde === origin?.kunde && (project.id === projectId || hasEchtlauf(project))).map((project) => project.id));
+    const projectIds = Array.from(new Set([projectId, ...(m.projectIds || [])])).filter((id) => allowedIds.has(id));
+    const originData = await get().ensureProjectData(projectId);
+    const previous = originData.timeline.find((item) => item.id === m.id);
+    const previousIds = previous?.projectIds?.length ? previous.projectIds : previous ? [projectId] : [];
+    const sharedMilestone = { ...m, projectIds };
+    for (const linkedId of new Set([...previousIds, ...projectIds])) {
+      const data = await get().ensureProjectData(linkedId);
+      const exists = data.timeline.some((item) => item.id === m.id);
+      const timeline = projectIds.includes(linkedId)
+        ? exists ? data.timeline.map((item) => item.id === m.id ? sharedMilestone : item) : [...data.timeline, sharedMilestone]
+        : data.timeline.filter((item) => item.id !== m.id);
+      set({ cache: { ...get().cache, [linkedId]: { ...data, timeline } } });
+      await sSet(client(), 'timeline:' + linkedId, timeline);
+    }
     await get().loadDashboardData();
   },
 
   deleteMilestone: async (projectId, id) => {
     const data = await get().ensureProjectData(projectId);
-    const timeline = data.timeline.filter((x) => x.id !== id);
-    const cache = { ...get().cache, [projectId]: { ...data, timeline } };
-    set({ cache });
-    await sSet(client(), 'timeline:' + projectId, timeline);
+    const milestone = data.timeline.find((item) => item.id === id);
+    const projectIds = milestone?.projectIds?.length ? milestone.projectIds : [projectId];
+    for (const linkedId of projectIds) {
+      const linkedData = await get().ensureProjectData(linkedId);
+      const timeline = linkedData.timeline.filter((item) => item.id !== id);
+      set({ cache: { ...get().cache, [linkedId]: { ...linkedData, timeline } } });
+      await sSet(client(), 'timeline:' + linkedId, timeline);
+    }
     await get().loadDashboardData();
   },
 
@@ -836,6 +859,13 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await sSet(client(), 'notes:' + projectId, notes);
   },
 
+  saveProjectNoteFolders: async (projectId, noteFolders) => {
+    const data = await get().ensureProjectData(projectId);
+    const cache = { ...get().cache, [projectId]: { ...data, noteFolders } };
+    set({ cache });
+    await sSet(client(), 'note-folders:' + projectId, noteFolders);
+  },
+
   startTimer: async (projectId, taskId = null, timeTypeId) => {
     const current = get().activeTimer;
     const selectedType = taskId ? undefined : get().projectTimeTypes.find((type) => type.id === timeTypeId) || get().projectTimeTypes[0];
@@ -926,13 +956,13 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const previousProjects = get().projects || [];
     for (const p of previousProjects) {
       await Promise.all(
-        ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'ai-summary:', 'updates:', 'module-configs:', 'notes:'].map((prefix) =>
+        ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'ai-summary:', 'updates:', 'module-configs:', 'notes:', 'note-folders:'].map((prefix) =>
           sDelete(sb, prefix + p.id),
         ),
       );
     }
     for (const p of projects) {
-      const d = perProject[p.id] || { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], notes: [] };
+      const d = perProject[p.id] || { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], notes: [], noteFolders: [] };
       await sSet(sb, 'contacts:' + p.id, d.contacts);
       await sSet(sb, 'comms:' + p.id, d.comms);
       await sSet(sb, 'doc:' + p.id, d.doc);
@@ -940,6 +970,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       await sSet(sb, 'timeline:' + p.id, d.timeline);
       await sSet(sb, 'updates:' + p.id, d.updates);
       await sSet(sb, 'notes:' + p.id, d.notes);
+      await sSet(sb, 'note-folders:' + p.id, d.noteFolders);
     }
     await sSet(sb, 'projects', projects);
     await sSet(sb, 'doc-section-defs', docDefs);

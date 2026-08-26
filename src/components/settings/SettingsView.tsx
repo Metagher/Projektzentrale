@@ -1,34 +1,44 @@
-import TaskColorSettings from './TaskColorSettings';
-import WaitingOptionsSettings from './WaitingOptionsSettings';
-import { useUiStore } from '../../store/uiStore';
+import { useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
+import AiSettingsView from '../ai/AiSettingsView';
+import DataView from '../data/DataView';
 import DataValidationSettings from './DataValidationSettings';
 import ModuleSettings from './ModuleSettings';
 import ProjectTimeTypeSettings from './ProjectTimeTypeSettings';
+import TaskColorSettings from './TaskColorSettings';
+import WaitingOptionsSettings from './WaitingOptionsSettings';
+
+type SettingsTab = 'tasks' | 'time' | 'validation' | 'data' | 'ai';
+
+const TABS: { id: SettingsTab; icon: string; label: string; description: string }[] = [
+  { id: 'tasks', icon: '◆', label: 'Aufgaben & Grunddaten', description: 'Farben, Module und „Wartet auf“' },
+  { id: 'time', icon: '◷', label: 'Projektzeit', description: 'Zeittypen festlegen' },
+  { id: 'validation', icon: '✓', label: 'Datenvalidierung', description: 'Daten prüfen und bereinigen' },
+  { id: 'data', icon: '⇄', label: 'Daten', description: 'CSV Import und Export' },
+  { id: 'ai', icon: '✦', label: 'KI-Einstellungen', description: 'Zugang und Konfiguration' },
+];
 
 export default function SettingsView() {
-  const goTo = useUiStore((state) => state.goTo);
-  const email = useConnectionStore((s) => s.session?.user.email);
-  const signOut = useConnectionStore((s) => s.signOut);
+  const [activeTab, setActiveTab] = useState<SettingsTab>('tasks');
+  const email = useConnectionStore((state) => state.session?.user.email);
+  const signOut = useConnectionStore((state) => state.signOut);
+
   return <div className="main-inner">
     <h2>Einstellungen</h2>
     <div className="sub" style={{ color: 'var(--ink-soft)', margin: '4px 0 22px', maxWidth: 620 }}>Zentrale Übersicht für Aufgabengrunddaten, Datenaustausch und KI-Konfiguration.</div>
-    <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <div><strong>Angemeldet als</strong><div style={{ color: 'var(--ink-soft)', fontSize: 13 }}>{email}</div></div>
+    <div className="card settings-account-card">
+      <div><strong>Angemeldet als</strong><div>{email}</div></div>
       <button className="btn secondary" onClick={signOut}>Abmelden</button>
     </div>
-    <div className="settings-hub">
-      <button onClick={() => document.getElementById('task-settings')?.scrollIntoView({ behavior: 'smooth' })}><span>◆</span><strong>Aufgaben &amp; Grunddaten</strong><small>Farben und „Wartet auf“</small></button>
-      <button onClick={() => document.getElementById('project-time-type-settings')?.scrollIntoView({ behavior: 'smooth' })}><span>◷</span><strong>Projektzeit</strong><small>Zeittypen festlegen</small></button>
-      <button onClick={() => document.getElementById('validation-settings')?.scrollIntoView({ behavior: 'smooth' })}><span>✓</span><strong>Datenvalidierung</strong><small>Daten prüfen und bereinigen</small></button>
-      <button onClick={() => goTo('data')}><span>⇄</span><strong>Daten</strong><small>CSV Import und Export</small></button>
-      <button onClick={() => goTo('ai-settings')}><span>✦</span><strong>KI-Einstellungen</strong><small>Zugang und Konfiguration</small></button>
+    <div className="settings-hub" role="tablist" aria-label="Einstellungsbereiche">
+      {TABS.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`settings-panel-${tab.id}`} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}><span>{tab.icon}</span><strong>{tab.label}</strong><small>{tab.description}</small></button>)}
     </div>
-    <ModuleSettings />
-    <div id="task-settings" className="settings-anchor" />
-    <TaskColorSettings />
-    <WaitingOptionsSettings />
-    <ProjectTimeTypeSettings />
-    <DataValidationSettings />
+    <section id={`settings-panel-${activeTab}`} className="settings-tab-panel" role="tabpanel">
+      {activeTab === 'tasks' && <><ModuleSettings /><TaskColorSettings /><WaitingOptionsSettings /></>}
+      {activeTab === 'time' && <ProjectTimeTypeSettings />}
+      {activeTab === 'validation' && <DataValidationSettings />}
+      {activeTab === 'data' && <DataView embedded />}
+      {activeTab === 'ai' && <AiSettingsView embedded />}
+    </section>
   </div>;
 }
