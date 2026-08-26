@@ -53,6 +53,7 @@ export default function AnalyticsView() {
         const data = await ensureProjectData(project.id);
         let taskMinutes = 0;
         const billedDays = new Map<string, { taskMinutes: number; communicationMinutes: number }>();
+        const billedItems: NonNullable<BilledTimeRow['items']> = [];
         data.tasks.forEach((task) => {
           labels[task.id] = `${task.nr} · ${task.titel}`;
           if (countedTasks.has(task.id)) return;
@@ -63,6 +64,7 @@ export default function AnalyticsView() {
             const day = billedDays.get(task.billedDate) || { taskMinutes: 0, communicationMinutes: 0 };
             day.taskMinutes += minutes;
             billedDays.set(task.billedDate, day);
+            billedItems.push({ date: task.billedDate, kind: 'Aufgabe', label: `${task.nr} · ${task.titel}`, minutes });
           }
         });
         const communicationMinutes = data.comms.reduce((sum, comm) => {
@@ -71,10 +73,11 @@ export default function AnalyticsView() {
             const day = billedDays.get(comm.datum) || { taskMinutes: 0, communicationMinutes: 0 };
             day.communicationMinutes += minutes;
             billedDays.set(comm.datum, day);
+            billedItems.push({ date: comm.datum, kind: 'Kommunikation', label: comm.betreff || comm.kanal, minutes });
           }
           return sum + minutes;
         }, 0);
-        rows.push({ projectId: project.id, taskMinutes, communicationMinutes, days: Array.from(billedDays, ([date, values]) => ({ date, ...values })) });
+        rows.push({ projectId: project.id, taskMinutes, communicationMinutes, days: Array.from(billedDays, ([date, values]) => ({ date, ...values })), items: billedItems });
       }
       if (!cancelled) { setBilledRows(rows); setTimeTaskLabels(labels); }
     })();

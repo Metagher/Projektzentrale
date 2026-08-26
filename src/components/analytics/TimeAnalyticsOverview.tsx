@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import Papa from 'papaparse';
 import { isoWeekInfo } from '../../lib/analytics';
+import { downloadTextFile } from '../../lib/csv';
 import { formatDuration } from '../../lib/timeTracking';
 import { isWorkday, localDateKey, type WorkdayOverrides } from '../../lib/workdays';
 import type { Project, TimeEntry } from '../../types/entities';
@@ -10,6 +12,7 @@ export interface BilledTimeRow {
   taskMinutes: number;
   communicationMinutes: number;
   days?: { date: string; taskMinutes: number; communicationMinutes: number }[];
+  items?: { date: string; kind: 'Aufgabe' | 'Kommunikation'; label: string; minutes: number }[];
 }
 
 interface Props {
@@ -189,11 +192,40 @@ export default function TimeAnalyticsOverview({ entries, projects = [], workdayO
   const projectRows = projects.map((project) => ({ project, minutes: entries.filter((entry) => entry.projectId === project.id).reduce((sum, entry) => sum + entry.durationMinutes, 0), billed: billedByProject.get(project.id) }))
     .filter((row) => row.minutes > 0 || row.billed?.taskMinutes || row.billed?.communicationMinutes).sort((a, b) => b.minutes - a.minutes);
 
+  function exportSelectedWeek() {
+    const days = new Set(selectedWeekDays);
+    const weekEntries = entries.filter((entry) => days.has(localDateKey(new Date(entry.startedAt))));
+    const rows: Record<string, string | number>[] = [];
+    weekEntries.slice().sort((a, b) => a.startedAt.localeCompare(b.startedAt)).forEach((entry) => rows.push({
+      Ebene: 'Einzelbuchung', Kalenderwoche: selectedWeekKey, Datum: localDateKey(new Date(entry.startedAt)), Projekt: projectName(entry.projectId, projects), Art: 'Getrackt', Zuordnung: timeEntryLabel(entry, taskLabels, timeTypeLabels), Start: timeOnly.format(new Date(entry.startedAt)), Ende: timeOnly.format(new Date(entry.endedAt)), Minuten: entry.durationMinutes, Stunden: (entry.durationMinutes / 60).toFixed(2), Notiz: entry.note || '',
+    }));
+    billedRows.forEach((row) => {
+      const items = row.items?.filter((item) => days.has(item.date));
+      if (items?.length) items.forEach((item) => rows.push({ Ebene: 'Abrechnung', Kalenderwoche: selectedWeekKey, Datum: item.date, Projekt: projectName(row.projectId, projects), Art: 'Abgerechnet', Zuordnung: item.kind, Start: '', Ende: '', Minuten: item.minutes, Stunden: (item.minutes / 60).toFixed(2), Notiz: item.label }));
+      else row.days?.filter((day) => days.has(day.date)).forEach((day) => {
+        if (day.taskMinutes > 0) rows.push({ Ebene: 'Abrechnung', Kalenderwoche: selectedWeekKey, Datum: day.date, Projekt: projectName(row.projectId, projects), Art: 'Abgerechnet', Zuordnung: 'Aufgaben', Start: '', Ende: '', Minuten: day.taskMinutes, Stunden: (day.taskMinutes / 60).toFixed(2), Notiz: '' });
+        if (day.communicationMinutes > 0) rows.push({ Ebene: 'Abrechnung', Kalenderwoche: selectedWeekKey, Datum: day.date, Projekt: projectName(row.projectId, projects), Art: 'Abgerechnet', Zuordnung: 'Kommunikation', Start: '', Ende: '', Minuten: day.communicationMinutes, Stunden: (day.communicationMinutes / 60).toFixed(2), Notiz: '' });
+      });
+    });
+    const projectIds = new Set([...weekEntries.map((entry) => entry.projectId), ...billedRows.filter((row) => row.days?.some((day) => days.has(day.date))).map((row) => row.projectId)]);
+    projectIds.forEach((projectId) => {
+      const tracked = weekEntries.filter((entry) => entry.projectId === projectId).reduce((sum, entry) => sum + entry.durationMinutes, 0);
+      const billed = billedRows.filter((row) => row.projectId === projectId).flatMap((row) => row.days || []).filter((day) => days.has(day.date)).reduce((sum, day) => sum + day.taskMinutes + day.communicationMinutes, 0);
+      rows.push({ Ebene: 'Projektsumme', Kalenderwoche: selectedWeekKey, Datum: '', Projekt: projectName(projectId, projects), Art: 'Getrackt', Zuordnung: 'Summe Projekt', Start: '', Ende: '', Minuten: tracked, Stunden: (tracked / 60).toFixed(2), Notiz: '' });
+      rows.push({ Ebene: 'Projektsumme', Kalenderwoche: selectedWeekKey, Datum: '', Projekt: projectName(projectId, projects), Art: 'Abgerechnet', Zuordnung: 'Summe Projekt', Start: '', Ende: '', Minuten: billed, Stunden: (billed / 60).toFixed(2), Notiz: '' });
+    });
+    const trackedTotal = weekEntries.reduce((sum, entry) => sum + entry.durationMinutes, 0);
+    const billedTotalForWeek = billedRows.flatMap((row) => row.days || []).filter((day) => days.has(day.date)).reduce((sum, day) => sum + day.taskMinutes + day.communicationMinutes, 0);
+    rows.push({ Ebene: 'KW-Gesamtsumme', Kalenderwoche: selectedWeekKey, Datum: '', Projekt: 'Alle Projekte', Art: 'Getrackt', Zuordnung: 'Gesamt', Start: '', Ende: '', Minuten: trackedTotal, Stunden: (trackedTotal / 60).toFixed(2), Notiz: '' });
+    rows.push({ Ebene: 'KW-Gesamtsumme', Kalenderwoche: selectedWeekKey, Datum: '', Projekt: 'Alle Projekte', Art: 'Abgerechnet', Zuordnung: 'Gesamt', Start: '', Ende: '', Minuten: billedTotalForWeek, Stunden: (billedTotalForWeek / 60).toFixed(2), Notiz: '' });
+    downloadTextFile(`\uFEFF${Papa.unparse(rows, { delimiter: ';' })}`, `zeitauswertung-${selectedWeekKey}.csv`, 'text/csv');
+  }
+
   return <section className="time-analytics-overview">
     <div className="analytics-section-intro"><div className="analytics-scope-label">Arbeitszeit</div><h3>{heading}</h3><p>Getrackte Zeiten werden tagesgenau ausgewertet. Abgerechnete Zeiten stehen separat und fließen in keine Tracking-Kennzahl ein.</p></div>
     <div className="analytics-kpi-grid"><article><strong>{formatDuration(today)}</strong><span>Heute</span><small>aktueller Arbeitstag</small></article><article><strong>{formatDuration(currentWeek)}</strong><span>Aktuelle KW</span><small>{weekKey(new Date())}</small></article><article><strong>{formatDuration(total)}</strong><span>Getrackte Gesamtzeit</span><small>{entries.length} Buchungen</small></article><article><strong>{formatDuration(average)}</strong><span>Ø pro Arbeitstag</span><small>{activeDays.length} Tage mit Buchung</small></article></div>
     {(entries.length > 0 || billedGrandTotal > 0) && <section className="daily-explorer analytics-detail-card">
-      <div className="analytics-block-head"><div><h3>Einzelne Tage öffnen</h3><p>Kalenderwoche auswählen und anschließend einen Tag öffnen.</p></div><label className="week-filter"><span>Kalenderwoche</span><select value={selectedWeekKey} onChange={(event) => setSelectedWeekKey(event.target.value)}>{weekOptions.map((key) => <option key={key} value={key}>{key} · {formatDuration(weekly.get(key) || 0)}</option>)}</select></label></div>
+      <div className="analytics-block-head"><div><h3>Einzelne Tage öffnen</h3><p>Kalenderwoche auswählen und anschließend einen Tag öffnen.</p></div><div className="week-filter-actions"><label className="week-filter"><span>Kalenderwoche</span><select value={selectedWeekKey} onChange={(event) => setSelectedWeekKey(event.target.value)}>{weekOptions.map((key) => <option key={key} value={key}>{key} · {formatDuration(weekly.get(key) || 0)}</option>)}</select></label><button type="button" className="btn secondary small" onClick={exportSelectedWeek}>⇩ KW exportieren</button></div></div>
       <div className="current-week-day-grid">{selectedWeekDays.map((day) => {
         const minutes = dailyMinutes.get(day) || 0;
         const bookingCount = daily.get(day)?.length || 0;
