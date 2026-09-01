@@ -20,6 +20,7 @@
 .analytics-block-head h3{font-size:17px;}
 .analytics-block-head p{margin:2px 0 0;color:var(--ink-soft);font-size:11px;}
 .analytics-table-wrap{overflow-x:auto;border:1px solid var(--line-soft);border-radius:10px;background:#fff;box-shadow:var(--shadow-sm);}
+.time-project-table-section{margin-bottom:20px;}
 .analytics-table-wrap .an-table{margin:0;}
 .portfolio-table tbody tr{cursor:pointer;}
 .portfolio-table tbody tr:hover{background:#f3f3f3;}
@@ -50,6 +51,7 @@
 .an-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);padding:6px 10px;border-bottom:1px solid var(--line);}
 .an-table td{padding:7px 10px;border-bottom:1px solid var(--line-soft);}
 .an-table tr:last-child td{border-bottom:none;}
+.an-table tfoot th{padding:8px 10px;color:var(--ink);font-size:12px;font-weight:800;text-transform:none;letter-spacing:normal;border-top:2px solid var(--line);border-bottom:none;}
 .an-week-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(78px,1fr));gap:6px;margin-bottom:8px;}
 .an-week-cell{
   background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius);

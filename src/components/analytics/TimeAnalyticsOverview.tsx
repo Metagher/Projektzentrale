@@ -591,22 +591,54 @@ export default function TimeAnalyticsOverview({
       return `${color} ${start}% ${billedCursor}%`;
     })
     .join(", ");
+  const selectedWeekDaySet = useMemo(
+    () => new Set(selectedWeekDays),
+    [selectedWeekDays],
+  );
   const projectRows = projects
-    .map((project) => ({
-      project,
-      minutes: entries
-        .filter((entry) => entry.projectId === project.id)
-        .reduce((sum, entry) => sum + entry.durationMinutes, 0),
-      billed: billedByProject.get(project.id),
-    }))
+    .map((project) => {
+      const billedRow = billedByProject.get(project.id);
+      const weekBilled = (billedRow?.days || [])
+        .filter((day) => selectedWeekDaySet.has(day.date))
+        .reduce(
+          (acc, day) => ({
+            taskMinutes: acc.taskMinutes + day.taskMinutes,
+            communicationMinutes:
+              acc.communicationMinutes + day.communicationMinutes,
+            freeMinutes: acc.freeMinutes + (day.freeMinutes || 0),
+          }),
+          { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 },
+        );
+      return {
+        project,
+        minutes: entries
+          .filter(
+            (entry) =>
+              entry.projectId === project.id &&
+              selectedWeekDaySet.has(localDateKey(new Date(entry.startedAt))),
+          )
+          .reduce((sum, entry) => sum + entry.durationMinutes, 0),
+        billed: weekBilled,
+      };
+    })
     .filter(
       (row) =>
         row.minutes > 0 ||
-        row.billed?.taskMinutes ||
-        row.billed?.communicationMinutes ||
-        row.billed?.freeMinutes,
+        row.billed.taskMinutes ||
+        row.billed.communicationMinutes ||
+        row.billed.freeMinutes,
     )
     .sort((a, b) => b.minutes - a.minutes);
+  const projectRowsTotal = projectRows.reduce(
+    (acc, row) => ({
+      minutes: acc.minutes + row.minutes,
+      taskMinutes: acc.taskMinutes + row.billed.taskMinutes,
+      communicationMinutes:
+        acc.communicationMinutes + row.billed.communicationMinutes,
+      freeMinutes: acc.freeMinutes + row.billed.freeMinutes,
+    }),
+    { minutes: 0, taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 },
+  );
 
   function exportSelectedWeek() {
     const days = new Set(selectedWeekDays);
@@ -894,7 +926,14 @@ export default function TimeAnalyticsOverview({
         </section>
       )}
       {projectRows.length > 0 && (
-        <div className="analytics-table-wrap time-project-table">
+        <div className="time-project-table-section">
+          <div className="analytics-block-head">
+            <div>
+              <h3>Projekte in {selectedWeekKey}</h3>
+              <p>Zeitraum folgt der oben gewählten Kalenderwoche.</p>
+            </div>
+          </div>
+          <div className="analytics-table-wrap time-project-table">
           <table className="an-table">
             <thead>
               <tr>
@@ -918,13 +957,24 @@ export default function TimeAnalyticsOverview({
                   </td>
                   <td>{project.kunde || "–"}</td>
                   <td>{formatDuration(minutes)}</td>
-                  <td>{formatDuration(billed?.taskMinutes || 0)}</td>
-                  <td>{formatDuration(billed?.communicationMinutes || 0)}</td>
-                  <td>{formatDuration(billed?.freeMinutes || 0)}</td>
+                  <td>{formatDuration(billed.taskMinutes)}</td>
+                  <td>{formatDuration(billed.communicationMinutes)}</td>
+                  <td>{formatDuration(billed.freeMinutes)}</td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr>
+                <th>Summe</th>
+                <th></th>
+                <th>{formatDuration(projectRowsTotal.minutes)}</th>
+                <th>{formatDuration(projectRowsTotal.taskMinutes)}</th>
+                <th>{formatDuration(projectRowsTotal.communicationMinutes)}</th>
+                <th>{formatDuration(projectRowsTotal.freeMinutes)}</th>
+              </tr>
+            </tfoot>
           </table>
+          </div>
         </div>
       )}
       {editingEntry && onSaveEntry && (
