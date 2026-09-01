@@ -18,10 +18,17 @@ export interface BilledTimeRow {
   projectId: string;
   taskMinutes: number;
   communicationMinutes: number;
-  days?: { date: string; taskMinutes: number; communicationMinutes: number }[];
+  /** Frei erfasste, abgerechnete Zeit ohne Bezug zu einer Aufgabe oder einem Kommunikationseintrag. */
+  freeMinutes?: number;
+  days?: {
+    date: string;
+    taskMinutes: number;
+    communicationMinutes: number;
+    freeMinutes?: number;
+  }[];
   items?: {
     date: string;
-    kind: "Aufgabe" | "Kommunikation";
+    kind: "Aufgabe" | "Kommunikation" | "Frei";
     label: string;
     minutes: number;
   }[];
@@ -409,7 +416,10 @@ export default function TimeAnalyticsOverview({
       row.days?.forEach((day) =>
         map.set(
           day.date,
-          (map.get(day.date) || 0) + day.taskMinutes + day.communicationMinutes,
+          (map.get(day.date) || 0) +
+            day.taskMinutes +
+            day.communicationMinutes +
+            (day.freeMinutes || 0),
         ),
       ),
     );
@@ -505,10 +515,15 @@ export default function TimeAnalyticsOverview({
     (sum, row) => sum + row.communicationMinutes,
     0,
   );
+  const billedFreeTotal = billedRows.reduce(
+    (sum, row) => sum + (row.freeMinutes || 0),
+    0,
+  );
   const billedByProject = new Map(
     billedRows.map((row) => [row.projectId, row]),
   );
-  const billedGrandTotal = billedTaskTotal + billedCommunicationTotal;
+  const billedGrandTotal =
+    billedTaskTotal + billedCommunicationTotal + billedFreeTotal;
   const billedChartRows =
     billedChartMode === "type"
       ? [
@@ -536,6 +551,18 @@ export default function TimeAnalyticsOverview({
             ),
             color: "#7b4fa3",
           },
+          {
+            id: "free",
+            label: "Frei erfasst",
+            minutes: billedRows.reduce(
+              (sum, row) =>
+                sum +
+                (row.days?.find((day) => day.date === selectedDay)
+                  ?.freeMinutes || 0),
+              0,
+            ),
+            color: "#a47a18",
+          },
         ].filter((row) => row.minutes > 0)
       : billedRows
           .map((row) => {
@@ -544,7 +571,9 @@ export default function TimeAnalyticsOverview({
               id: row.projectId,
               label: projectName(row.projectId, projects),
               minutes:
-                (day?.taskMinutes || 0) + (day?.communicationMinutes || 0),
+                (day?.taskMinutes || 0) +
+                (day?.communicationMinutes || 0) +
+                (day?.freeMinutes || 0),
               color: projectColor(row.projectId, projects),
             };
           })
@@ -574,7 +603,8 @@ export default function TimeAnalyticsOverview({
       (row) =>
         row.minutes > 0 ||
         row.billed?.taskMinutes ||
-        row.billed?.communicationMinutes,
+        row.billed?.communicationMinutes ||
+        row.billed?.freeMinutes,
     )
     .sort((a, b) => b.minutes - a.minutes);
 
@@ -623,6 +653,14 @@ export default function TimeAnalyticsOverview({
                 kind: "Kommunikation",
                 label: "Abgerechnete Kommunikationszeit",
                 minutes: day.communicationMinutes,
+              });
+            if (day.freeMinutes)
+              billed.push({
+                date: day.date,
+                project: projectName(row.projectId, projects),
+                kind: "Frei",
+                label: "Frei abgerechnete Zeit",
+                minutes: day.freeMinutes,
               });
           });
     });
@@ -865,6 +903,7 @@ export default function TimeAnalyticsOverview({
                 <th>Getrackte Zeit</th>
                 <th>Abgerechnet · Aufgaben</th>
                 <th>Abgerechnet · Kommunikation</th>
+                <th>Abgerechnet · Frei</th>
               </tr>
             </thead>
             <tbody>
@@ -881,6 +920,7 @@ export default function TimeAnalyticsOverview({
                   <td>{formatDuration(minutes)}</td>
                   <td>{formatDuration(billed?.taskMinutes || 0)}</td>
                   <td>{formatDuration(billed?.communicationMinutes || 0)}</td>
+                  <td>{formatDuration(billed?.freeMinutes || 0)}</td>
                 </tr>
               ))}
             </tbody>
