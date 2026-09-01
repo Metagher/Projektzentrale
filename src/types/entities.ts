@@ -92,6 +92,17 @@ export interface TimeEntry {
   createdAt: string;
 }
 
+/** Frei erfasste, bereits abgerechnete Zeit ohne Bezug zu einer Aufgabe oder einem Kommunikationseintrag. */
+export interface BilledTimeEntry {
+  id: string;
+  projectId: string;
+  datum: string; // YYYY-MM-DD
+  minutes: number;
+  teilprojekt?: string;
+  hinweis: string;
+  createdAt: string;
+}
+
 export interface ActiveTimer {
   projectId: string;
   taskId: string | null;
@@ -297,4 +308,5 @@ export interface ProjectCache {
   moduleConfigs: ProjectModuleConfig[];
   notes: ProjectNote[];
   noteFolders: ProjectNoteFolder[];
+  billedTimeEntries: BilledTimeEntry[];
 }

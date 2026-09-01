@@ -52,7 +52,7 @@ export default function AnalyticsView() {
       for (const project of projects) {
         const data = await ensureProjectData(project.id);
         let taskMinutes = 0;
-        const billedDays = new Map<string, { taskMinutes: number; communicationMinutes: number }>();
+        const billedDays = new Map<string, { taskMinutes: number; communicationMinutes: number; freeMinutes: number }>();
         const billedItems: NonNullable<BilledTimeRow['items']> = [];
         data.tasks.forEach((task) => {
           labels[task.id] = `${task.nr} · ${task.titel}`;
@@ -61,7 +61,7 @@ export default function AnalyticsView() {
           const minutes = Number(task.billedMinutes) || 0;
           taskMinutes += minutes;
           if (minutes > 0 && task.billedDate) {
-            const day = billedDays.get(task.billedDate) || { taskMinutes: 0, communicationMinutes: 0 };
+            const day = billedDays.get(task.billedDate) || { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 };
             day.taskMinutes += minutes;
             billedDays.set(task.billedDate, day);
             billedItems.push({ date: task.billedDate, kind: 'Aufgabe', label: `${task.nr} · ${task.titel}`, minutes });
@@ -70,14 +70,24 @@ export default function AnalyticsView() {
         const communicationMinutes = data.comms.reduce((sum, comm) => {
           const minutes = Number(comm.billedMinutes) || 0;
           if (minutes > 0 && comm.datum) {
-            const day = billedDays.get(comm.datum) || { taskMinutes: 0, communicationMinutes: 0 };
+            const day = billedDays.get(comm.datum) || { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 };
             day.communicationMinutes += minutes;
             billedDays.set(comm.datum, day);
             billedItems.push({ date: comm.datum, kind: 'Kommunikation', label: comm.betreff || comm.kanal, minutes });
           }
           return sum + minutes;
         }, 0);
-        rows.push({ projectId: project.id, taskMinutes, communicationMinutes, days: Array.from(billedDays, ([date, values]) => ({ date, ...values })), items: billedItems });
+        const freeMinutes = data.billedTimeEntries.reduce((sum, entry) => {
+          const minutes = Number(entry.minutes) || 0;
+          if (minutes > 0 && entry.datum) {
+            const day = billedDays.get(entry.datum) || { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 };
+            day.freeMinutes += minutes;
+            billedDays.set(entry.datum, day);
+            billedItems.push({ date: entry.datum, kind: 'Frei', label: entry.hinweis || entry.teilprojekt || 'Frei abgerechnete Zeit', minutes });
+          }
+          return sum + minutes;
+        }, 0);
+        rows.push({ projectId: project.id, taskMinutes, communicationMinutes, freeMinutes, days: Array.from(billedDays, ([date, values]) => ({ date, ...values })), items: billedItems });
       }
       if (!cancelled) { setBilledRows(rows); setTimeTaskLabels(labels); }
     })();

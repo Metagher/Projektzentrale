@@ -9,6 +9,7 @@ import { hasEchtlauf, todayStr, uid } from '../lib/format';
 import { customerKey, effectiveCustomerOrder, groupProjectsByCustomer } from '../lib/projectGroups';
 import { linkedContactIds, normalizeContactLinks } from '../lib/contacts';
 import type {
+  BilledTimeEntry,
   Comm,
   Contact,
   DocData,
@@ -74,7 +75,7 @@ export interface DashboardData {
 }
 
 function emptyProjectCache(): ProjectCache {
-  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [], notes: [], noteFolders: [] };
+  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [], notes: [], noteFolders: [], billedTimeEntries: [] };
 }
 
 interface DataStoreState {
@@ -143,6 +144,8 @@ interface DataStoreState {
   saveProjectNote: (projectId: string, note: ProjectNote) => Promise<void>;
   deleteProjectNote: (projectId: string, noteId: string) => Promise<void>;
   saveProjectNoteFolders: (projectId: string, folders: ProjectNoteFolder[]) => Promise<void>;
+  saveBilledTimeEntry: (projectId: string, entry: BilledTimeEntry) => Promise<void>;
+  deleteBilledTimeEntry: (projectId: string, id: string) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -319,7 +322,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const existing = get().cache[id];
     if (existing) return existing;
     const sb = client();
-    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs, notes, noteFolders] = await Promise.all([
+    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs, notes, noteFolders, billedTimeEntries] = await Promise.all([
       sGet<Contact[]>(sb, 'contacts:' + id),
       sGet<Comm[]>(sb, 'comms:' + id),
       sGet<DocData>(sb, 'doc:' + id),
@@ -330,6 +333,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<ProjectModuleConfig[]>(sb, 'module-configs:' + id),
       sGet<ProjectNote[]>(sb, 'notes:' + id),
       sGet<ProjectNoteFolder[]>(sb, 'note-folders:' + id),
+      sGet<BilledTimeEntry[]>(sb, 'billed-time-entries:' + id),
     ]);
     const siblingIds = customerProjectIds(get().projects || [], id).filter((projectId) => projectId !== id);
     const siblingContacts = await Promise.all(siblingIds.map((projectId) => sGet<Contact[]>(sb, 'contacts:' + projectId)));
@@ -366,6 +370,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       moduleConfigs: moduleConfigs || [],
       notes: notes || [],
       noteFolders: noteFolders || [],
+      billedTimeEntries: billedTimeEntries || [],
     };
     set({ cache: { ...get().cache, [id]: projectCache } });
     return projectCache;
@@ -490,7 +495,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const sb = client();
     await Promise.all([sSet(sb, 'projects', projects), sSet(sb, 'time-entries', timeEntries), activeTimer ? sSet(sb, 'active-timer', activeTimer) : sDelete(sb, 'active-timer')]);
     await Promise.all(
-      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:', 'notes:', 'note-folders:'].map((prefix) =>
+      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:', 'notes:', 'note-folders:', 'billed-time-entries:'].map((prefix) =>
         sDelete(sb, prefix + id),
       ),
     );
@@ -722,6 +727,23 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const cache = { ...get().cache, [projectId]: { ...data, updates } };
     set({ cache });
     await sSet(client(), 'updates:' + projectId, updates);
+  },
+
+  saveBilledTimeEntry: async (projectId, entry) => {
+    const data = await get().ensureProjectData(projectId);
+    const idx = data.billedTimeEntries.findIndex((x) => x.id === entry.id);
+    const billedTimeEntries = idx >= 0 ? data.billedTimeEntries.map((x, i) => (i === idx ? entry : x)) : [...data.billedTimeEntries, entry];
+    const cache = { ...get().cache, [projectId]: { ...data, billedTimeEntries } };
+    set({ cache });
+    await sSet(client(), 'billed-time-entries:' + projectId, billedTimeEntries);
+  },
+
+  deleteBilledTimeEntry: async (projectId, id) => {
+    const data = await get().ensureProjectData(projectId);
+    const billedTimeEntries = data.billedTimeEntries.filter((x) => x.id !== id);
+    const cache = { ...get().cache, [projectId]: { ...data, billedTimeEntries } };
+    set({ cache });
+    await sSet(client(), 'billed-time-entries:' + projectId, billedTimeEntries);
   },
 
   saveDocEntry: async (projectId, defId, value) => {
