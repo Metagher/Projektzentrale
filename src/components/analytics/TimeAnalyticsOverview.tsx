@@ -396,6 +396,7 @@ export default function TimeAnalyticsOverview({
   const confirm = useModalStore((state) => state.confirm);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [minimumDuration, setMinimumDuration] = useState(5);
+  const [projectTableFullRange, setProjectTableFullRange] = useState(false);
   const daily = useMemo(() => {
     const map = new Map<string, TimeEntry[]>();
     entries.forEach((entry) => {
@@ -598,27 +599,35 @@ export default function TimeAnalyticsOverview({
   const projectRows = projects
     .map((project) => {
       const billedRow = billedByProject.get(project.id);
-      const weekBilled = (billedRow?.days || [])
-        .filter((day) => selectedWeekDaySet.has(day.date))
-        .reduce(
-          (acc, day) => ({
-            taskMinutes: acc.taskMinutes + day.taskMinutes,
-            communicationMinutes:
-              acc.communicationMinutes + day.communicationMinutes,
-            freeMinutes: acc.freeMinutes + (day.freeMinutes || 0),
-          }),
-          { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 },
-        );
+      const billed = projectTableFullRange
+        ? {
+            taskMinutes: billedRow?.taskMinutes || 0,
+            communicationMinutes: billedRow?.communicationMinutes || 0,
+            freeMinutes: billedRow?.freeMinutes || 0,
+          }
+        : (billedRow?.days || [])
+            .filter((day) => selectedWeekDaySet.has(day.date))
+            .reduce(
+              (acc, day) => ({
+                taskMinutes: acc.taskMinutes + day.taskMinutes,
+                communicationMinutes:
+                  acc.communicationMinutes + day.communicationMinutes,
+                freeMinutes: acc.freeMinutes + (day.freeMinutes || 0),
+              }),
+              { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 },
+            );
       return {
         project,
         minutes: entries
           .filter(
             (entry) =>
               entry.projectId === project.id &&
-              selectedWeekDaySet.has(localDateKey(new Date(entry.startedAt))),
+              (projectTableFullRange ||
+                selectedWeekDaySet.has(localDateKey(new Date(entry.startedAt)))),
           )
           .reduce((sum, entry) => sum + entry.durationMinutes, 0),
-        billed: weekBilled,
+        billed,
+        billedTotal: billed.taskMinutes + billed.communicationMinutes + billed.freeMinutes,
       };
     })
     .filter(
@@ -636,8 +645,9 @@ export default function TimeAnalyticsOverview({
       communicationMinutes:
         acc.communicationMinutes + row.billed.communicationMinutes,
       freeMinutes: acc.freeMinutes + row.billed.freeMinutes,
+      billedTotal: acc.billedTotal + row.billedTotal,
     }),
-    { minutes: 0, taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 },
+    { minutes: 0, taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0, billedTotal: 0 },
   );
 
   function exportSelectedWeek() {
@@ -929,9 +939,26 @@ export default function TimeAnalyticsOverview({
         <div className="time-project-table-section">
           <div className="analytics-block-head">
             <div>
-              <h3>Projekte in {selectedWeekKey}</h3>
-              <p>Zeitraum folgt der oben gewählten Kalenderwoche.</p>
+              <h3>
+                {projectTableFullRange
+                  ? "Projekte im Gesamtzeitraum"
+                  : `Projekte in ${selectedWeekKey}`}
+              </h3>
+              <p>
+                {projectTableFullRange
+                  ? "Zeitraumfilter ist deaktiviert, es werden alle erfassten Daten angezeigt."
+                  : "Zeitraum folgt der oben gewählten Kalenderwoche."}
+              </p>
             </div>
+            <button
+              type="button"
+              className="btn secondary small"
+              onClick={() => setProjectTableFullRange((value) => !value)}
+            >
+              {projectTableFullRange
+                ? "Auf Kalenderwoche einschränken"
+                : "Gesamtzeitraum anzeigen"}
+            </button>
           </div>
           <div className="analytics-table-wrap time-project-table">
           <table className="an-table">
@@ -943,10 +970,11 @@ export default function TimeAnalyticsOverview({
                 <th>Abgerechnet · Aufgaben</th>
                 <th>Abgerechnet · Kommunikation</th>
                 <th>Abgerechnet · Frei</th>
+                <th>Abgerechnet · Gesamt</th>
               </tr>
             </thead>
             <tbody>
-              {projectRows.map(({ project, minutes, billed }) => (
+              {projectRows.map(({ project, minutes, billed, billedTotal: rowBilledTotal }) => (
                 <tr key={project.id}>
                   <td>
                     <i
@@ -960,6 +988,7 @@ export default function TimeAnalyticsOverview({
                   <td>{formatDuration(billed.taskMinutes)}</td>
                   <td>{formatDuration(billed.communicationMinutes)}</td>
                   <td>{formatDuration(billed.freeMinutes)}</td>
+                  <td>{formatDuration(rowBilledTotal)}</td>
                 </tr>
               ))}
             </tbody>
@@ -971,6 +1000,7 @@ export default function TimeAnalyticsOverview({
                 <th>{formatDuration(projectRowsTotal.taskMinutes)}</th>
                 <th>{formatDuration(projectRowsTotal.communicationMinutes)}</th>
                 <th>{formatDuration(projectRowsTotal.freeMinutes)}</th>
+                <th>{formatDuration(projectRowsTotal.billedTotal)}</th>
               </tr>
             </tfoot>
           </table>
