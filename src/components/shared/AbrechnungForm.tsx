@@ -28,6 +28,7 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
   const arten = useDataStore((s) => s.abrechnungsArten);
   const faktoren = useDataStore((s) => s.abrechnungsFaktoren);
   const stundensaetze = useDataStore((s) => s.stundensaetze);
+  const linkedDefaultArt = useDataStore((s) => s.abrechnungLinkedDefaultArt);
   const cache = useDataStore((s) => s.cache);
   const confirm = useModalStore((s) => s.confirm);
 
@@ -36,7 +37,7 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
   const [commId] = useState(entry?.commId ?? fixedCommId);
   const [kunde, setKunde] = useState(entry?.kunde ?? fixedKunde ?? '');
   const [datum, setDatum] = useState(entry?.datum || todayStr());
-  const [art, setArt] = useState(entry?.art || arten[0] || '');
+  const [art, setArt] = useState(entry?.art || ((fixedTaskId || fixedCommId) && arten.includes(linkedDefaultArt) ? linkedDefaultArt : arten[0]) || '');
   const [hours, setHours] = useState(entry ? minutesToHoursInput(entry.minutes) : '');
   const [wert, setWert] = useState(entry ? centsToEuroInput(entry.wertCents) : '');
   const [provision, setProvision] = useState(entry ? centsToEuroInput(entry.provisionCents) : '');

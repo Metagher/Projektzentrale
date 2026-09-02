@@ -6,6 +6,8 @@ export default function AbrechnungsArtenSettings() {
   const faktoren = useDataStore((state) => state.abrechnungsFaktoren);
   const saveArten = useDataStore((state) => state.saveAbrechnungsArten);
   const saveFaktoren = useDataStore((state) => state.saveAbrechnungsFaktoren);
+  const linkedDefaultArt = useDataStore((state) => state.abrechnungLinkedDefaultArt);
+  const saveLinkedDefaultArt = useDataStore((state) => state.saveAbrechnungLinkedDefaultArt);
   const [newArt, setNewArt] = useState('');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -52,6 +54,13 @@ export default function AbrechnungsArtenSettings() {
     <div className="waiting-option-add">
       <input value={newArt} placeholder="z. B. Schulung" onChange={(event) => setNewArt(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') addArt(); }} />
       <button className="btn" onClick={addArt}>Hinzufügen</button>
+    </div>
+    <div className="field" style={{ marginTop: 16, maxWidth: 280 }}>
+      <label>Vorbelegte Art bei Erfassung aus Aufgabe/Kommunikation</label>
+      <select value={arten.includes(linkedDefaultArt) ? linkedDefaultArt : ''} onChange={(event) => saveLinkedDefaultArt(event.target.value)}>
+        {!arten.includes(linkedDefaultArt) && <option value="" disabled>— auswählen —</option>}
+        {arten.map((art) => <option key={art} value={art}>{art}</option>)}
+      </select>
     </div>
   </section>;
 }

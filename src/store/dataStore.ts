@@ -106,6 +106,8 @@ interface DataStoreState {
   abrechnungsFaktoren: Record<string, number>;
   /** Vordefinierte Stundensätze in Cent für die Schnellberechnung von Wert = Stundensatz × Stunden. */
   stundensaetze: number[];
+  /** Vorbelegte Abrechnungsart, wenn eine Abrechnung aus einer Aufgabe oder einem Kommunikationseintrag heraus erfasst wird. */
+  abrechnungLinkedDefaultArt: string;
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -163,6 +165,7 @@ interface DataStoreState {
   saveAbrechnungsArten: (arten: string[]) => Promise<void>;
   saveAbrechnungsFaktoren: (faktoren: Record<string, number>) => Promise<void>;
   saveStundensaetze: (values: number[]) => Promise<void>;
+  saveAbrechnungLinkedDefaultArt: (art: string) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -237,6 +240,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   abrechnungsArten: DEFAULT_ABRECHNUNGS_ARTEN,
   abrechnungsFaktoren: {},
   stundensaetze: [],
+  abrechnungLinkedDefaultArt: 'BO',
 
   loadAll: async () => {
     const sb = client();
@@ -245,7 +249,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze, storedAbrechnungLinkedDefaultArt] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
@@ -261,6 +265,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<string[]>(sb, 'abrechnungs-arten'),
       sGet<Record<string, number>>(sb, 'abrechnungs-faktoren'),
       sGet<number[]>(sb, 'stundensaetze'),
+      sGet<string>(sb, 'abrechnung-linked-default-art'),
     ]);
     const nextModuleIndex = new Map<string, number>();
     const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
@@ -283,6 +288,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       abrechnungsArten: storedAbrechnungsArten?.length ? storedAbrechnungsArten : DEFAULT_ABRECHNUNGS_ARTEN,
       abrechnungsFaktoren: storedAbrechnungsFaktoren || {},
       stundensaetze: storedStundensaetze || [],
+      abrechnungLinkedDefaultArt: storedAbrechnungLinkedDefaultArt || 'BO',
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -826,6 +832,11 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const next = Array.from(new Set(values.filter((value) => value > 0))).sort((a, b) => a - b);
     set({ stundensaetze: next });
     await sSet(client(), 'stundensaetze', next);
+  },
+
+  saveAbrechnungLinkedDefaultArt: async (art) => {
+    set({ abrechnungLinkedDefaultArt: art });
+    await sSet(client(), 'abrechnung-linked-default-art', art);
   },
 
   saveDocEntry: async (projectId, defId, value) => {
