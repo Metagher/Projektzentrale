@@ -58,7 +58,10 @@
 .cal-task.prio-must{border-left-color:var(--rust);}
 .cal-task.prio-could{border-left-color:var(--sage);}
 .cal-task.prio-wont{border-left-color:var(--ink-soft);}
-.cal-more{font-size:10px;color:var(--ink-soft);padding:1px 5px;flex-shrink:0;}
+.cal-more{display:block;width:100%;font:inherit;font-size:10px;color:var(--ink-soft);background:none;border:none;padding:1px 5px;flex-shrink:0;text-align:left;cursor:pointer;}
+.cal-more:hover{color:var(--ink);text-decoration:underline;}
+.cal-cell.expanded{height:auto;min-height:96px;overflow:visible;z-index:1;}
+.cal-cell.expanded .cal-tasks{overflow:visible;}
 @media (max-width:760px){
   .cal-cell{height:44px;font-size:11px;}
   .cal-tasks, .cal-more{display:none;}
