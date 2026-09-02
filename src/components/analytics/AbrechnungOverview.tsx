@@ -1,0 +1,133 @@
+import { useMemo, useState } from 'react';
+import { useDataStore } from '../../store/dataStore';
+import { formatDuration } from '../../lib/timeTracking';
+import { formatEuro } from '../../lib/money';
+import { fmtDate } from '../../lib/format';
+import AbrechnungForm from '../shared/AbrechnungForm';
+import type { Abrechnung } from '../../types/entities';
+
+const FREIGABE_OPTIONS = [
+  { id: 'alle', label: 'Alle' },
+  { id: 'offen', label: 'Nur offene' },
+  { id: 'freigegeben', label: 'Nur freigegebene' },
+] as const;
+
+export default function AbrechnungOverview() {
+  const abrechnungen = useDataStore((s) => s.abrechnungen);
+  const projects = useDataStore((s) => s.projects) || [];
+  const arten = useDataStore((s) => s.abrechnungsArten);
+  const saveAbrechnung = useDataStore((s) => s.saveAbrechnung);
+  const deleteAbrechnung = useDataStore((s) => s.deleteAbrechnung);
+  const [editing, setEditing] = useState<Abrechnung | null | 'new'>(null);
+  const [jahr, setJahr] = useState('');
+  const [monat, setMonat] = useState('');
+  const [kunde, setKunde] = useState('');
+  const [art, setArt] = useState('');
+  const [freigabe, setFreigabe] = useState<(typeof FREIGABE_OPTIONS)[number]['id']>('alle');
+
+  const projectName = new Map(projects.map((project) => [project.id, project.name]));
+  const kunden = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')), [abrechnungen]);
+  const jahre = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.datum.slice(0, 4)))).sort((a, b) => b.localeCompare(a)), [abrechnungen]);
+
+  const filtered = abrechnungen
+    .filter((item) => !jahr || item.datum.slice(0, 4) === jahr)
+    .filter((item) => !monat || item.datum.slice(5, 7) === monat)
+    .filter((item) => !kunde || item.kunde === kunde)
+    .filter((item) => !art || item.art === art)
+    .filter((item) => freigabe === 'alle' || (freigabe === 'freigegeben') === item.freigegeben)
+    .sort((a, b) => b.datum.localeCompare(a.datum));
+
+  const totals = filtered.reduce((acc, item) => ({
+    minutes: acc.minutes + item.minutes,
+    wertCents: acc.wertCents + item.wertCents,
+    provisionCents: acc.provisionCents + item.provisionCents,
+  }), { minutes: 0, wertCents: 0, provisionCents: 0 });
+
+  const gehaltsMonate = useMemo(() => {
+    const map = new Map<string, { minutes: number; provisionCents: number }>();
+    abrechnungen.forEach((item) => {
+      if (!item.gehaltsMonat) return;
+      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0 };
+      current.minutes += item.minutes;
+      current.provisionCents += item.provisionCents;
+      map.set(item.gehaltsMonat, current);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [abrechnungen]);
+
+  return (
+    <section className="abrechnung-overview">
+      <div className="analytics-section-intro">
+        <div className="analytics-scope-label">Provisions- und Rechnungscontrolling</div>
+        <h3>Abrechnung</h3>
+        <p>Leistung, Freigabe zur Rechnungsstellung, Rechnungsdatum und Provision – projekt- oder kundenbezogen, unabhängig von Excel.</p>
+      </div>
+      <div className="abrechnung-filters">
+        <select value={jahr} onChange={(event) => setJahr(event.target.value)}>
+          <option value="">Alle Jahre</option>
+          {jahre.map((year) => <option key={year} value={year}>{year}</option>)}
+        </select>
+        <select value={monat} onChange={(event) => setMonat(event.target.value)}>
+          <option value="">Alle Monate</option>
+          {Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0')).map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+        <select value={kunde} onChange={(event) => setKunde(event.target.value)}>
+          <option value="">Alle Kunden</option>
+          {kunden.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+        <select value={art} onChange={(event) => setArt(event.target.value)}>
+          <option value="">Alle Arten</option>
+          {arten.map((item) => <option key={item} value={item}>{item}</option>)}
+        </select>
+        <div className="abrechnung-freigabe-filter">
+          {FREIGABE_OPTIONS.map((option) => <button key={option.id} type="button" className={`btn secondary small${freigabe === option.id ? ' active' : ''}`} onClick={() => setFreigabe(option.id)}>{option.label}</button>)}
+        </div>
+        <button type="button" className="btn small" style={{ marginLeft: 'auto' }} onClick={() => setEditing('new')}>+ Abrechnung erfassen</button>
+      </div>
+      <div className="time-summary-grid">
+        <article><span>Stunden</span><strong>{formatDuration(totals.minutes)}</strong></article>
+        <article><span>Wert</span><strong>{formatEuro(totals.wertCents)}</strong></article>
+        <article><span>Provision</span><strong>{formatEuro(totals.provisionCents)}</strong></article>
+        <article><span>Einträge</span><strong>{filtered.length}</strong></article>
+      </div>
+      {filtered.length > 0 ? (
+        <div className="analytics-table-wrap">
+          <table className="an-table">
+            <thead><tr><th>Datum</th><th>Kunde / Projekt</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Freigabe</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
+            <tbody>
+              {filtered.map((item) => <tr key={item.id} className="clickable-row" onClick={() => setEditing(item)}>
+                <td>{fmtDate(item.datum)}</td>
+                <td>{item.kunde}{item.projectId && projectName.get(item.projectId) ? ` · ${projectName.get(item.projectId)}` : ''}</td>
+                <td>{item.art}</td>
+                <td>{formatDuration(item.minutes)}</td>
+                <td>{formatEuro(item.wertCents)}</td>
+                <td>{formatEuro(item.provisionCents)}</td>
+                <td>{item.freigegeben ? <span className="badge freigegeben">freigegeben</span> : <span className="badge offen">offen</span>}</td>
+                <td>{item.rechnungsdatum ? fmtDate(item.rechnungsdatum) : '–'}</td>
+                <td>{item.gehaltsMonat || '–'}</td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty-state"><h3>Keine Abrechnungen für diese Filter</h3><div>Passe die Filter an oder erfasse einen neuen Eintrag.</div></div>
+      )}
+      {gehaltsMonate.length > 0 && (
+        <div className="analytics-table-wrap" style={{ marginTop: 20 }}>
+          <table className="an-table">
+            <thead><tr><th>Gehaltsmonat</th><th>Stunden</th><th>Provision</th></tr></thead>
+            <tbody>
+              {gehaltsMonate.map(([month, sums]) => <tr key={month}><td>{month}</td><td>{formatDuration(sums.minutes)}</td><td>{formatEuro(sums.provisionCents)}</td></tr>)}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {editing && <AbrechnungForm
+        entry={editing === 'new' ? undefined : editing}
+        onSave={async (entry) => { await saveAbrechnung(entry); setEditing(null); }}
+        onDelete={editing !== 'new' ? async () => { await deleteAbrechnung((editing as Abrechnung).id); setEditing(null); } : undefined}
+        onClose={() => setEditing(null)}
+      />}
+    </section>
+  );
+}

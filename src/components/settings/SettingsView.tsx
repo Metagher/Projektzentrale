@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import AiSettingsView from '../ai/AiSettingsView';
 import DataView from '../data/DataView';
+import AbrechnungsArtenSettings from './AbrechnungsArtenSettings';
 import DataValidationSettings from './DataValidationSettings';
 import ExplorerPathSettings from './ExplorerPathSettings';
 import ModuleSettings from './ModuleSettings';
@@ -13,7 +14,7 @@ type SettingsTab = 'tasks' | 'time' | 'validation' | 'data' | 'ai';
 
 const TABS: { id: SettingsTab; icon: string; label: string; description: string }[] = [
   { id: 'tasks', icon: '◆', label: 'Aufgaben & Grunddaten', description: 'Farben, Module und „Wartet auf“' },
-  { id: 'time', icon: '◷', label: 'Projektzeit', description: 'Zeittypen festlegen' },
+  { id: 'time', icon: '◷', label: 'Projektzeit', description: 'Zeittypen und Abrechnungsarten festlegen' },
   { id: 'validation', icon: '✓', label: 'Datenvalidierung', description: 'Daten prüfen und bereinigen' },
   { id: 'data', icon: '⇄', label: 'Daten', description: 'CSV Import und Export' },
   { id: 'ai', icon: '✦', label: 'KI-Einstellungen', description: 'Zugang und Konfiguration' },
@@ -36,7 +37,7 @@ export default function SettingsView() {
     </div>
     <section id={`settings-panel-${activeTab}`} className="settings-tab-panel" role="tabpanel">
       {activeTab === 'tasks' && <><ModuleSettings /><TaskColorSettings /><WaitingOptionsSettings /><ExplorerPathSettings /></>}
-      {activeTab === 'time' && <ProjectTimeTypeSettings />}
+      {activeTab === 'time' && <><ProjectTimeTypeSettings /><AbrechnungsArtenSettings /></>}
       {activeTab === 'validation' && <DataValidationSettings />}
       {activeTab === 'data' && <DataView embedded />}
       {activeTab === 'ai' && <AiSettingsView embedded />}

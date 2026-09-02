@@ -15,10 +15,8 @@ import TaskWaitingFields from '../shared/TaskWaitingFields';
 import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSelect';
 import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import TaskAppointmentsField from '../shared/TaskAppointmentsField';
-import TaskBilledTimeField from '../shared/TaskBilledTimeField';
 import { taskDocumentationTarget } from '../../lib/taskDocumentation';
-import { summarizeBilledZeiten } from '../../lib/taskBilling';
-import type { Contact, ProjectCache, Task, TaskBilledTimeEntry, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
+import type { Contact, ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
 import TaskTimePanel from './TaskTimePanel';
 
 interface Props {
@@ -64,7 +62,6 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState(task.ticketsystemVerknuepfung || '');
   const [teilprojekt, setTeilprojekt] = useState(task.teilprojekt || '');
   const [projectIds, setProjectIds] = useState<string[]>(task.projectIds?.length ? task.projectIds : [projectId]);
-  const [billedZeiten, setBilledZeiten] = useState<TaskBilledTimeEntry[]>(task.billedZeiten || []);
   const teilprojekte = Array.from(new Set(data.tasks.map((item) => item.teilprojekt?.trim()).filter((value): value is string => !!value)))
     .sort((a, b) => a.localeCompare(b, 'de'));
   const assignedModuleIds = new Set(customerModules.filter((item) => item.kunde === project?.kunde).map((item) => item.moduleId));
@@ -151,8 +148,6 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       dokuErledigt: dokuZielChanged ? false : task.dokuErledigt,
       naechsteBesprechung,
       projectIds,
-      billedZeiten,
-      ...summarizeBilledZeiten(billedZeiten),
     });
     await syncCommLinksForTask(projectId, task.id, prevCommIds, commIds);
     setEditingTaskId(null);
@@ -196,7 +191,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
         <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-edit-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-edit-${projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
         <TaskDocumentationTargetSelect value={dokuZiel} onChange={(value) => { if (value !== dokuZiel) setDokuZielChanged(true); setDokuZiel(value); }} />
         <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
-      </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div><div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div><TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} /><TaskBilledTimeField value={billedZeiten} onChange={setBilledZeiten} /></div> : <TaskTimePanel projectId={projectId} taskId={task.id} />}
+      </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div><div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div><TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} /></div> : <TaskTimePanel projectId={projectId} taskId={task.id} />}
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn small" onClick={handleSave}>
           Speichern

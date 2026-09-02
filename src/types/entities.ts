@@ -90,14 +90,46 @@ export interface TimeEntry {
   createdAt: string;
 }
 
-/** Frei erfasste, bereits abgerechnete Zeit ohne Bezug zu einer Aufgabe oder einem Kommunikationseintrag. */
-export interface BilledTimeEntry {
+/**
+ * Ein einzelner Abrechnungs-/Provisionsvorgang: von der Leistung über die Freigabe zur
+ * Rechnungsstellung bis zur Provisionsauszahlung im Gehalt. Optional an ein Projekt
+ * verknüpft; ohne Verknüpfung (z. B. Überstunden, Provision von Kollegen) steht `kunde`
+ * als Freitext-Bezeichnung.
+ */
+export interface Abrechnung {
   id: string;
-  projectId: string;
-  datum: string; // YYYY-MM-DD
+  /** Optionale Verknüpfung zu einem Projekt. */
+  projectId?: string;
+  /** Kundenbezeichnung; bei Projektverknüpfung normalerweise project.kunde, sonst frei (z. B. "Überstunden"). */
+  kunde: string;
+  /** Leistungsdatum (Tag der erbrachten Leistung), YYYY-MM-DD. */
+  datum: string;
+  /** Abrechnungsart aus der global konfigurierbaren Liste (z. B. VO, MODUL, BO, ÜST, MM, DL). */
+  art: string;
+  /** Abgerechnete Zeit in Minuten. */
   minutes: number;
+  /** Rechnungswert in Cent. */
+  wertCents: number;
+  /** Provision in Cent, die an den Nutzer geht. */
+  provisionCents: number;
+  /** Zur Rechnungsstellung freigegeben. */
+  freigegeben: boolean;
+  /** Rechnungsdatum, YYYY-MM-DD; wird i. d. R. bei Freigabe gesetzt. */
+  rechnungsdatum?: string;
+  /** Monat, in dem die Provision im Gehalt ausgezahlt wird, YYYY-MM. Kann vom Monat des Rechnungsdatums abweichen. */
+  gehaltsMonat?: string;
+  /** Interne Beleg-/Rechnungsnummer zum Abgleich mit der Gehaltsabrechnung. */
+  belegNr?: string;
+  bemerkung?: string;
   teilprojekt?: string;
-  hinweis: string;
+  /** Nur bei art=VO: Anzahl Tage vor Ort. */
+  tageVorOrt?: number;
+  /** Nur bei art=VO: Reisekosten in Cent. */
+  reisekostenCents?: number;
+  /** Nur bei art=VO: Fahrzeit in Minuten. */
+  fahrzeitMinutes?: number;
+  /** Nur bei art=MODUL: verkauftes Modul (Freitext). */
+  modul?: string;
   createdAt: string;
 }
 
@@ -132,8 +164,6 @@ export interface Comm {
   afns: string[];
   taskIds: string[];
   teilprojekt?: string;
-  /** Separately recorded time that has already been billed, in minutes. */
-  billedMinutes?: number;
 }
 
 export type DocLevel = 1 | 2 | 3;
@@ -183,13 +213,6 @@ export interface TaskProgressEntry {
   updatedAt: string;
 }
 
-/** Einzelne abgerechnete Zeitbuchung an einer Aufgabe; eine Aufgabe kann mehrere Buchungen an unterschiedlichen Tagen haben. */
-export interface TaskBilledTimeEntry {
-  id: string;
-  minutes: number;
-  datum: string; // YYYY-MM-DD
-}
-
 export interface Task {
   id: string;
   nr: number;
@@ -232,12 +255,6 @@ export interface Task {
   naechsteBesprechung?: boolean;
   /** All projects in which this shared task is displayed and editable. */
   projectIds?: string[];
-  /** Einzelne abgerechnete Zeitbuchungen, jede mit eigenem Datum. Ersetzt billedMinutes/billedDate als Quelle der Wahrheit. */
-  billedZeiten?: TaskBilledTimeEntry[];
-  /** @deprecated Summe über billedZeiten; wird beim Speichern automatisch nachgeführt und nur noch für CSV-Export/-Import verwendet. */
-  billedMinutes?: number;
-  /** @deprecated Jüngstes Datum aus billedZeiten; siehe billedMinutes. */
-  billedDate?: string;
 }
 
 export type TaskDocumentationTarget = '' | 'project' | 'global';
@@ -315,5 +332,4 @@ export interface ProjectCache {
   moduleConfigs: ProjectModuleConfig[];
   notes: ProjectNote[];
   noteFolders: ProjectNoteFolder[];
-  billedTimeEntries: BilledTimeEntry[];
 }

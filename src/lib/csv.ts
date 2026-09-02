@@ -73,7 +73,7 @@ export async function buildExportCsv(): Promise<string> {
       rows.push({
         Typ: 'kommunikation', ProjektId: p.id, Id: c.id, Datum: c.datum || '', Kanal: c.kanal || '',
         KontaktId: c.kontaktId || '', KontaktIds: linkedContactIds(c).join(';'), Betreff: c.betreff || '', Notiz: c.notiz || '',
-        AFN: (c.afns || []).join(';'), VerknuepfteAufgabenIds: (c.taskIds || []).join(';'), Teilprojekt: c.teilprojekt || '', AbgerechneteMinuten: c.billedMinutes || '',
+        AFN: (c.afns || []).join(';'), VerknuepfteAufgabenIds: (c.taskIds || []).join(';'), Teilprojekt: c.teilprojekt || '',
       });
     });
     (docDefs || []).forEach((def) => {
@@ -97,7 +97,7 @@ export async function buildExportCsv(): Promise<string> {
         AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '', WartetSeit: t.wartetSeit || '',
         Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), VerknuepfteModulIds: (t.moduleIds || []).join(';'), Teilprojekt: t.teilprojekt || '', NaechsteBesprechung: t.naechsteBesprechung ? 'ja' : 'nein',
         DokuZiel: t.dokuZiel || (t.doku ? 'project' : ''), DokuErledigt: t.dokuErledigt ? 'ja' : 'nein',
-        VerknuepfteProjektIds: (t.projectIds || [p.id]).join(';'), AbgerechneteMinuten: t.billedMinutes || '', Abrechnungsdatum: t.billedDate || '',
+        VerknuepfteProjektIds: (t.projectIds || [p.id]).join(';'),
       });
     });
     data.noteFolders.forEach((folder) => rows.push({ Typ: 'notizordner', ProjektId: p.id, Id: folder.id, Titel: folder.name, OrdnerId: folder.parentId || '', Reihenfolge: folder.sortIndex, ErstelltAm: folder.createdAt }));
@@ -195,7 +195,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
       perProject[pid].comms.push({
         id: String(r.Id), datum: String(r.Datum || ''), kanal: (r.Kanal as Comm['kanal']) || 'Sonstiges',
         kontaktId: String(r.KontaktId || ''), kontaktIds: splitList(r.KontaktIds as string).length ? splitList(r.KontaktIds as string) : (r.KontaktId ? [String(r.KontaktId)] : []), betreff: String(r.Betreff || ''), notiz: String(r.Notiz || ''),
-        afns: splitList(r.AFN as string), taskIds: splitList(r.VerknuepfteAufgabenIds as string), teilprojekt: String(r.Teilprojekt || ''), billedMinutes: Math.max(0, Number(r.AbgerechneteMinuten) || 0),
+        afns: splitList(r.AFN as string), taskIds: splitList(r.VerknuepfteAufgabenIds as string), teilprojekt: String(r.Teilprojekt || ''),
       });
     });
 
@@ -250,8 +250,6 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         dokuErledigt: String(r.DokuErledigt || '').toLowerCase() === 'ja',
         naechsteBesprechung: String(r.NaechsteBesprechung || '').toLowerCase() === 'ja',
         projectIds: splitList(r.VerknuepfteProjektIds as string).length ? splitList(r.VerknuepfteProjektIds as string) : [pid],
-        billedMinutes: Math.max(0, Number(r.AbgerechneteMinuten) || 0),
-        billedDate: String(r.Abrechnungsdatum || ''),
       });
     });
 
