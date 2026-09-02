@@ -8,6 +8,7 @@ import { migratePrio, migrateTaskContent } from '../lib/migrations';
 import { hasEchtlauf, todayStr, uid } from '../lib/format';
 import { customerKey, effectiveCustomerOrder, groupProjectsByCustomer } from '../lib/projectGroups';
 import { linkedContactIds, normalizeContactLinks } from '../lib/contacts';
+import { DEFAULT_EXPLORER_BASE_PATH, normalizeExplorerBasePath } from '../lib/explorerPaths';
 import type {
   BilledTimeEntry,
   Comm,
@@ -94,10 +95,13 @@ interface DataStoreState {
   customerModules: CustomerModule[];
   timeEntries: TimeEntry[];
   activeTimer: ActiveTimer | null;
+  /** Globaler Basisordner, unter dem pro Aufgaben-ID ein Unterordner mit Projektdateien liegt. */
+  explorerBasePath: string;
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
   loadDashboardData: () => Promise<void>;
+  saveExplorerBasePath: (path: string) => Promise<void>;
   createProject: (input: { name: string; kunde: string; typ: ProjectTyp }) => Promise<string>;
   updateProject: (id: string, patch: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
@@ -215,6 +219,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   customerModules: [],
   timeEntries: [],
   activeTimer: null,
+  explorerBasePath: DEFAULT_EXPLORER_BASE_PATH,
 
   loadAll: async () => {
     const sb = client();
@@ -223,7 +228,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
@@ -234,6 +239,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<CustomerModule[]>(sb, 'customer-modules'),
       sGet<TimeEntry[]>(sb, 'time-entries'),
       sGet<ActiveTimer>(sb, 'active-timer'),
+      sGet<string>(sb, 'explorer-base-path'),
     ]);
     const nextModuleIndex = new Map<string, number>();
     const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
@@ -251,6 +257,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       customerModules: customerModules || [],
       timeEntries: timeEntries || [],
       activeTimer: activeTimer || null,
+      explorerBasePath: storedExplorerBasePath || DEFAULT_EXPLORER_BASE_PATH,
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -295,6 +302,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const normalized = Array.from(new Set(options.map((option) => option.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de'));
     set({ waitingOptions: normalized });
     await sSet(client(), 'waiting-options', normalized);
+  },
+
+  saveExplorerBasePath: async (path) => {
+    const normalized = normalizeExplorerBasePath(path) || DEFAULT_EXPLORER_BASE_PATH;
+    set({ explorerBasePath: normalized });
+    await sSet(client(), 'explorer-base-path', normalized);
   },
 
   saveProjectTimeTypes: async (types) => {
@@ -457,7 +470,6 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       aktuelleVersion: '',
       sortIndex: maxSortIndex + 1,
       quickbarHidden: false,
-      explorerPath: '',
     };
     const next = [...projects, newP];
     set({ projects: next });

@@ -91,8 +91,8 @@
 .task-external-link a:hover,.task-external-link-inline:hover{color:#000;background:#fff;}
 .task-external-link-inline{margin-left:6px;padding:1px 5px;font-size:10px;vertical-align:middle;}
 .task-explorer-paths{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;}
-.task-explorer-paths button{padding:3px 7px;color:#fff;background:#111;border:1px solid #111;border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;}
-.task-explorer-paths button:hover{color:#111;background:#fff;}
+.task-explorer-paths button,.task-explorer-paths a{display:inline-block;padding:3px 7px;color:#fff;background:#111;border:1px solid #111;border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;text-decoration:none;}
+.task-explorer-paths button:hover,.task-explorer-paths a:hover{color:#111;background:#fff;}
 .task-explorer-paths small{color:var(--ink-soft);font-size:8.5px;}
 .task-subproject-filters{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0 0 12px;padding:8px 10px;background:#fff;border:1px solid var(--line-soft);border-radius:8px;}
 .task-subproject-filters>span{margin-right:2px;color:var(--ink-soft);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}

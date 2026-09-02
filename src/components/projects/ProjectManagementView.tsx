@@ -25,7 +25,6 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
   const [typ, setTyp] = useState<ProjectTyp>(project.typ);
   const [status, setStatus] = useState<ProjectStatus>(project.status);
   const [beschreibung, setBeschreibung] = useState(project.beschreibung || '');
-  const [explorerPath, setExplorerPath] = useState(project.explorerPath || '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -34,7 +33,7 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
 
   async function save() {
     setSaving(true);
-    await updateProject(project.id, { name: name.trim() || project.name, kunde: kunde.trim(), typ, status, beschreibung, explorerPath: explorerPath.trim() });
+    await updateProject(project.id, { name: name.trim() || project.name, kunde: kunde.trim(), typ, status, beschreibung });
     setSaving(false);
     onClose();
   }
@@ -71,11 +70,6 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
             <option value="aktiv">Aktiv</option><option value="pausiert">Pausiert</option><option value="abgeschlossen">Abgeschlossen</option>
           </select>
         </div>
-      </div>
-      <div className="field">
-        <label>Explorer-Basisverzeichnis</label>
-        <input value={explorerPath} onChange={(event) => setExplorerPath(event.target.value)} placeholder="z. B. C:\\Projekte\\Kunde\\Projekt oder \\\\Server\\Freigabe\\Projekt" />
-        <small className="field-help">Erwarteter Aufgabenordner: ID &lt;Nummer&gt; - &lt;Aufgabentitel&gt;. Der Browser kann den Pfad kopieren, aber nicht auf Existenz prüfen.</small>
       </div>
       <div className="field">
         <label>Kurzbeschreibung</label>

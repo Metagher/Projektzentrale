@@ -13,7 +13,7 @@ import { useModalStore } from '../../store/modalStore';
 import TimeTrackingButton from '../shared/TimeTrackingButton';
 import { formatDuration } from '../../lib/timeTracking';
 import TaskColorBadge from '../shared/TaskColorBadge';
-import { copyPathToClipboard, normalizeExplorerBasePath, taskExplorerPath } from '../../lib/explorerPaths';
+import { copyPathToClipboard, normalizeExplorerBasePath, taskExplorerPath, toFileUrl } from '../../lib/explorerPaths';
 import { taskDocumentationLabel } from '../../lib/taskDocumentation';
 
 interface Props {
@@ -40,8 +40,10 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
   const externalHref = toExternalHref(task.fremdverknuepfung);
   const ticketHref = toExternalHref(task.ticketsystemVerknuepfung);
   const trackedMinutes = useDataStore((state) => state.timeEntries).filter((entry) => entry.projectId === project.id && entry.taskId === task.id).reduce((sum, entry) => sum + entry.durationMinutes, 0);
-  const explorerBasePath = normalizeExplorerBasePath(project.explorerPath || '');
+  const explorerBasePath = normalizeExplorerBasePath(useDataStore((state) => state.explorerBasePath));
   const explorerTaskPath = taskExplorerPath(explorerBasePath, task);
+  const explorerTaskUrl = toFileUrl(explorerTaskPath);
+  const explorerBaseUrl = toFileUrl(explorerBasePath);
 
   async function copyExplorerPath(kind: 'task' | 'project') {
     const copied = await copyPathToClipboard(kind === 'task' ? explorerTaskPath : explorerBasePath);
@@ -91,7 +93,10 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
           {ticketHref && <a href={ticketHref} target="_blank" rel="noreferrer">↗ Ticket</a>}
         </div>}
         <div className="task-card-relations" data-no-open><LinkChipsView ids={task.commIds} items={data.comms} labelFn={commLinkLabel} onJump={jumpToComm} /></div>
-        {explorerBasePath && <div className="task-explorer-paths" data-no-open><button type="button" title={explorerTaskPath} onClick={() => copyExplorerPath('task')}>{copiedPath === 'task' ? 'Pfad kopiert' : 'Aufgabenordner'}</button><button type="button" title={explorerBasePath} onClick={() => copyExplorerPath('project')}>{copiedPath === 'project' ? 'Pfad kopiert' : 'Oberordner'}</button></div>}
+        {explorerBasePath && <div className="task-explorer-paths" data-no-open>
+          {explorerTaskUrl && <a href={explorerTaskUrl} target="_blank" rel="noreferrer" title={explorerTaskPath} onClick={() => copyExplorerPath('task')}>{copiedPath === 'task' ? 'Pfad kopiert' : 'Aufgabenordner öffnen'}</a>}
+          {explorerBaseUrl && <a href={explorerBaseUrl} target="_blank" rel="noreferrer" title={explorerBasePath} onClick={() => copyExplorerPath('project')}>{copiedPath === 'project' ? 'Pfad kopiert' : 'Basisordner öffnen'}</a>}
+        </div>}
 
         <footer className="task-card-actions" data-no-open>
           <button type="button" className={`meeting-task-toggle${task.naechsteBesprechung ? ' active' : ''}`} aria-pressed={!!task.naechsteBesprechung} title={task.naechsteBesprechung ? 'Vormerkung für die nächste Besprechung entfernen' : 'Für die nächste Besprechung vormerken'} onClick={() => void saveTask(project.id, { ...task, naechsteBesprechung: !task.naechsteBesprechung })}>Besprechung</button>

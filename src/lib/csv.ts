@@ -65,7 +65,6 @@ export async function buildExportCsv(): Promise<string> {
       AktuelleVersion: p.aktuelleVersion || '',
       Reihenfolge: p.sortIndex ?? 0,
       SchnellwahlAusgeblendet: p.quickbarHidden ? 'ja' : 'nein',
-      ExplorerPfad: p.explorerPath || '',
     });
     data.contacts.forEach((c) => {
       rows.push({ Typ: 'kontakt', ProjektId: p.id, Id: c.id, Titel: c.name, Rolle: c.rolle || '', Telefon: c.telefon || '', Email: c.email || '', Notiz: c.notiz || '' });
@@ -163,7 +162,6 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         aktuelleVersion: String(r.AktuelleVersion || ''),
         sortIndex: r.Reihenfolge !== undefined && r.Reihenfolge !== '' ? parseInt(String(r.Reihenfolge)) || 0 : i,
         quickbarHidden: String(r.SchnellwahlAusgeblendet || '').toLowerCase() === 'ja',
-        explorerPath: String(r.ExplorerPfad || ''),
       };
     });
 
