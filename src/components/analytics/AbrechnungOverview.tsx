@@ -50,15 +50,16 @@ export default function AbrechnungOverview() {
   }), { minutes: 0, wertCents: 0, provisionCents: 0 });
 
   const gehaltsMonate = useMemo(() => {
-    const map = new Map<string, { minutes: number; provisionCents: number; belegNrs: Set<string> }>();
+    const map = new Map<string, { minutes: number; provisionCents: number; items: { id: string; belegNr: string; provisionCents: number }[] }>();
     abrechnungen.forEach((item) => {
       if (!item.gehaltsMonat) return;
-      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, belegNrs: new Set<string>() };
+      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, items: [] };
       current.minutes += item.minutes;
       current.provisionCents += item.provisionCents;
-      if (item.belegNr) current.belegNrs.add(item.belegNr);
+      if (item.belegNr) current.items.push({ id: item.id, belegNr: item.belegNr, provisionCents: item.provisionCents });
       map.set(item.gehaltsMonat, current);
     });
+    map.forEach((sums) => sums.items.sort((a, b) => a.belegNr.localeCompare(b.belegNr, 'de', { numeric: true })));
     return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
   }, [abrechnungen]);
 
@@ -126,13 +127,17 @@ export default function AbrechnungOverview() {
       {gehaltsMonate.length > 0 && (
         <div className="analytics-table-wrap" style={{ marginTop: 20 }}>
           <table className="an-table">
-            <thead><tr><th>Gehaltsmonat</th><th>Stunden</th><th>Provision</th><th>Belegnummern</th></tr></thead>
+            <thead><tr><th>Gehaltsmonat</th><th>Stunden</th><th>Provision</th><th>Belegnummer → Provision</th></tr></thead>
             <tbody>
               {gehaltsMonate.map(([month, sums]) => <tr key={month}>
                 <td>{formatGehaltsMonat(month)}</td>
                 <td>{formatDuration(sums.minutes)}</td>
                 <td>{formatEuro(sums.provisionCents)}</td>
-                <td>{sums.belegNrs.size ? Array.from(sums.belegNrs).sort((a, b) => a.localeCompare(b, 'de', { numeric: true })).join(', ') : '–'}</td>
+                <td>{sums.items.length ? (
+                  <ul className="belegnr-list">
+                    {sums.items.map((item) => <li key={item.id}><span>{item.belegNr}</span><span>{formatEuro(item.provisionCents)}</span></li>)}
+                  </ul>
+                ) : '–'}</td>
               </tr>)}
             </tbody>
           </table>

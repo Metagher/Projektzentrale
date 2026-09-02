@@ -156,6 +156,7 @@ interface DataStoreState {
   deleteProjectNote: (projectId: string, noteId: string) => Promise<void>;
   saveProjectNoteFolders: (projectId: string, folders: ProjectNoteFolder[]) => Promise<void>;
   saveAbrechnung: (entry: Abrechnung) => Promise<void>;
+  importAbrechnungen: (entries: Abrechnung[]) => Promise<{ added: number; updated: number }>;
   deleteAbrechnung: (id: string) => Promise<void>;
   saveAbrechnungsArten: (arten: string[]) => Promise<void>;
   saveAbrechnungsFaktoren: (faktoren: Record<string, number>) => Promise<void>;
@@ -768,6 +769,21 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       : [...current, entry];
     set({ abrechnungen });
     await sSet(client(), 'abrechnungen', abrechnungen);
+  },
+
+  importAbrechnungen: async (entries) => {
+    const current = get().abrechnungen;
+    const byId = new Map(current.map((item) => [item.id, item]));
+    let added = 0;
+    let updated = 0;
+    entries.forEach((entry) => {
+      if (byId.has(entry.id)) updated++; else added++;
+      byId.set(entry.id, entry);
+    });
+    const abrechnungen = Array.from(byId.values());
+    set({ abrechnungen });
+    await sSet(client(), 'abrechnungen', abrechnungen);
+    return { added, updated };
   },
 
   deleteAbrechnung: async (id) => {
