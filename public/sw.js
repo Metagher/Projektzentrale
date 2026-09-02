@@ -1,4 +1,4 @@
-const CACHE_NAME = 'projektzentrale-v1';
+const CACHE_NAME = 'projektzentrale-v2';
 const APP_ROOT = '/Projektzentrale/';
 const APP_SHELL = [
   APP_ROOT,
@@ -40,7 +40,13 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
+      // Content-gehashte Build-Assets ändern sich unter derselben URL nie; ein 404 hier heißt,
+      // dass diese Datei aus einem inzwischen überholten Build stammt und der Client neu laden muss
+      // (siehe vite:preloadError-Handler in main.tsx) statt sie fälschlich zwischenzuspeichern.
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
+      }
       return response;
     })),
   );
