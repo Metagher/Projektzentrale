@@ -50,17 +50,29 @@ export default function AbrechnungOverview() {
   }), { minutes: 0, wertCents: 0, provisionCents: 0 });
 
   const gehaltsMonate = useMemo(() => {
-    const map = new Map<string, { minutes: number; provisionCents: number; items: { id: string; belegNr: string; provisionCents: number }[] }>();
+    const map = new Map<string, { minutes: number; provisionCents: number; belege: Map<string, { provisionCents: number; kunden: Set<string> }> }>();
     abrechnungen.forEach((item) => {
       if (!item.gehaltsMonat) return;
-      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, items: [] };
+      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, belege: new Map<string, { provisionCents: number; kunden: Set<string> }>() };
       current.minutes += item.minutes;
       current.provisionCents += item.provisionCents;
-      if (item.belegNr) current.items.push({ id: item.id, belegNr: item.belegNr, provisionCents: item.provisionCents });
+      if (item.belegNr) {
+        const beleg = current.belege.get(item.belegNr) || { provisionCents: 0, kunden: new Set<string>() };
+        beleg.provisionCents += item.provisionCents;
+        if (item.kunde) beleg.kunden.add(item.kunde);
+        current.belege.set(item.belegNr, beleg);
+      }
       map.set(item.gehaltsMonat, current);
     });
-    map.forEach((sums) => sums.items.sort((a, b) => a.belegNr.localeCompare(b.belegNr, 'de', { numeric: true })));
-    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+    return Array.from(map.entries())
+      .map(([month, sums]) => [month, {
+        minutes: sums.minutes,
+        provisionCents: sums.provisionCents,
+        items: Array.from(sums.belege.entries())
+          .map(([belegNr, beleg]) => ({ belegNr, provisionCents: beleg.provisionCents, kunden: Array.from(beleg.kunden).sort((a, b) => a.localeCompare(b, 'de')) }))
+          .sort((a, b) => a.belegNr.localeCompare(b.belegNr, 'de', { numeric: true })),
+      }] as const)
+      .sort((a, b) => b[0].localeCompare(a[0]));
   }, [abrechnungen]);
 
   return (
@@ -135,7 +147,7 @@ export default function AbrechnungOverview() {
                 <td>{formatEuro(sums.provisionCents)}</td>
                 <td>{sums.items.length ? (
                   <ul className="belegnr-list">
-                    {sums.items.map((item) => <li key={item.id}><span>{item.belegNr}</span><span>{formatEuro(item.provisionCents)}</span></li>)}
+                    {sums.items.map((item) => <li key={item.belegNr}><span>{item.belegNr}</span><span>{formatEuro(item.provisionCents)}</span><small>{item.kunden.join(', ')}</small></li>)}
                   </ul>
                 ) : '–'}</td>
               </tr>)}

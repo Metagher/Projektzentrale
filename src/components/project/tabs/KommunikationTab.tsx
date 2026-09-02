@@ -12,7 +12,10 @@ import AfnChipsField from '../../shared/AfnChipsField';
 import AfnChipsView from '../../shared/AfnChipsView';
 import LinkChipsField from '../../shared/LinkChipsField';
 import LinkChipsView from '../../shared/LinkChipsView';
-import type { Comm, Kanal, ProjectCache } from '../../../types/entities';
+import AbrechnungForm from '../../shared/AbrechnungForm';
+import { formatEuro } from '../../../lib/money';
+import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS } from '../../../lib/abrechnungStatus';
+import type { Abrechnung, Comm, Kanal, ProjectCache } from '../../../types/entities';
 
 export default function KommunikationTab({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const saveComm = useDataStore((s) => s.saveComm);
@@ -26,6 +29,11 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   const alert = useModalStore((s) => s.alert);
   const taskExtractionReview = useModalStore((s) => s.taskExtractionReview);
   const [extractingId, setExtractingId] = useState<string | null>(null);
+  const project = useDataStore((s) => s.projects)?.find((item) => item.id === projectId);
+  const abrechnungen = useDataStore((s) => s.abrechnungen);
+  const saveAbrechnung = useDataStore((s) => s.saveAbrechnung);
+  const deleteAbrechnung = useDataStore((s) => s.deleteAbrechnung);
+  const [abrechnungModal, setAbrechnungModal] = useState<{ commId: string; entry: Abrechnung | 'new' } | null>(null);
 
   const editObj = editingComm ? data.comms.find((c) => c.id === editingComm) : null;
   const showForm = !!editObj || showNewCommForm;
@@ -262,6 +270,9 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
                     />
                   )}
                   <LinkChipsView ids={c.taskIds} items={data.tasks} labelFn={taskLinkLabel} onJump={jumpToTask} />
+                  {abrechnungen.filter((item) => item.commId === c.id).map((item) => <button key={item.id} type="button" className="link-btn" style={{ display: 'block', marginTop: 4 }} onClick={() => setAbrechnungModal({ commId: c.id, entry: item })}>
+                    🔗 Abrechnung {item.art} · {formatEuro(item.provisionCents)} · <span className={`badge ${abrechnungStatus(item)}`}>{ABRECHNUNG_STATUS_LABELS[abrechnungStatus(item)]}</span>
+                  </button>)}
                 </div>
                 <div className="actions">
                   {keyPresent && (
@@ -275,6 +286,9 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
                       {extractingId === c.id ? 'Analysiere…' : '🤖 Aufgaben erkennen'}
                     </button>
                   )}
+                  <button className="icon-btn edit" onClick={() => setAbrechnungModal({ commId: c.id, entry: 'new' })}>
+                    + Abrechnung
+                  </button>
                   <button className="icon-btn edit" onClick={() => startEdit(c)}>
                     Bearbeiten
                   </button>
@@ -287,6 +301,15 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
           );
         })
       )}
+      {abrechnungModal && <AbrechnungForm
+        entry={abrechnungModal.entry === 'new' ? undefined : abrechnungModal.entry}
+        fixedProjectId={projectId}
+        fixedKunde={project?.kunde}
+        fixedCommId={abrechnungModal.commId}
+        onSave={async (entry) => { await saveAbrechnung(entry); setAbrechnungModal(null); }}
+        onDelete={abrechnungModal.entry !== 'new' ? async () => { await deleteAbrechnung((abrechnungModal.entry as Abrechnung).id); setAbrechnungModal(null); } : undefined}
+        onClose={() => setAbrechnungModal(null)}
+      />}
     </>
   );
 }

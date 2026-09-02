@@ -100,6 +100,10 @@ export interface Abrechnung {
   id: string;
   /** Optionale Verknüpfung zu einem Projekt. */
   projectId?: string;
+  /** Optionale Verknüpfung zur Aufgabe, aus der heraus die Abrechnung erfasst wurde. */
+  taskId?: string;
+  /** Optionale Verknüpfung zum Kommunikationseintrag, aus dem heraus die Abrechnung erfasst wurde. */
+  commId?: string;
   /** Kundenbezeichnung; bei Projektverknüpfung normalerweise project.kunde, sonst frei (z. B. "Überstunden"). */
   kunde: string;
   /** Leistungsdatum (Tag der erbrachten Leistung), YYYY-MM-DD. */
