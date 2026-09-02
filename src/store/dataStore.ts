@@ -104,6 +104,8 @@ interface DataStoreState {
   abrechnungsArten: string[];
   /** Provisionsfaktor je Abrechnungsart in Prozent (Provision = Wert * Faktor / 100). Fehlt eine Art, gibt es keine Automatik. */
   abrechnungsFaktoren: Record<string, number>;
+  /** Vordefinierte Stundensätze in Cent für die Schnellberechnung von Wert = Stundensatz × Stunden. */
+  stundensaetze: number[];
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -160,6 +162,7 @@ interface DataStoreState {
   deleteAbrechnung: (id: string) => Promise<void>;
   saveAbrechnungsArten: (arten: string[]) => Promise<void>;
   saveAbrechnungsFaktoren: (faktoren: Record<string, number>) => Promise<void>;
+  saveStundensaetze: (values: number[]) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -233,6 +236,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   abrechnungen: [],
   abrechnungsArten: DEFAULT_ABRECHNUNGS_ARTEN,
   abrechnungsFaktoren: {},
+  stundensaetze: [],
 
   loadAll: async () => {
     const sb = client();
@@ -241,7 +245,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
@@ -256,6 +260,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<Abrechnung[]>(sb, 'abrechnungen'),
       sGet<string[]>(sb, 'abrechnungs-arten'),
       sGet<Record<string, number>>(sb, 'abrechnungs-faktoren'),
+      sGet<number[]>(sb, 'stundensaetze'),
     ]);
     const nextModuleIndex = new Map<string, number>();
     const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
@@ -277,6 +282,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       abrechnungen: storedAbrechnungen || [],
       abrechnungsArten: storedAbrechnungsArten?.length ? storedAbrechnungsArten : DEFAULT_ABRECHNUNGS_ARTEN,
       abrechnungsFaktoren: storedAbrechnungsFaktoren || {},
+      stundensaetze: storedStundensaetze || [],
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -641,6 +647,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       if (!data.tasks.some((task) => task.id === taskId)) continue;
       await persistTasks(get, set, project.id, data.tasks.filter((task) => task.id !== taskId));
     }
+    if (get().abrechnungen.some((item) => item.taskId === taskId)) {
+      // Abrechnungen bleiben als Historie erhalten, verlieren aber die Aufgabenverknüpfung.
+      const abrechnungen = get().abrechnungen.map((item) => (item.taskId === taskId ? { ...item, taskId: undefined } : item));
+      set({ abrechnungen });
+      await sSet(client(), 'abrechnungen', abrechnungen);
+    }
     await get().loadDashboardData();
   },
 
@@ -709,6 +721,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const cache = { ...get().cache, [projectId]: { ...data, comms } };
     set({ cache });
     await sSet(client(), 'comms:' + projectId, comms);
+    if (get().abrechnungen.some((item) => item.commId === commId)) {
+      // Abrechnungen bleiben als Historie erhalten, verlieren aber die Kommunikationsverknüpfung.
+      const abrechnungen = get().abrechnungen.map((item) => (item.commId === commId ? { ...item, commId: undefined } : item));
+      set({ abrechnungen });
+      await sSet(client(), 'abrechnungen', abrechnungen);
+    }
   },
 
   saveMilestone: async (projectId, m) => {
@@ -802,6 +820,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   saveAbrechnungsFaktoren: async (faktoren) => {
     set({ abrechnungsFaktoren: faktoren });
     await sSet(client(), 'abrechnungs-faktoren', faktoren);
+  },
+
+  saveStundensaetze: async (values) => {
+    const next = Array.from(new Set(values.filter((value) => value > 0))).sort((a, b) => a - b);
+    set({ stundensaetze: next });
+    await sSet(client(), 'stundensaetze', next);
   },
 
   saveDocEntry: async (projectId, defId, value) => {

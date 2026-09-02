@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { uid, todayStr } from '../../lib/format';
-import { centsToEuroInput, numberInputToCents } from '../../lib/money';
+import { centsToEuroInput, formatEuro, numberInputToCents } from '../../lib/money';
 import { formatGehaltsMonat, gehaltsMonatFromDate, parseGehaltsMonatInput } from '../../lib/gehaltsmonat';
+import { taskLinkLabel, commLinkLabel } from '../../lib/format';
 import type { Abrechnung } from '../../types/entities';
 
 function minutesToHoursInput(minutes: number) { return minutes ? (minutes / 60).toFixed(2) : ''; }
@@ -14,18 +15,25 @@ interface Props {
   /** Im Projekt-Kontext: Projekt und Kunde sind fest vorgegeben, keine Auswahl. */
   fixedProjectId?: string;
   fixedKunde?: string;
+  /** Beim Erfassen aus einer Aufgabe/einem Kommunikationseintrag heraus: Verknüpfung wird fest gesetzt. */
+  fixedTaskId?: string;
+  fixedCommId?: string;
   onSave: (entry: Abrechnung) => Promise<void>;
   onDelete?: () => Promise<void>;
   onClose: () => void;
 }
 
-export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, onSave, onDelete, onClose }: Props) {
+export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixedTaskId, fixedCommId, onSave, onDelete, onClose }: Props) {
   const projects = useDataStore((s) => s.projects) || [];
   const arten = useDataStore((s) => s.abrechnungsArten);
   const faktoren = useDataStore((s) => s.abrechnungsFaktoren);
+  const stundensaetze = useDataStore((s) => s.stundensaetze);
+  const cache = useDataStore((s) => s.cache);
   const confirm = useModalStore((s) => s.confirm);
 
   const [projectId, setProjectId] = useState(entry?.projectId ?? fixedProjectId ?? '');
+  const [taskId] = useState(entry?.taskId ?? fixedTaskId);
+  const [commId] = useState(entry?.commId ?? fixedCommId);
   const [kunde, setKunde] = useState(entry?.kunde ?? fixedKunde ?? '');
   const [datum, setDatum] = useState(entry?.datum || todayStr());
   const [art, setArt] = useState(entry?.art || arten[0] || '');
@@ -52,6 +60,8 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, onSa
   const projectLocked = !!fixedProjectId;
   const valid = !!datum && !!art && !!kunde.trim();
   const faktor = faktoren[art];
+  const linkedTask = taskId && projectId ? cache[projectId]?.tasks.find((task) => task.id === taskId) : undefined;
+  const linkedComm = commId && projectId ? cache[projectId]?.comms.find((comm) => comm.id === commId) : undefined;
 
   useEffect(() => {
     if (provisionOverridden || faktor === undefined) return;
@@ -75,12 +85,18 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, onSa
     if (parsed) setGehaltsMonatText(formatGehaltsMonat(parsed));
   }
 
+  function applyStundensatz(stundensatzCents: number) {
+    setWert(centsToEuroInput(Math.round((stundensatzCents * hoursInputToMinutes(hours)) / 60)));
+  }
+
   async function handleSave() {
     if (!valid || saving) return;
     setSaving(true);
     await onSave({
       id: entry?.id || uid(),
       projectId: projectId || undefined,
+      taskId,
+      commId,
       kunde: kunde.trim(),
       datum,
       art,
@@ -112,6 +128,11 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, onSa
     <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Abrechnung erfassen">
       <div className="task-edit-dialog">
         <div className="task-edit-dialog-head"><div><span>Abrechnung</span><strong>{entry ? 'Abrechnung bearbeiten' : 'Abrechnung erfassen'}</strong></div></div>
+        {(linkedTask || linkedComm) && (
+          <div className="field-help" style={{ marginBottom: 10 }}>
+            🔗 Verlinkt mit {[linkedTask ? `Aufgabe ${taskLinkLabel(linkedTask)}` : null, linkedComm ? `Kommunikation ${commLinkLabel(linkedComm)}` : null].filter(Boolean).join(' · ')}
+          </div>
+        )}
         <div className="field-grid">
           <div className="field"><label>Leistungsdatum</label><input type="date" value={datum} onChange={(event) => setDatum(event.target.value)} /></div>
           <div className="field">
@@ -136,7 +157,15 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, onSa
               : <input value={kunde} onChange={(event) => setKunde(event.target.value)} placeholder="z. B. Überstunden" />}
           </div>
           <div className="field"><label>Stunden</label><input type="number" min="0" step="0.25" value={hours} onChange={(event) => setHours(event.target.value)} placeholder="0" /></div>
-          <div className="field"><label>Wert (€)</label><input type="number" min="0" step="0.01" value={wert} onChange={(event) => setWert(event.target.value)} placeholder="0,00" /></div>
+          <div className="field">
+            <label>Wert (€)</label>
+            <input type="number" min="0" step="0.01" value={wert} onChange={(event) => setWert(event.target.value)} placeholder="0,00" />
+            {stundensaetze.length > 0 && (
+              <div className="stundensatz-quick">
+                {stundensaetze.map((cents) => <button key={cents} type="button" className="btn secondary small" onClick={() => applyStundensatz(cents)}>{formatEuro(cents)}/h</button>)}
+              </div>
+            )}
+          </div>
           <div className="field">
             <label>Provision (€)</label>
             <input type="number" min="0" step="0.01" value={provision} onChange={(event) => { setProvision(event.target.value); setProvisionOverridden(true); }} placeholder="0,00" />
