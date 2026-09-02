@@ -4,7 +4,6 @@ import { formatDuration } from '../../../lib/timeTracking';
 import { uid } from '../../../lib/format';
 import type { Project, ProjectCache, ProjectTimeType, TimeEntry } from '../../../types/entities';
 import TimeAnalyticsOverview, { type BilledTimeRow } from '../../analytics/TimeAnalyticsOverview';
-import AbrechnungTable from '../../shared/AbrechnungTable';
 
 function localInput(date: Date) { const offset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - offset).toISOString().slice(0, 19); }
 
@@ -27,7 +26,6 @@ export default function ZeitenTab({ project, data }: { project: Project; data: P
     <TimeAnalyticsOverview entries={entries} projects={[project]} workdayOverrides={workdayOverrides} heading="Projektzeit nach Tag und Kalenderwoche" billedRows={[{ projectId: project.id, minutes: billedMinutesTotal, days: Array.from(billedDays, ([date, minutes]) => ({ date, minutes })), items: billedItems }]} taskLabels={Object.fromEntries(data.tasks.map((task) => [task.id, `${task.nr} · ${task.titel}`]))} timeTypeLabels={Object.fromEntries(projectTimeTypes.map((type) => [type.id, type.name]))} onSaveEntry={saveTimeEntry} onDeleteEntry={deleteTimeEntry} />
     {taskTotals.length > 0 && <section className="time-task-breakdown"><h4>Zeit nach Aufgabe</h4>{taskTotals.map(({ task, minutes }) => <div key={task.id}><span><b className="task-nr">{task.nr}</b>{task.titel}</span><strong>{formatDuration(minutes)}</strong></div>)}</section>}
     {entries.length === 0 && <div className="empty-state"><h3>Noch keine Zeit erfasst</h3><div>Starte den Timer im Projektkopf oder direkt an einer Aufgabe.</div></div>}
-    <AbrechnungTable project={project} />
     {manual && <ManualTimeEntry projectId={project.id} tasks={data.tasks} timeTypes={projectTimeTypes} onSave={async (entry) => { await saveTimeEntry(entry); setManual(false); }} onClose={() => setManual(false)} />}
   </section>;
 }

@@ -102,6 +102,8 @@ interface DataStoreState {
   abrechnungen: Abrechnung[];
   /** Konfigurierbare Liste der Abrechnungsarten (z. B. VO, MODUL, BO, ÜST, MM, DL). */
   abrechnungsArten: string[];
+  /** Provisionsfaktor je Abrechnungsart in Prozent (Provision = Wert * Faktor / 100). Fehlt eine Art, gibt es keine Automatik. */
+  abrechnungsFaktoren: Record<string, number>;
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -156,6 +158,7 @@ interface DataStoreState {
   saveAbrechnung: (entry: Abrechnung) => Promise<void>;
   deleteAbrechnung: (id: string) => Promise<void>;
   saveAbrechnungsArten: (arten: string[]) => Promise<void>;
+  saveAbrechnungsFaktoren: (faktoren: Record<string, number>) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -228,6 +231,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   explorerBasePath: DEFAULT_EXPLORER_BASE_PATH,
   abrechnungen: [],
   abrechnungsArten: DEFAULT_ABRECHNUNGS_ARTEN,
+  abrechnungsFaktoren: {},
 
   loadAll: async () => {
     const sb = client();
@@ -236,7 +240,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
@@ -250,6 +254,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<string>(sb, 'explorer-base-path'),
       sGet<Abrechnung[]>(sb, 'abrechnungen'),
       sGet<string[]>(sb, 'abrechnungs-arten'),
+      sGet<Record<string, number>>(sb, 'abrechnungs-faktoren'),
     ]);
     const nextModuleIndex = new Map<string, number>();
     const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
@@ -270,6 +275,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       explorerBasePath: storedExplorerBasePath || DEFAULT_EXPLORER_BASE_PATH,
       abrechnungen: storedAbrechnungen || [],
       abrechnungsArten: storedAbrechnungsArten?.length ? storedAbrechnungsArten : DEFAULT_ABRECHNUNGS_ARTEN,
+      abrechnungsFaktoren: storedAbrechnungsFaktoren || {},
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -775,6 +781,11 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const next = normalized.length ? normalized : DEFAULT_ABRECHNUNGS_ARTEN;
     set({ abrechnungsArten: next });
     await sSet(client(), 'abrechnungs-arten', next);
+  },
+
+  saveAbrechnungsFaktoren: async (faktoren) => {
+    set({ abrechnungsFaktoren: faktoren });
+    await sSet(client(), 'abrechnungs-faktoren', faktoren);
   },
 
   saveDocEntry: async (projectId, defId, value) => {
