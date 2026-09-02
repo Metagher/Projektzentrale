@@ -14,21 +14,17 @@ import {
 import type { Project, TimeEntry } from "../../types/entities";
 import { useModalStore } from "../../store/modalStore";
 
+/** Aggregierte Abrechnungs-Minuten je Projekt, gespeist aus dem Abrechnungsmodul (unabhängig von der Abrechnungsart). */
 export interface BilledTimeRow {
   projectId: string;
-  taskMinutes: number;
-  communicationMinutes: number;
-  /** Frei erfasste, abgerechnete Zeit ohne Bezug zu einer Aufgabe oder einem Kommunikationseintrag. */
-  freeMinutes?: number;
+  minutes: number;
   days?: {
     date: string;
-    taskMinutes: number;
-    communicationMinutes: number;
-    freeMinutes?: number;
+    minutes: number;
   }[];
   items?: {
     date: string;
-    kind: "Aufgabe" | "Kommunikation" | "Frei";
+    art: string;
     label: string;
     minutes: number;
   }[];
@@ -42,7 +38,6 @@ interface Props {
   billedRows?: BilledTimeRow[];
   taskLabels?: Record<string, string>;
   timeTypeLabels?: Record<string, string>;
-  billedChartMode?: "project" | "type";
   onSaveEntry?: (entry: TimeEntry) => Promise<void>;
   onDeleteEntry?: (id: string) => Promise<void>;
 }
@@ -389,7 +384,6 @@ export default function TimeAnalyticsOverview({
   billedRows = [],
   taskLabels = {},
   timeTypeLabels = {},
-  billedChartMode = "project",
   onSaveEntry,
   onDeleteEntry,
 }: Props) {
@@ -415,13 +409,7 @@ export default function TimeAnalyticsOverview({
     const map = new Map<string, number>();
     billedRows.forEach((row) =>
       row.days?.forEach((day) =>
-        map.set(
-          day.date,
-          (map.get(day.date) || 0) +
-            day.taskMinutes +
-            day.communicationMinutes +
-            (day.freeMinutes || 0),
-        ),
+        map.set(day.date, (map.get(day.date) || 0) + day.minutes),
       ),
     );
     return map;
@@ -508,78 +496,22 @@ export default function TimeAnalyticsOverview({
   const average = activeDays.length
     ? activeDays.reduce((sum, minutes) => sum + minutes, 0) / activeDays.length
     : 0;
-  const billedTaskTotal = billedRows.reduce(
-    (sum, row) => sum + row.taskMinutes,
-    0,
-  );
-  const billedCommunicationTotal = billedRows.reduce(
-    (sum, row) => sum + row.communicationMinutes,
-    0,
-  );
-  const billedFreeTotal = billedRows.reduce(
-    (sum, row) => sum + (row.freeMinutes || 0),
-    0,
-  );
   const billedByProject = new Map(
     billedRows.map((row) => [row.projectId, row]),
   );
-  const billedGrandTotal =
-    billedTaskTotal + billedCommunicationTotal + billedFreeTotal;
-  const billedChartRows =
-    billedChartMode === "type"
-      ? [
-          {
-            id: "tasks",
-            label: "Aufgaben",
-            minutes: billedRows.reduce(
-              (sum, row) =>
-                sum +
-                (row.days?.find((day) => day.date === selectedDay)
-                  ?.taskMinutes || 0),
-              0,
-            ),
-            color: "#2f7d55",
-          },
-          {
-            id: "communication",
-            label: "Kommunikation",
-            minutes: billedRows.reduce(
-              (sum, row) =>
-                sum +
-                (row.days?.find((day) => day.date === selectedDay)
-                  ?.communicationMinutes || 0),
-              0,
-            ),
-            color: "#7b4fa3",
-          },
-          {
-            id: "free",
-            label: "Frei erfasst",
-            minutes: billedRows.reduce(
-              (sum, row) =>
-                sum +
-                (row.days?.find((day) => day.date === selectedDay)
-                  ?.freeMinutes || 0),
-              0,
-            ),
-            color: "#a47a18",
-          },
-        ].filter((row) => row.minutes > 0)
-      : billedRows
-          .map((row) => {
-            const day = row.days?.find((item) => item.date === selectedDay);
-            return {
-              id: row.projectId,
-              label: projectName(row.projectId, projects),
-              minutes:
-                (day?.taskMinutes || 0) +
-                (day?.communicationMinutes || 0) +
-                (day?.freeMinutes || 0),
-              color: projectColor(row.projectId, projects),
-            };
-          })
-          .filter((row) => row.minutes > 0)
-          .sort((a, b) => b.minutes - a.minutes);
+  const billedGrandTotal = billedRows.reduce((sum, row) => sum + row.minutes, 0);
+  const billedChartRows = billedRows
+    .map((row) => {
+      const day = row.days?.find((item) => item.date === selectedDay);
+      return {
+        id: row.projectId,
+        label: projectName(row.projectId, projects),
+        minutes: day?.minutes || 0,
+        color: projectColor(row.projectId, projects),
+      };
+    })
+    .filter((row) => row.minutes > 0)
+    .sort((a, b) => b.minutes - a.minutes);
   const billedTotal = billedChartRows.reduce(
     (sum, row) => sum + row.minutes,
     0,
@@ -599,23 +531,11 @@ export default function TimeAnalyticsOverview({
   const projectRows = projects
     .map((project) => {
       const billedRow = billedByProject.get(project.id);
-      const billed = projectTableFullRange
-        ? {
-            taskMinutes: billedRow?.taskMinutes || 0,
-            communicationMinutes: billedRow?.communicationMinutes || 0,
-            freeMinutes: billedRow?.freeMinutes || 0,
-          }
+      const billedMinutes = projectTableFullRange
+        ? billedRow?.minutes || 0
         : (billedRow?.days || [])
             .filter((day) => selectedWeekDaySet.has(day.date))
-            .reduce(
-              (acc, day) => ({
-                taskMinutes: acc.taskMinutes + day.taskMinutes,
-                communicationMinutes:
-                  acc.communicationMinutes + day.communicationMinutes,
-                freeMinutes: acc.freeMinutes + (day.freeMinutes || 0),
-              }),
-              { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 },
-            );
+            .reduce((sum, day) => sum + day.minutes, 0);
       return {
         project,
         minutes: entries
@@ -626,28 +546,17 @@ export default function TimeAnalyticsOverview({
                 selectedWeekDaySet.has(localDateKey(new Date(entry.startedAt)))),
           )
           .reduce((sum, entry) => sum + entry.durationMinutes, 0),
-        billed,
-        billedTotal: billed.taskMinutes + billed.communicationMinutes + billed.freeMinutes,
+        billedMinutes,
       };
     })
-    .filter(
-      (row) =>
-        row.minutes > 0 ||
-        row.billed.taskMinutes ||
-        row.billed.communicationMinutes ||
-        row.billed.freeMinutes,
-    )
+    .filter((row) => row.minutes > 0 || row.billedMinutes > 0)
     .sort((a, b) => b.minutes - a.minutes);
   const projectRowsTotal = projectRows.reduce(
     (acc, row) => ({
       minutes: acc.minutes + row.minutes,
-      taskMinutes: acc.taskMinutes + row.billed.taskMinutes,
-      communicationMinutes:
-        acc.communicationMinutes + row.billed.communicationMinutes,
-      freeMinutes: acc.freeMinutes + row.billed.freeMinutes,
-      billedTotal: acc.billedTotal + row.billedTotal,
+      billedMinutes: acc.billedMinutes + row.billedMinutes,
     }),
-    { minutes: 0, taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0, billedTotal: 0 },
+    { minutes: 0, billedMinutes: 0 },
   );
 
   function exportSelectedWeek() {
@@ -671,40 +580,23 @@ export default function TimeAnalyticsOverview({
           billed.push({
             date: item.date,
             project: projectName(row.projectId, projects),
-            kind: item.kind,
+            kind: item.art,
             label: item.label,
             minutes: item.minutes,
           }),
         );
       else
         row.days
-          ?.filter((day) => days.has(day.date))
-          .forEach((day) => {
-            if (day.taskMinutes > 0)
-              billed.push({
-                date: day.date,
-                project: projectName(row.projectId, projects),
-                kind: "Aufgabe",
-                label: "Abgerechnete Aufgabenzeit",
-                minutes: day.taskMinutes,
-              });
-            if (day.communicationMinutes > 0)
-              billed.push({
-                date: day.date,
-                project: projectName(row.projectId, projects),
-                kind: "Kommunikation",
-                label: "Abgerechnete Kommunikationszeit",
-                minutes: day.communicationMinutes,
-              });
-            if (day.freeMinutes)
-              billed.push({
-                date: day.date,
-                project: projectName(row.projectId, projects),
-                kind: "Frei",
-                label: "Frei abgerechnete Zeit",
-                minutes: day.freeMinutes,
-              });
-          });
+          ?.filter((day) => days.has(day.date) && day.minutes > 0)
+          .forEach((day) =>
+            billed.push({
+              date: day.date,
+              project: projectName(row.projectId, projects),
+              kind: "Abrechnung",
+              label: "Abgerechnete Zeit",
+              minutes: day.minutes,
+            }),
+          );
     });
     exportTimeReportPdf({
       weekKey: selectedWeekKey,
@@ -895,18 +787,11 @@ export default function TimeAnalyticsOverview({
             <span className="analytics-scope-label">
               Zusatzwert · nicht mit Trackingzeit verrechnet
             </span>
-            <h3>
-              Abgerechnete Zeit nach{" "}
-              {billedChartMode === "type" ? "Typ" : "Projekt"}
-            </h3>
+            <h3>Abgerechnete Zeit nach Projekt</h3>
             <p>
               {selectedDay
                 ? fullDate.format(new Date(`${selectedDay}T12:00:00`))
-                : "Kein Tag ausgewählt"}{" "}
-              ·{" "}
-              {billedChartMode === "type"
-                ? "Aufgaben und Kommunikation getrennt."
-                : "Aufgaben und Kommunikation zusammengefasst."}
+                : "Kein Tag ausgewählt"}
             </p>
           </div>
           {billedTotal > 0 ? (
@@ -967,14 +852,11 @@ export default function TimeAnalyticsOverview({
                 <th>Projekt</th>
                 <th>Kunde</th>
                 <th>Getrackte Zeit</th>
-                <th>Abgerechnet · Aufgaben</th>
-                <th>Abgerechnet · Kommunikation</th>
-                <th>Abgerechnet · Frei</th>
-                <th>Abgerechnet · Gesamt</th>
+                <th>Abgerechnet</th>
               </tr>
             </thead>
             <tbody>
-              {projectRows.map(({ project, minutes, billed, billedTotal: rowBilledTotal }) => (
+              {projectRows.map(({ project, minutes, billedMinutes }) => (
                 <tr key={project.id}>
                   <td>
                     <i
@@ -985,10 +867,7 @@ export default function TimeAnalyticsOverview({
                   </td>
                   <td>{project.kunde || "–"}</td>
                   <td>{formatDuration(minutes)}</td>
-                  <td>{formatDuration(billed.taskMinutes)}</td>
-                  <td>{formatDuration(billed.communicationMinutes)}</td>
-                  <td>{formatDuration(billed.freeMinutes)}</td>
-                  <td>{formatDuration(rowBilledTotal)}</td>
+                  <td>{formatDuration(billedMinutes)}</td>
                 </tr>
               ))}
             </tbody>
@@ -997,10 +876,7 @@ export default function TimeAnalyticsOverview({
                 <th>Summe</th>
                 <th></th>
                 <th>{formatDuration(projectRowsTotal.minutes)}</th>
-                <th>{formatDuration(projectRowsTotal.taskMinutes)}</th>
-                <th>{formatDuration(projectRowsTotal.communicationMinutes)}</th>
-                <th>{formatDuration(projectRowsTotal.freeMinutes)}</th>
-                <th>{formatDuration(projectRowsTotal.billedTotal)}</th>
+                <th>{formatDuration(projectRowsTotal.billedMinutes)}</th>
               </tr>
             </tfoot>
           </table>

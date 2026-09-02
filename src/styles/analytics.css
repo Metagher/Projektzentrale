@@ -50,6 +50,12 @@
 .an-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;}
 .an-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);padding:6px 10px;border-bottom:1px solid var(--line);}
 .an-table td{padding:7px 10px;border-bottom:1px solid var(--line-soft);}
+.an-table tr.clickable-row{cursor:pointer;}
+.an-table tr.clickable-row:hover td{background:var(--paper-raised);}
+.abrechnung-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;}
+.abrechnung-filters select{min-width:130px;}
+.abrechnung-freigabe-filter{display:flex;gap:4px;}
+.abrechnung-freigabe-filter .btn.active{color:#fff;background:#111;border-color:#111;}
 .an-table tr:last-child td{border-bottom:none;}
 .an-table tfoot th{padding:8px 10px;color:var(--ink);font-size:12px;font-weight:800;text-transform:none;letter-spacing:normal;border-top:2px solid var(--line);border-bottom:none;}
 .an-week-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(78px,1fr));gap:6px;margin-bottom:8px;}

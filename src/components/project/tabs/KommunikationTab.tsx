@@ -40,7 +40,6 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   const [afns, setAfns] = useState<string[]>(editObj?.afns || []);
   const [taskIds, setTaskIds] = useState<string[]>(editObj?.taskIds || []);
   const [teilprojekt, setTeilprojekt] = useState(editObj?.teilprojekt || '');
-  const [billedMinutes, setBilledMinutes] = useState(Math.max(0, Number(editObj?.billedMinutes) || 0));
   const teilprojekte = Array.from(new Set([
     ...data.tasks.map((task) => task.teilprojekt?.trim()),
     ...data.comms.map((comm) => comm.teilprojekt?.trim()),
@@ -55,7 +54,6 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
     setAfns([]);
     setTaskIds([]);
     setTeilprojekt('');
-    setBilledMinutes(0);
   }
 
   function startEdit(c: Comm) {
@@ -68,7 +66,6 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
     setAfns(c.afns || []);
     setTaskIds(c.taskIds || []);
     setTeilprojekt(c.teilprojekt || '');
-    setBilledMinutes(Math.max(0, Number(c.billedMinutes) || 0));
   }
 
   async function handleSave() {
@@ -83,7 +80,6 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
       afns,
       taskIds,
       teilprojekt: teilprojekt.trim(),
-      billedMinutes,
     };
     const prevTaskIds = editObj?.taskIds || [];
     await saveComm(projectId, comm);
@@ -194,10 +190,6 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
                 {teilprojekte.map((name) => <option key={name} value={name} />)}
               </datalist>
             </div>
-            <div className="field">
-              <label>Abgerechnete Zeit (Minuten)</label>
-              <input type="number" min="0" step="1" value={billedMinutes || ''} onChange={(event) => setBilledMinutes(Math.max(0, Number(event.target.value) || 0))} placeholder="0" />
-            </div>
           </div>
           <div className="field">
             <label>Notiz / Zusammenfassung</label>
@@ -258,7 +250,6 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
                   <span className="channel-tag">{c.kanal}</span> <span className="meta mono">{fmtDate(c.datum)}</span>
                   {contacts.length > 0 && <span className="meta">· {contacts.map((contact) => contact.name).join(', ')}</span>}
                   {c.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{c.teilprojekt.trim()}</span>}
-                  {!!c.billedMinutes && <span className="badge billed-time" style={{ marginLeft: 6 }}>{c.billedMinutes} Min. abgerechnet</span>}
                   {c.afns && c.afns.length > 0 && <AfnChipsView afns={c.afns} />}
                   <div style={{ marginTop: 5 }}>
                     <strong>{c.betreff || '(kein Betreff)'}</strong>

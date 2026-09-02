@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAnalyticsStore, type AnalyticsSubTab } from '../../store/analyticsStore';
 import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import TaskAnalytics from './TaskAnalytics';
 import AfnLesestandTab from './AfnLesestandTab';
 import GlobalPortfolioOverview from './GlobalPortfolioOverview';
 import TimeAnalyticsOverview, { type BilledTimeRow } from './TimeAnalyticsOverview';
+import AbrechnungOverview from './AbrechnungOverview';
 
 const ANALYTICS_TABS: { id: AnalyticsSubTab; label: string }[] = [
   { id: 'projekte', label: 'Projektauswertung' },
   { id: 'aufgaben', label: 'Aufgabenübersicht' },
   { id: 'zeiten', label: 'Zeiten' },
+  { id: 'abrechnung', label: 'Abrechnung' },
   { id: 'afn', label: 'AFN-Lesestand' },
 ];
 
@@ -18,8 +20,7 @@ export default function AnalyticsView() {
   const projects = useDataStore((s) => s.projects);
   const ensureProjectData = useDataStore((s) => s.ensureProjectData);
   const [allTasks, setAllTasks] = useState<TaskWithMeta[] | null>(null);
-  const [billedRows, setBilledRows] = useState<BilledTimeRow[]>([]);
-  const [timeTaskLabels, setTimeTaskLabels] = useState<Record<string, string>>({});
+  const abrechnungen = useDataStore((s) => s.abrechnungen);
   const timeEntries = useDataStore((s) => s.timeEntries);
   const saveTimeEntry = useDataStore((s) => s.saveTimeEntry);
   const deleteTimeEntry = useDataStore((s) => s.deleteTimeEntry);
@@ -27,7 +28,7 @@ export default function AnalyticsView() {
   const projectTimeTypes = useDataStore((s) => s.projectTimeTypes);
 
   useEffect(() => {
-    if ((analyticsSubTab !== 'projekte' && analyticsSubTab !== 'aufgaben') || !projects) return;
+    if ((analyticsSubTab !== 'projekte' && analyticsSubTab !== 'aufgaben' && analyticsSubTab !== 'zeiten') || !projects) return;
     let cancelled = false;
     (async () => {
       const all: TaskWithMeta[] = [];
@@ -42,59 +43,24 @@ export default function AnalyticsView() {
     };
   }, [analyticsSubTab, projects, ensureProjectData]);
 
-  useEffect(() => {
-    if (analyticsSubTab !== 'zeiten' || !projects) return;
-    let cancelled = false;
-    (async () => {
-      const rows: BilledTimeRow[] = [];
-      const countedTasks = new Set<string>();
-      const labels: Record<string, string> = {};
-      for (const project of projects) {
-        const data = await ensureProjectData(project.id);
-        let taskMinutes = 0;
-        const billedDays = new Map<string, { taskMinutes: number; communicationMinutes: number; freeMinutes: number }>();
-        const billedItems: NonNullable<BilledTimeRow['items']> = [];
-        data.tasks.forEach((task) => {
-          labels[task.id] = `${task.nr} · ${task.titel}`;
-          if (countedTasks.has(task.id)) return;
-          countedTasks.add(task.id);
-          (task.billedZeiten || []).forEach((entry) => {
-            const minutes = Number(entry.minutes) || 0;
-            taskMinutes += minutes;
-            if (minutes > 0 && entry.datum) {
-              const day = billedDays.get(entry.datum) || { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 };
-              day.taskMinutes += minutes;
-              billedDays.set(entry.datum, day);
-              billedItems.push({ date: entry.datum, kind: 'Aufgabe', label: `${task.nr} · ${task.titel}`, minutes });
-            }
-          });
-        });
-        const communicationMinutes = data.comms.reduce((sum, comm) => {
-          const minutes = Number(comm.billedMinutes) || 0;
-          if (minutes > 0 && comm.datum) {
-            const day = billedDays.get(comm.datum) || { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 };
-            day.communicationMinutes += minutes;
-            billedDays.set(comm.datum, day);
-            billedItems.push({ date: comm.datum, kind: 'Kommunikation', label: comm.betreff || comm.kanal, minutes });
-          }
-          return sum + minutes;
-        }, 0);
-        const freeMinutes = data.billedTimeEntries.reduce((sum, entry) => {
-          const minutes = Number(entry.minutes) || 0;
-          if (minutes > 0 && entry.datum) {
-            const day = billedDays.get(entry.datum) || { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 };
-            day.freeMinutes += minutes;
-            billedDays.set(entry.datum, day);
-            billedItems.push({ date: entry.datum, kind: 'Frei', label: entry.hinweis || entry.teilprojekt || 'Frei abgerechnete Zeit', minutes });
-          }
-          return sum + minutes;
-        }, 0);
-        rows.push({ projectId: project.id, taskMinutes, communicationMinutes, freeMinutes, days: Array.from(billedDays, ([date, values]) => ({ date, ...values })), items: billedItems });
-      }
-      if (!cancelled) { setBilledRows(rows); setTimeTaskLabels(labels); }
-    })();
-    return () => { cancelled = true; };
-  }, [analyticsSubTab, projects, ensureProjectData]);
+  const billedRows = useMemo(() => {
+    const byProject = new Map<string, BilledTimeRow>();
+    abrechnungen.forEach((item) => {
+      if (!item.projectId || !(item.minutes > 0) || !item.datum) return;
+      const row = byProject.get(item.projectId) || { projectId: item.projectId, minutes: 0, days: [], items: [] };
+      row.minutes += item.minutes;
+      const day = row.days!.find((entry) => entry.date === item.datum);
+      if (day) day.minutes += item.minutes;
+      else row.days!.push({ date: item.datum, minutes: item.minutes });
+      row.items!.push({ date: item.datum, art: item.art, label: item.bemerkung || item.kunde, minutes: item.minutes });
+      byProject.set(item.projectId, row);
+    });
+    return Array.from(byProject.values());
+  }, [abrechnungen]);
+  const timeTaskLabels = useMemo(
+    () => Object.fromEntries((allTasks || []).map((task) => [task.id, `${task.nr} · ${task.titel}`])),
+    [allTasks],
+  );
 
   return (
     <div className="main-inner">
@@ -117,6 +83,8 @@ export default function AnalyticsView() {
         <AfnLesestandTab />
       ) : analyticsSubTab === 'zeiten' ? (
         <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" billedRows={billedRows} taskLabels={timeTaskLabels} timeTypeLabels={Object.fromEntries(projectTimeTypes.map((type) => [type.id, type.name]))} onSaveEntry={saveTimeEntry} onDeleteEntry={deleteTimeEntry} />
+      ) : analyticsSubTab === 'abrechnung' ? (
+        <AbrechnungOverview />
       ) : !allTasks ? (
         <div className="loading-note">Lade Auswertung…</div>
       ) : analyticsSubTab === 'projekte' ? (

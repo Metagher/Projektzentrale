@@ -10,7 +10,7 @@ import { customerKey, effectiveCustomerOrder, groupProjectsByCustomer } from '..
 import { linkedContactIds, normalizeContactLinks } from '../lib/contacts';
 import { DEFAULT_EXPLORER_BASE_PATH, normalizeExplorerBasePath } from '../lib/explorerPaths';
 import type {
-  BilledTimeEntry,
+  Abrechnung,
   Comm,
   Contact,
   DocData,
@@ -36,6 +36,7 @@ import type {
 } from '../types/entities';
 
 export const DEFAULT_PROJECT_TIME_TYPES: ProjectTimeType[] = [{ id: 'allgemein', name: 'Allgemeine Projektzeit' }];
+export const DEFAULT_ABRECHNUNGS_ARTEN: string[] = ['VO', 'MODUL', 'BO', 'ÜST', 'MM', 'DL'];
 
 function client() {
   const c = useConnectionStore.getState().client;
@@ -76,7 +77,7 @@ export interface DashboardData {
 }
 
 function emptyProjectCache(): ProjectCache {
-  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [], notes: [], noteFolders: [], billedTimeEntries: [] };
+  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [], notes: [], noteFolders: [] };
 }
 
 interface DataStoreState {
@@ -97,6 +98,10 @@ interface DataStoreState {
   activeTimer: ActiveTimer | null;
   /** Globaler Basisordner, unter dem pro Aufgaben-ID ein Unterordner mit Projektdateien liegt. */
   explorerBasePath: string;
+  /** Globale Liste aller Abrechnungs-/Provisionsvorgänge, projekt- oder kundenbezogen. */
+  abrechnungen: Abrechnung[];
+  /** Konfigurierbare Liste der Abrechnungsarten (z. B. VO, MODUL, BO, ÜST, MM, DL). */
+  abrechnungsArten: string[];
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -148,8 +153,9 @@ interface DataStoreState {
   saveProjectNote: (projectId: string, note: ProjectNote) => Promise<void>;
   deleteProjectNote: (projectId: string, noteId: string) => Promise<void>;
   saveProjectNoteFolders: (projectId: string, folders: ProjectNoteFolder[]) => Promise<void>;
-  saveBilledTimeEntry: (projectId: string, entry: BilledTimeEntry) => Promise<void>;
-  deleteBilledTimeEntry: (projectId: string, id: string) => Promise<void>;
+  saveAbrechnung: (entry: Abrechnung) => Promise<void>;
+  deleteAbrechnung: (id: string) => Promise<void>;
+  saveAbrechnungsArten: (arten: string[]) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -220,6 +226,8 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   timeEntries: [],
   activeTimer: null,
   explorerBasePath: DEFAULT_EXPLORER_BASE_PATH,
+  abrechnungen: [],
+  abrechnungsArten: DEFAULT_ABRECHNUNGS_ARTEN,
 
   loadAll: async () => {
     const sb = client();
@@ -228,7 +236,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
@@ -240,6 +248,8 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<TimeEntry[]>(sb, 'time-entries'),
       sGet<ActiveTimer>(sb, 'active-timer'),
       sGet<string>(sb, 'explorer-base-path'),
+      sGet<Abrechnung[]>(sb, 'abrechnungen'),
+      sGet<string[]>(sb, 'abrechnungs-arten'),
     ]);
     const nextModuleIndex = new Map<string, number>();
     const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
@@ -258,6 +268,8 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       timeEntries: timeEntries || [],
       activeTimer: activeTimer || null,
       explorerBasePath: storedExplorerBasePath || DEFAULT_EXPLORER_BASE_PATH,
+      abrechnungen: storedAbrechnungen || [],
+      abrechnungsArten: storedAbrechnungsArten?.length ? storedAbrechnungsArten : DEFAULT_ABRECHNUNGS_ARTEN,
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -268,6 +280,8 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       await sSet(sb, 'waiting-options', inferred);
     }
     if (!storedProjectTimeTypes?.length) await sSet(sb, 'project-time-types', DEFAULT_PROJECT_TIME_TYPES);
+    if (!storedAbrechnungsArten?.length) await sSet(sb, 'abrechnungs-arten', DEFAULT_ABRECHNUNGS_ARTEN);
+    await migrateLegacyBilledTimeToAbrechnungen(get, set);
   },
 
   loadDocDefs: async () => {
@@ -335,7 +349,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const existing = get().cache[id];
     if (existing) return existing;
     const sb = client();
-    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs, notes, noteFolders, billedTimeEntries] = await Promise.all([
+    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs, notes, noteFolders] = await Promise.all([
       sGet<Contact[]>(sb, 'contacts:' + id),
       sGet<Comm[]>(sb, 'comms:' + id),
       sGet<DocData>(sb, 'doc:' + id),
@@ -346,7 +360,6 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<ProjectModuleConfig[]>(sb, 'module-configs:' + id),
       sGet<ProjectNote[]>(sb, 'notes:' + id),
       sGet<ProjectNoteFolder[]>(sb, 'note-folders:' + id),
-      sGet<BilledTimeEntry[]>(sb, 'billed-time-entries:' + id),
     ]);
     const siblingIds = customerProjectIds(get().projects || [], id).filter((projectId) => projectId !== id);
     const siblingContacts = await Promise.all(siblingIds.map((projectId) => sGet<Contact[]>(sb, 'contacts:' + projectId)));
@@ -383,7 +396,6 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       moduleConfigs: moduleConfigs || [],
       notes: notes || [],
       noteFolders: noteFolders || [],
-      billedTimeEntries: billedTimeEntries || [],
     };
     set({ cache: { ...get().cache, [id]: projectCache } });
     return projectCache;
@@ -491,6 +503,8 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const projects = allProjects.filter((p) => p.id !== id);
     const timeEntries = get().timeEntries.filter((entry) => entry.projectId !== id);
     const activeTimer = get().activeTimer?.projectId === id ? null : get().activeTimer;
+    // Abrechnungen bleiben als Historie erhalten, verlieren aber die Projektverknüpfung.
+    const abrechnungen = get().abrechnungen.map((item) => (item.projectId === id ? { ...item, projectId: undefined } : item));
     const cache = { ...get().cache };
     for (const project of projects) {
       const data = await get().ensureProjectData(project.id);
@@ -503,11 +517,11 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       cache[project.id] = { ...data, tasks };
       await sSet(client(), 'tasks:' + project.id, tasks);
     }
-    set({ projects, timeEntries, activeTimer, cache });
+    set({ projects, timeEntries, activeTimer, abrechnungen, cache });
     const sb = client();
-    await Promise.all([sSet(sb, 'projects', projects), sSet(sb, 'time-entries', timeEntries), activeTimer ? sSet(sb, 'active-timer', activeTimer) : sDelete(sb, 'active-timer')]);
+    await Promise.all([sSet(sb, 'projects', projects), sSet(sb, 'time-entries', timeEntries), sSet(sb, 'abrechnungen', abrechnungen), activeTimer ? sSet(sb, 'active-timer', activeTimer) : sDelete(sb, 'active-timer')]);
     await Promise.all(
-      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:', 'notes:', 'note-folders:', 'billed-time-entries:'].map((prefix) =>
+      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:', 'notes:', 'note-folders:'].map((prefix) =>
         sDelete(sb, prefix + id),
       ),
     );
@@ -741,21 +755,26 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await sSet(client(), 'updates:' + projectId, updates);
   },
 
-  saveBilledTimeEntry: async (projectId, entry) => {
-    const data = await get().ensureProjectData(projectId);
-    const idx = data.billedTimeEntries.findIndex((x) => x.id === entry.id);
-    const billedTimeEntries = idx >= 0 ? data.billedTimeEntries.map((x, i) => (i === idx ? entry : x)) : [...data.billedTimeEntries, entry];
-    const cache = { ...get().cache, [projectId]: { ...data, billedTimeEntries } };
-    set({ cache });
-    await sSet(client(), 'billed-time-entries:' + projectId, billedTimeEntries);
+  saveAbrechnung: async (entry) => {
+    const current = get().abrechnungen;
+    const abrechnungen = current.some((item) => item.id === entry.id)
+      ? current.map((item) => item.id === entry.id ? entry : item)
+      : [...current, entry];
+    set({ abrechnungen });
+    await sSet(client(), 'abrechnungen', abrechnungen);
   },
 
-  deleteBilledTimeEntry: async (projectId, id) => {
-    const data = await get().ensureProjectData(projectId);
-    const billedTimeEntries = data.billedTimeEntries.filter((x) => x.id !== id);
-    const cache = { ...get().cache, [projectId]: { ...data, billedTimeEntries } };
-    set({ cache });
-    await sSet(client(), 'billed-time-entries:' + projectId, billedTimeEntries);
+  deleteAbrechnung: async (id) => {
+    const abrechnungen = get().abrechnungen.filter((item) => item.id !== id);
+    set({ abrechnungen });
+    await sSet(client(), 'abrechnungen', abrechnungen);
+  },
+
+  saveAbrechnungsArten: async (arten) => {
+    const normalized = Array.from(new Set(arten.map((art) => art.trim()).filter(Boolean)));
+    const next = normalized.length ? normalized : DEFAULT_ABRECHNUNGS_ARTEN;
+    set({ abrechnungsArten: next });
+    await sSet(client(), 'abrechnungs-arten', next);
   },
 
   saveDocEntry: async (projectId, defId, value) => {
@@ -1016,6 +1035,129 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await get().loadDashboardData();
   },
 }));
+
+interface LegacyTaskBilledEntry { id: string; minutes: number; datum: string }
+interface LegacyTaskFields { billedZeiten?: LegacyTaskBilledEntry[]; billedMinutes?: number; billedDate?: string }
+interface LegacyCommFields { billedMinutes?: number }
+interface LegacyFreeBilledEntry { id: string; datum: string; minutes: number; teilprojekt?: string; hinweis?: string }
+
+/**
+ * Einmalige Migration: wandelt die frühere, einfache Abrechnungs-Zeiterfassung (Task.billedZeiten,
+ * Comm.billedMinutes, freie projektbezogene Zeiterfassung) in Datensätze des neuen, globalen
+ * Abrechnungs-/Provisionsmoduls um und entfernt anschließend die alten Felder/Keys. Läuft dank
+ * eines persistierten Flags nur einmal.
+ */
+async function migrateLegacyBilledTimeToAbrechnungen(get: () => DataStoreState, set: (p: Partial<DataStoreState>) => void) {
+  const sb = client();
+  if (await sGet<boolean>(sb, 'abrechnungen-migrated')) return;
+  const projects = get().projects || [];
+  const now = new Date().toISOString();
+  const newAbrechnungen: Abrechnung[] = [];
+  const processedTaskIds = new Set<string>();
+  const cache = { ...get().cache };
+
+  for (const project of projects) {
+    const data = cache[project.id];
+    if (!data) continue;
+
+    let tasksChanged = false;
+    const tasks = data.tasks.map((task) => {
+      const legacy = task as unknown as LegacyTaskFields;
+      const hasLegacyFields = legacy.billedZeiten !== undefined || legacy.billedMinutes !== undefined || legacy.billedDate !== undefined;
+      if (!hasLegacyFields) return task;
+      tasksChanged = true;
+      if (!processedTaskIds.has(task.id)) {
+        processedTaskIds.add(task.id);
+        (legacy.billedZeiten || []).forEach((entry) => {
+          if (!(entry.minutes > 0)) return;
+          newAbrechnungen.push({
+            id: uid(),
+            projectId: project.id,
+            kunde: project.kunde,
+            datum: entry.datum || todayStr(),
+            art: 'BO',
+            minutes: entry.minutes,
+            wertCents: 0,
+            provisionCents: 0,
+            freigegeben: false,
+            bemerkung: `Migriert von Aufgabe${task.nr ? ' #' + task.nr : ''}${task.titel ? ' · ' + task.titel : ''}`,
+            createdAt: now,
+          });
+        });
+      }
+      const rest = { ...task } as Record<string, unknown>;
+      delete rest.billedZeiten;
+      delete rest.billedMinutes;
+      delete rest.billedDate;
+      return rest as unknown as Task;
+    });
+    if (tasksChanged) {
+      cache[project.id] = { ...data, tasks };
+      await sSet(sb, 'tasks:' + project.id, tasks);
+    }
+
+    let commsChanged = false;
+    const comms = (cache[project.id] || data).comms.map((comm) => {
+      const legacy = comm as unknown as LegacyCommFields;
+      if (legacy.billedMinutes === undefined) return comm;
+      commsChanged = true;
+      if (legacy.billedMinutes > 0) {
+        newAbrechnungen.push({
+          id: uid(),
+          projectId: project.id,
+          kunde: project.kunde,
+          datum: comm.datum || todayStr(),
+          art: 'BO',
+          minutes: legacy.billedMinutes,
+          wertCents: 0,
+          provisionCents: 0,
+          freigegeben: false,
+          teilprojekt: comm.teilprojekt,
+          bemerkung: `Migriert von Kommunikation · ${comm.betreff || comm.kanal}`,
+          createdAt: now,
+        });
+      }
+      const rest = { ...comm } as Record<string, unknown>;
+      delete rest.billedMinutes;
+      return rest as unknown as Comm;
+    });
+    if (commsChanged) {
+      cache[project.id] = { ...(cache[project.id] || data), comms };
+      await sSet(sb, 'comms:' + project.id, comms);
+    }
+
+    const legacyFree = await sGet<LegacyFreeBilledEntry[]>(sb, 'billed-time-entries:' + project.id);
+    if (legacyFree) {
+      legacyFree.forEach((entry) => {
+        if (!(entry.minutes > 0)) return;
+        newAbrechnungen.push({
+          id: uid(),
+          projectId: project.id,
+          kunde: project.kunde,
+          datum: entry.datum || todayStr(),
+          art: 'BO',
+          minutes: entry.minutes,
+          wertCents: 0,
+          provisionCents: 0,
+          freigegeben: false,
+          teilprojekt: entry.teilprojekt,
+          bemerkung: entry.hinweis ? `Migriert · ${entry.hinweis}` : 'Migriert von freier Zeiterfassung',
+          createdAt: now,
+        });
+      });
+      await sDelete(sb, 'billed-time-entries:' + project.id);
+    }
+  }
+
+  if (newAbrechnungen.length) {
+    const abrechnungen = [...get().abrechnungen, ...newAbrechnungen];
+    set({ abrechnungen, cache });
+    await sSet(sb, 'abrechnungen', abrechnungen);
+  } else {
+    set({ cache });
+  }
+  await sSet(sb, 'abrechnungen-migrated', true);
+}
 
 /**
  * One-time-at-boot backfill: legacy tasks without a global sequential `nr` get one,
