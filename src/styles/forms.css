@@ -9,6 +9,7 @@
 .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--focus);}
 .field textarea{resize:vertical;min-height:70px;}
 .field-help{color:var(--ink-soft);font-size:9.5px;line-height:1.4;}
+.link-btn{padding:0;color:var(--focus);background:none;border:0;font-size:inherit;text-decoration:underline;cursor:pointer;}
 .doku-check-field{display:flex;align-items:center;margin-bottom:12px;}
 .doku-check-field label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);cursor:pointer;text-transform:none;letter-spacing:0;}
 .doku-check-field input[type="checkbox"]{width:14px;height:14px;cursor:pointer;accent-color:var(--violet);}

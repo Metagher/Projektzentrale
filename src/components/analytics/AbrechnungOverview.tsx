@@ -2,14 +2,17 @@ import { useMemo, useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { formatDuration } from '../../lib/timeTracking';
 import { formatEuro } from '../../lib/money';
+import { formatGehaltsMonat } from '../../lib/gehaltsmonat';
+import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS } from '../../lib/abrechnungStatus';
 import { fmtDate } from '../../lib/format';
 import AbrechnungForm from '../shared/AbrechnungForm';
 import type { Abrechnung } from '../../types/entities';
 
-const FREIGABE_OPTIONS = [
+const STATUS_OPTIONS = [
   { id: 'alle', label: 'Alle' },
   { id: 'offen', label: 'Nur offene' },
-  { id: 'freigegeben', label: 'Nur freigegebene' },
+  { id: 'freigegeben', label: 'Nur freigegeben' },
+  { id: 'abgerechnet', label: 'Nur abgerechnet' },
 ] as const;
 
 export default function AbrechnungOverview() {
@@ -23,7 +26,7 @@ export default function AbrechnungOverview() {
   const [monat, setMonat] = useState('');
   const [kunde, setKunde] = useState('');
   const [art, setArt] = useState('');
-  const [freigabe, setFreigabe] = useState<(typeof FREIGABE_OPTIONS)[number]['id']>('alle');
+  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]['id']>('alle');
 
   const projectName = new Map(projects.map((project) => [project.id, project.name]));
   const kunden = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')), [abrechnungen]);
@@ -34,7 +37,7 @@ export default function AbrechnungOverview() {
     .filter((item) => !monat || item.datum.slice(5, 7) === monat)
     .filter((item) => !kunde || item.kunde === kunde)
     .filter((item) => !art || item.art === art)
-    .filter((item) => freigabe === 'alle' || (freigabe === 'freigegeben') === item.freigegeben)
+    .filter((item) => status === 'alle' || abrechnungStatus(item) === status)
     .sort((a, b) => b.datum.localeCompare(a.datum));
 
   const totals = filtered.reduce((acc, item) => ({
@@ -44,12 +47,13 @@ export default function AbrechnungOverview() {
   }), { minutes: 0, wertCents: 0, provisionCents: 0 });
 
   const gehaltsMonate = useMemo(() => {
-    const map = new Map<string, { minutes: number; provisionCents: number }>();
+    const map = new Map<string, { minutes: number; provisionCents: number; belegNrs: Set<string> }>();
     abrechnungen.forEach((item) => {
       if (!item.gehaltsMonat) return;
-      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0 };
+      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, belegNrs: new Set<string>() };
       current.minutes += item.minutes;
       current.provisionCents += item.provisionCents;
+      if (item.belegNr) current.belegNrs.add(item.belegNr);
       map.set(item.gehaltsMonat, current);
     });
     return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
@@ -80,7 +84,7 @@ export default function AbrechnungOverview() {
           {arten.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
         <div className="abrechnung-freigabe-filter">
-          {FREIGABE_OPTIONS.map((option) => <button key={option.id} type="button" className={`btn secondary small${freigabe === option.id ? ' active' : ''}`} onClick={() => setFreigabe(option.id)}>{option.label}</button>)}
+          {STATUS_OPTIONS.map((option) => <button key={option.id} type="button" className={`btn secondary small${status === option.id ? ' active' : ''}`} onClick={() => setStatus(option.id)}>{option.label}</button>)}
         </div>
         <button type="button" className="btn small" style={{ marginLeft: 'auto' }} onClick={() => setEditing('new')}>+ Abrechnung erfassen</button>
       </div>
@@ -93,7 +97,7 @@ export default function AbrechnungOverview() {
       {filtered.length > 0 ? (
         <div className="analytics-table-wrap">
           <table className="an-table">
-            <thead><tr><th>Datum</th><th>Kunde / Projekt</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Freigabe</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
+            <thead><tr><th>Datum</th><th>Kunde / Projekt</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Status</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
             <tbody>
               {filtered.map((item) => <tr key={item.id} className="clickable-row" onClick={() => setEditing(item)}>
                 <td>{fmtDate(item.datum)}</td>
@@ -102,9 +106,9 @@ export default function AbrechnungOverview() {
                 <td>{formatDuration(item.minutes)}</td>
                 <td>{formatEuro(item.wertCents)}</td>
                 <td>{formatEuro(item.provisionCents)}</td>
-                <td>{item.freigegeben ? <span className="badge freigegeben">freigegeben</span> : <span className="badge offen">offen</span>}</td>
+                <td><span className={`badge ${abrechnungStatus(item)}`}>{ABRECHNUNG_STATUS_LABELS[abrechnungStatus(item)]}</span></td>
                 <td>{item.rechnungsdatum ? fmtDate(item.rechnungsdatum) : '–'}</td>
-                <td>{item.gehaltsMonat || '–'}</td>
+                <td>{formatGehaltsMonat(item.gehaltsMonat) || '–'}</td>
               </tr>)}
             </tbody>
           </table>
@@ -115,9 +119,14 @@ export default function AbrechnungOverview() {
       {gehaltsMonate.length > 0 && (
         <div className="analytics-table-wrap" style={{ marginTop: 20 }}>
           <table className="an-table">
-            <thead><tr><th>Gehaltsmonat</th><th>Stunden</th><th>Provision</th></tr></thead>
+            <thead><tr><th>Gehaltsmonat</th><th>Stunden</th><th>Provision</th><th>Belegnummern</th></tr></thead>
             <tbody>
-              {gehaltsMonate.map(([month, sums]) => <tr key={month}><td>{month}</td><td>{formatDuration(sums.minutes)}</td><td>{formatEuro(sums.provisionCents)}</td></tr>)}
+              {gehaltsMonate.map(([month, sums]) => <tr key={month}>
+                <td>{formatGehaltsMonat(month)}</td>
+                <td>{formatDuration(sums.minutes)}</td>
+                <td>{formatEuro(sums.provisionCents)}</td>
+                <td>{sums.belegNrs.size ? Array.from(sums.belegNrs).sort((a, b) => a.localeCompare(b, 'de', { numeric: true })).join(', ') : '–'}</td>
+              </tr>)}
             </tbody>
           </table>
         </div>

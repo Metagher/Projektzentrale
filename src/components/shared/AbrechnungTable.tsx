@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { formatDuration } from '../../lib/timeTracking';
 import { formatEuro } from '../../lib/money';
+import { formatGehaltsMonat } from '../../lib/gehaltsmonat';
+import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS } from '../../lib/abrechnungStatus';
 import { fmtDate } from '../../lib/format';
 import AbrechnungForm from './AbrechnungForm';
 import type { Abrechnung, Project } from '../../types/entities';
@@ -17,7 +19,8 @@ export default function AbrechnungTable({ project }: { project: Project }) {
     wertCents: acc.wertCents + item.wertCents,
     provisionCents: acc.provisionCents + item.provisionCents,
   }), { minutes: 0, wertCents: 0, provisionCents: 0 });
-  const offen = abrechnungen.filter((item) => !item.freigegeben);
+  const wartetAufFreigabe = abrechnungen.filter((item) => abrechnungStatus(item) === 'offen').length;
+  const wartetAufRechnung = abrechnungen.filter((item) => abrechnungStatus(item) === 'freigegeben').length;
 
   return <section className="abrechnung-table">
     <div className="analytics-block-head">
@@ -29,11 +32,12 @@ export default function AbrechnungTable({ project }: { project: Project }) {
         <article><span>Stunden</span><strong>{formatDuration(totals.minutes)}</strong></article>
         <article><span>Wert</span><strong>{formatEuro(totals.wertCents)}</strong></article>
         <article><span>Provision</span><strong>{formatEuro(totals.provisionCents)}</strong></article>
-        <article><span>Noch nicht freigegeben</span><strong>{offen.length}</strong></article>
+        <article><span>Wartet auf Freigabe</span><strong>{wartetAufFreigabe}</strong></article>
+        <article><span>Freigegeben, noch nicht abgerechnet</span><strong>{wartetAufRechnung}</strong></article>
       </div>
       <div className="analytics-table-wrap">
         <table className="an-table">
-          <thead><tr><th>Datum</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Freigabe</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
+          <thead><tr><th>Datum</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Status</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
           <tbody>
             {abrechnungen.map((item) => <tr key={item.id} className="clickable-row" onClick={() => setEditing(item)}>
               <td>{fmtDate(item.datum)}</td>
@@ -41,9 +45,9 @@ export default function AbrechnungTable({ project }: { project: Project }) {
               <td>{formatDuration(item.minutes)}</td>
               <td>{formatEuro(item.wertCents)}</td>
               <td>{formatEuro(item.provisionCents)}</td>
-              <td>{item.freigegeben ? <span className="badge freigegeben">freigegeben</span> : <span className="badge offen">offen</span>}</td>
+              <td><span className={`badge ${abrechnungStatus(item)}`}>{ABRECHNUNG_STATUS_LABELS[abrechnungStatus(item)]}</span></td>
               <td>{item.rechnungsdatum ? fmtDate(item.rechnungsdatum) : '–'}</td>
-              <td>{item.gehaltsMonat || '–'}</td>
+              <td>{formatGehaltsMonat(item.gehaltsMonat) || '–'}</td>
             </tr>)}
           </tbody>
         </table>
