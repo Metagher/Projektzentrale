@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useUiStore } from '../../store/uiStore';
 import { buildCalendarWeeks, dateKey, MONTH_NAMES, WEEKDAY_LABELS } from '../../lib/calendar';
 import { openTaskInDashboard } from '../../lib/navigation';
@@ -9,6 +10,7 @@ const MAX_VISIBLE_PER_DAY = 2;
 
 export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: CalendarTaskWithMeta[] }) {
   const { calendarMonth, setCalendarMonth } = useUiStore();
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const now = new Date();
   const workdayOverrides = useDataStore((state) => state.workdayOverrides);
   const toggleWorkday = useDataStore((state) => state.toggleWorkday);
@@ -66,12 +68,14 @@ export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: Calenda
           const dayTasks = tasksByDate[key] || [];
           const isToday = key === todayKey;
           const workday = isWorkday(cell.date, workdayOverrides);
-          const hiddenCount = dayTasks.length - MAX_VISIBLE_PER_DAY;
+          const isExpanded = expandedDay === key;
+          const hiddenCount = isExpanded ? 0 : dayTasks.length - MAX_VISIBLE_PER_DAY;
+          const visibleTasks = isExpanded ? dayTasks : dayTasks.slice(0, MAX_VISIBLE_PER_DAY);
           return (
-            <div key={i} className={`cal-cell${cell.inMonth ? '' : ' other-month'}${isToday ? ' today' : ''}${workday ? ' workday' : ' non-workday'}`}>
+            <div key={i} className={`cal-cell${cell.inMonth ? '' : ' other-month'}${isToday ? ' today' : ''}${workday ? ' workday' : ' non-workday'}${isExpanded ? ' expanded' : ''}`}>
               <div className="cal-day-head"><div className="cal-daynum">{cell.date.getDate()}</div><button className="workday-toggle" onClick={() => toggleWorkday(key)} title={workday ? 'Als arbeitsfrei markieren' : 'Als Arbeitstag markieren'} aria-label={`${key}: ${workday ? 'Arbeitstag' : 'Arbeitsfrei'}`}>{workday ? 'A' : '–'}</button></div>
               <div className="cal-tasks">
-                {dayTasks.slice(0, MAX_VISIBLE_PER_DAY).map((t) => (
+                {visibleTasks.map((t) => (
                   <div
                     key={t.calendarEntryId}
                     className={`cal-task${t.farbe ? ` task-color-border-${t.farbe}` : ''}`}
@@ -82,7 +86,16 @@ export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: Calenda
                   </div>
                 ))}
               </div>
-              {hiddenCount > 0 && <div className="cal-more">+{hiddenCount} weitere</div>}
+              {hiddenCount > 0 && (
+                <button type="button" className="cal-more" onClick={() => setExpandedDay(key)}>
+                  +{hiddenCount} weitere
+                </button>
+              )}
+              {isExpanded && dayTasks.length > MAX_VISIBLE_PER_DAY && (
+                <button type="button" className="cal-more" onClick={() => setExpandedDay(null)}>
+                  einklappen
+                </button>
+              )}
             </div>
           );
         })}
