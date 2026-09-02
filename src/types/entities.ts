@@ -185,6 +185,13 @@ export interface TaskProgressEntry {
   updatedAt: string;
 }
 
+/** Einzelne abgerechnete Zeitbuchung an einer Aufgabe; eine Aufgabe kann mehrere Buchungen an unterschiedlichen Tagen haben. */
+export interface TaskBilledTimeEntry {
+  id: string;
+  minutes: number;
+  datum: string; // YYYY-MM-DD
+}
+
 export interface Task {
   id: string;
   nr: number;
@@ -227,9 +234,11 @@ export interface Task {
   naechsteBesprechung?: boolean;
   /** All projects in which this shared task is displayed and editable. */
   projectIds?: string[];
-  /** Separately recorded time that has already been billed, in minutes. */
+  /** Einzelne abgerechnete Zeitbuchungen, jede mit eigenem Datum. Ersetzt billedMinutes/billedDate als Quelle der Wahrheit. */
+  billedZeiten?: TaskBilledTimeEntry[];
+  /** @deprecated Summe über billedZeiten; wird beim Speichern automatisch nachgeführt und nur noch für CSV-Export/-Import verwendet. */
   billedMinutes?: number;
-  /** Optional service/billing date (YYYY-MM-DD). */
+  /** @deprecated Jüngstes Datum aus billedZeiten; siehe billedMinutes. */
   billedDate?: string;
 }
 

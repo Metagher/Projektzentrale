@@ -15,7 +15,9 @@ import TaskWaitingFields from '../shared/TaskWaitingFields';
 import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSelect';
 import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import TaskAppointmentsField from '../shared/TaskAppointmentsField';
-import type { ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
+import TaskBilledTimeField from '../shared/TaskBilledTimeField';
+import { summarizeBilledZeiten } from '../../lib/taskBilling';
+import type { ProjectCache, Task, TaskBilledTimeEntry, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const createTask = useDataStore((s) => s.createTask);
@@ -48,8 +50,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState('');
   const [teilprojekt, setTeilprojekt] = useState('');
   const [projectIds, setProjectIds] = useState<string[]>([projectId]);
-  const [billedMinutes, setBilledMinutes] = useState(0);
-  const [billedDate, setBilledDate] = useState(todayStr());
+  const [billedZeiten, setBilledZeiten] = useState<TaskBilledTimeEntry[]>([]);
   const teilprojekte = Array.from(new Set(data.tasks.map((task) => task.teilprojekt?.trim()).filter((value): value is string => !!value)))
     .sort((a, b) => a.localeCompare(b, 'de'));
   const assignedModuleIds = new Set(customerModules.filter((item) => item.kunde === project?.kunde).map((item) => item.moduleId));
@@ -88,8 +89,8 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       dokuZiel,
       naechsteBesprechung,
       projectIds,
-      billedMinutes,
-      billedDate: billedMinutes > 0 ? billedDate : '',
+      billedZeiten,
+      ...summarizeBilledZeiten(billedZeiten),
     };
     const newTaskId = await createTask(projectId, partial);
     if (commIds.length) await syncCommLinksForTask(projectId, newTaskId, [], commIds);
@@ -141,7 +142,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       <div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div>
       <div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div>
       <TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} />
-      <div className="field-grid billed-time-fields"><div className="field"><label>Abgerechnete Zeit (Minuten)</label><input type="number" min="0" step="1" value={billedMinutes || ''} onChange={(event) => setBilledMinutes(Math.max(0, Number(event.target.value) || 0))} placeholder="0" /></div><div className="field"><label>Abrechnungsdatum</label><input type="date" value={billedDate} disabled={billedMinutes <= 0} onChange={(event) => setBilledDate(event.target.value)} /></div></div>
+      <TaskBilledTimeField value={billedZeiten} onChange={setBilledZeiten} />
       </div>}
       <div className="btn-row">
         <button type="button" className="btn" onClick={handleSave}>
