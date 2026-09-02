@@ -14,3 +14,14 @@ export function euroInputToCents(value: string): number {
 export function centsToEuroInput(cents: number): string {
   return (cents / 100).toFixed(2);
 }
+
+/**
+ * Wandelt den Wert eines `<input type="number">` in Cent um. Der DOM-Wert eines number-Inputs ist
+ * immer mit Punkt als Dezimaltrennzeichen normiert (nie mit Tausenderpunkt) – anders als bei
+ * `euroInputToCents`, das für frei getippten Text mit deutschem Zahlenformat gedacht ist. Beide
+ * Funktionen hier zu verwechseln, lässt Punkte im Wert fälschlich als Tausendertrennzeichen wegfallen.
+ */
+export function numberInputToCents(value: string): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0;
+}

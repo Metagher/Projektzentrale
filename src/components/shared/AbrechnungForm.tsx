@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { uid, todayStr } from '../../lib/format';
-import { centsToEuroInput, euroInputToCents } from '../../lib/money';
+import { centsToEuroInput, numberInputToCents } from '../../lib/money';
 import { formatGehaltsMonat, gehaltsMonatFromDate, parseGehaltsMonatInput } from '../../lib/gehaltsmonat';
 import type { Abrechnung } from '../../types/entities';
 
@@ -55,7 +55,7 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, onSa
 
   useEffect(() => {
     if (provisionOverridden || faktor === undefined) return;
-    const wertCents = euroInputToCents(wert);
+    const wertCents = numberInputToCents(wert);
     setProvision(centsToEuroInput(Math.round((wertCents * faktor) / 100)));
   }, [wert, faktor, provisionOverridden]);
 
@@ -85,8 +85,8 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, onSa
       datum,
       art,
       minutes: hoursInputToMinutes(hours),
-      wertCents: euroInputToCents(wert),
-      provisionCents: euroInputToCents(provision),
+      wertCents: numberInputToCents(wert),
+      provisionCents: numberInputToCents(provision),
       freigegeben,
       rechnungsdatum: freigegeben ? (rechnungsdatum || undefined) : undefined,
       gehaltsMonat: parseGehaltsMonatInput(gehaltsMonatText) || undefined,
@@ -94,7 +94,7 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, onSa
       bemerkung: bemerkung.trim() || undefined,
       teilprojekt: teilprojekt.trim() || undefined,
       tageVorOrt: art === 'VO' && tageVorOrt ? Number(tageVorOrt) : undefined,
-      reisekostenCents: art === 'VO' && reisekosten ? euroInputToCents(reisekosten) : undefined,
+      reisekostenCents: art === 'VO' && reisekosten ? numberInputToCents(reisekosten) : undefined,
       fahrzeitMinutes: art === 'VO' && fahrzeit ? hoursInputToMinutes(fahrzeit) : undefined,
       modul: art === 'MODUL' ? modul.trim() || undefined : undefined,
       createdAt: entry?.createdAt || new Date().toISOString(),

@@ -56,6 +56,10 @@
 .abrechnung-filters select{min-width:130px;}
 .abrechnung-freigabe-filter{display:flex;gap:4px;}
 .abrechnung-freigabe-filter .btn.active{color:#fff;background:#111;border-color:#111;}
+.belegnr-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;}
+.belegnr-list li{display:flex;gap:8px;align-items:baseline;}
+.belegnr-list li span:first-child{font-weight:700;min-width:60px;}
+.belegnr-list li span:last-child{color:var(--ink-soft);}
 .an-table tr:last-child td{border-bottom:none;}
 .an-table tfoot th{padding:8px 10px;color:var(--ink);font-size:12px;font-weight:800;text-transform:none;letter-spacing:normal;border-top:2px solid var(--line);border-bottom:none;}
 .an-week-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(78px,1fr));gap:6px;margin-bottom:8px;}
