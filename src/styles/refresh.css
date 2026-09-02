@@ -282,7 +282,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .task-card-actions .time-tracking-btn{padding:4px 6px;}
 .task-card-actions .icon-btn{font-size:9px;}
 .kanban-task .task-explorer-paths{gap:4px;margin:0;}
-.kanban-task .task-explorer-paths button{padding:3px 6px;font-size:8px;}
+.kanban-task .task-explorer-paths button,.kanban-task .task-explorer-paths a{padding:3px 6px;font-size:8px;}
 .workspace-panes.split .kanban-board:not(.without-completed){grid-template-columns:repeat(3,minmax(230px,1fr));overflow-x:auto;padding-bottom:8px;}
 .kanban-task .rtf-field-preview-compact { max-height: 92px; overflow: hidden; }
 .kanban-empty { display: grid; place-items: center; min-height: 76px; padding: 12px; color: #777; border: 1px dashed #bbb; border-radius: 9px; font-size: 11px; text-align: center; }
