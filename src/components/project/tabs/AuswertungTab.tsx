@@ -3,13 +3,15 @@ import TaskAnalytics from '../../analytics/TaskAnalytics';
 import type { Project, ProjectCache } from '../../../types/entities';
 import ProjectOperationalOverview from '../../analytics/ProjectOperationalOverview';
 import ZeitenTab from './ZeitenTab';
+import AbrechnungTable from '../../shared/AbrechnungTable';
 
-type ProjectAnalyticsTab = 'projekt' | 'aufgaben' | 'zeiten';
+type ProjectAnalyticsTab = 'projekt' | 'aufgaben' | 'zeiten' | 'abrechnung';
 
 const PROJECT_ANALYTICS_TABS: { id: ProjectAnalyticsTab; label: string }[] = [
   { id: 'projekt', label: 'Projektauswertung' },
   { id: 'aufgaben', label: 'Aufgabenübersicht' },
   { id: 'zeiten', label: 'Zeiten' },
+  { id: 'abrechnung', label: 'Abrechnung' },
 ];
 
 export default function AuswertungTab({ project, data }: { project: Project; data: ProjectCache }) {
@@ -29,8 +31,10 @@ export default function AuswertungTab({ project, data }: { project: Project; dat
           <div className="analytics-section-intro"><div className="analytics-scope-label">Projektentwicklung</div><h3>Durchlaufzeit und Leistung</h3><p>Historische Entwicklung ausschließlich für dieses Projekt.</p></div>
           <TaskAnalytics allTasks={allTasks} showProjectBreakdown={false} />
         </>
-      ) : (
+      ) : activeSection === 'zeiten' ? (
         <ZeitenTab project={project} data={data} />
+      ) : (
+        <AbrechnungTable project={project} />
       )}
     </>
   );

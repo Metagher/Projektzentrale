@@ -26,17 +26,20 @@ export default function AbrechnungOverview() {
   const [monat, setMonat] = useState('');
   const [kunde, setKunde] = useState('');
   const [art, setArt] = useState('');
+  const [gehaltsMonatFilter, setGehaltsMonatFilter] = useState('');
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]['id']>('alle');
 
   const projectName = new Map(projects.map((project) => [project.id, project.name]));
   const kunden = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')), [abrechnungen]);
   const jahre = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.datum.slice(0, 4)))).sort((a, b) => b.localeCompare(a)), [abrechnungen]);
+  const gehaltsMonatOptionen = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.gehaltsMonat).filter((value): value is string => !!value))).sort((a, b) => b.localeCompare(a)), [abrechnungen]);
 
   const filtered = abrechnungen
     .filter((item) => !jahr || item.datum.slice(0, 4) === jahr)
     .filter((item) => !monat || item.datum.slice(5, 7) === monat)
     .filter((item) => !kunde || item.kunde === kunde)
     .filter((item) => !art || item.art === art)
+    .filter((item) => !gehaltsMonatFilter || item.gehaltsMonat === gehaltsMonatFilter)
     .filter((item) => status === 'alle' || abrechnungStatus(item) === status)
     .sort((a, b) => b.datum.localeCompare(a.datum));
 
@@ -82,6 +85,10 @@ export default function AbrechnungOverview() {
         <select value={art} onChange={(event) => setArt(event.target.value)}>
           <option value="">Alle Arten</option>
           {arten.map((item) => <option key={item} value={item}>{item}</option>)}
+        </select>
+        <select value={gehaltsMonatFilter} onChange={(event) => setGehaltsMonatFilter(event.target.value)}>
+          <option value="">Alle Gehaltsmonate</option>
+          {gehaltsMonatOptionen.map((value) => <option key={value} value={value}>{formatGehaltsMonat(value)}</option>)}
         </select>
         <div className="abrechnung-freigabe-filter">
           {STATUS_OPTIONS.map((option) => <button key={option.id} type="button" className={`btn secondary small${status === option.id ? ' active' : ''}`} onClick={() => setStatus(option.id)}>{option.label}</button>)}
