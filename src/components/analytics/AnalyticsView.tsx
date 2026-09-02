@@ -58,14 +58,16 @@ export default function AnalyticsView() {
           labels[task.id] = `${task.nr} · ${task.titel}`;
           if (countedTasks.has(task.id)) return;
           countedTasks.add(task.id);
-          const minutes = Number(task.billedMinutes) || 0;
-          taskMinutes += minutes;
-          if (minutes > 0 && task.billedDate) {
-            const day = billedDays.get(task.billedDate) || { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 };
-            day.taskMinutes += minutes;
-            billedDays.set(task.billedDate, day);
-            billedItems.push({ date: task.billedDate, kind: 'Aufgabe', label: `${task.nr} · ${task.titel}`, minutes });
-          }
+          (task.billedZeiten || []).forEach((entry) => {
+            const minutes = Number(entry.minutes) || 0;
+            taskMinutes += minutes;
+            if (minutes > 0 && entry.datum) {
+              const day = billedDays.get(entry.datum) || { taskMinutes: 0, communicationMinutes: 0, freeMinutes: 0 };
+              day.taskMinutes += minutes;
+              billedDays.set(entry.datum, day);
+              billedItems.push({ date: entry.datum, kind: 'Aufgabe', label: `${task.nr} · ${task.titel}`, minutes });
+            }
+          });
         });
         const communicationMinutes = data.comms.reduce((sum, comm) => {
           const minutes = Number(comm.billedMinutes) || 0;

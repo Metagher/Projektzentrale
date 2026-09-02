@@ -11,12 +11,14 @@ import TaskWaitingFields from '../shared/TaskWaitingFields';
 import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSelect';
 import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import TaskAppointmentsField from '../shared/TaskAppointmentsField';
+import TaskBilledTimeField from '../shared/TaskBilledTimeField';
 import { taskDocumentationTarget } from '../../lib/taskDocumentation';
 import { todayStr } from '../../lib/format';
+import { summarizeBilledZeiten } from '../../lib/taskBilling';
 import { contactLinkLabel, linkedContactIds } from '../../lib/contacts';
 import LinkChipsField from '../shared/LinkChipsField';
 import type { TaskWithMeta } from '../../store/dataStore';
-import type { TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
+import type { TaskBilledTimeEntry, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 interface Props {
   task: TaskWithMeta;
@@ -53,8 +55,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState(task.ticketsystemVerknuepfung || '');
   const [teilprojekt, setTeilprojekt] = useState(task.teilprojekt || '');
   const [projectIds, setProjectIds] = useState<string[]>(task.projectIds?.length ? task.projectIds : [task.projectId]);
-  const [billedMinutes, setBilledMinutes] = useState(Math.max(0, Number(task.billedMinutes) || 0));
-  const [billedDate, setBilledDate] = useState(task.billedDate || todayStr());
+  const [billedZeiten, setBilledZeiten] = useState<TaskBilledTimeEntry[]>(task.billedZeiten || []);
   const teilprojekte = Array.from(new Set((useDataStore((s) => s.cache[task.projectId]?.tasks) || []).map((item) => item.teilprojekt?.trim()).filter((value): value is string => !!value)))
     .sort((a, b) => a.localeCompare(b, 'de'));
 
@@ -96,8 +97,8 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       dokuErledigt: dokuZielChanged ? false : task.dokuErledigt,
       naechsteBesprechung,
       projectIds,
-      billedMinutes,
-      billedDate: billedMinutes > 0 ? billedDate : '',
+      billedZeiten,
+      ...summarizeBilledZeiten(billedZeiten),
     });
     onSave();
   }
@@ -140,7 +141,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
         <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-dashboard-${task.projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-dashboard-${task.projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
         <TaskDocumentationTargetSelect value={dokuZiel} onChange={(value) => { if (value !== dokuZiel) setDokuZielChanged(true); setDokuZiel(value); }} />
         <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
-      </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} /><div className="field-grid billed-time-fields"><div className="field"><label>Abgerechnete Zeit (Minuten)</label><input type="number" min="0" step="1" value={billedMinutes || ''} onChange={(event) => setBilledMinutes(Math.max(0, Number(event.target.value) || 0))} placeholder="0" /></div><div className="field"><label>Abrechnungsdatum</label><input type="date" value={billedDate} disabled={billedMinutes <= 0} onChange={(event) => setBilledDate(event.target.value)} /></div></div></div>}
+      </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} /><TaskBilledTimeField value={billedZeiten} onChange={setBilledZeiten} /></div>}
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn small" onClick={handleSave}>
           Speichern
