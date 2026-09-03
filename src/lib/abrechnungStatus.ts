@@ -19,9 +19,20 @@ export const ABRECHNUNG_STATUS_LABELS: Record<AbrechnungStatus, string> = {
   abgerechnet: 'abgerechnet',
 };
 
-export const ABRECHNUNG_STATUS_FILTER_OPTIONS: { id: AbrechnungStatus | 'alle'; label: string }[] = [
+/** 'offen_freigegeben' ist ein reiner Filterwert (noch nicht abgerechnet), kein möglicher Status eines einzelnen Eintrags. */
+export type AbrechnungStatusFilter = AbrechnungStatus | 'alle' | 'offen_freigegeben';
+
+export const ABRECHNUNG_STATUS_FILTER_OPTIONS: { id: AbrechnungStatusFilter; label: string }[] = [
   { id: 'alle', label: 'Alle' },
   { id: 'offen', label: 'Nur offene' },
   { id: 'freigegeben', label: 'Nur freigegeben' },
+  { id: 'offen_freigegeben', label: 'Offen + freigegeben' },
   { id: 'abgerechnet', label: 'Nur abgerechnet' },
 ];
+
+export function matchesAbrechnungStatusFilter(item: Pick<Abrechnung, 'freigegeben' | 'rechnungsdatum'>, filter: AbrechnungStatusFilter): boolean {
+  if (filter === 'alle') return true;
+  const status = abrechnungStatus(item);
+  if (filter === 'offen_freigegeben') return status !== 'abgerechnet';
+  return status === filter;
+}

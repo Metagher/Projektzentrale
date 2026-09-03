@@ -8,6 +8,8 @@ import { formatEuro } from '../../lib/money';
 export default function AbrechnungCsvImportSettings() {
   const arten = useDataStore((s) => s.abrechnungsArten);
   const saveArten = useDataStore((s) => s.saveAbrechnungsArten);
+  const module = useDataStore((s) => s.abrechnungsModule);
+  const saveModule = useDataStore((s) => s.saveAbrechnungsModule);
   const importAbrechnungen = useDataStore((s) => s.importAbrechnungen);
   const confirm = useModalStore((s) => s.confirm);
   const alert = useModalStore((s) => s.alert);
@@ -37,13 +39,16 @@ export default function AbrechnungCsvImportSettings() {
   async function handleImport() {
     if (!preview || busy) return;
     const neueArten = preview.arten.filter((art) => !arten.includes(art));
+    const neueModule = preview.module.filter((item) => !module.includes(item));
     const sure = await confirm(
       `${preview.rows.length} Abrechnung(en) aus "${fileName}" importieren? Bereits vorhandene Einträge aus einem früheren Import derselben Datei werden aktualisiert statt dupliziert.` +
-      (neueArten.length ? ` Neue Abrechnungsart(en) werden angelegt: ${neueArten.join(', ')}.` : ''),
+      (neueArten.length ? ` Neue Abrechnungsart(en) werden angelegt: ${neueArten.join(', ')}.` : '') +
+      (neueModule.length ? ` Neue Module werden angelegt: ${neueModule.join(', ')}.` : ''),
     );
     if (!sure) return;
     setBusy(true);
     if (neueArten.length) await saveArten([...arten, ...neueArten]);
+    if (neueModule.length) await saveModule([...module, ...neueModule]);
     const { added, updated } = await importAbrechnungen(preview.rows);
     setBusy(false);
     setPreview(null);
@@ -55,6 +60,7 @@ export default function AbrechnungCsvImportSettings() {
   const totals = preview?.rows.reduce((acc, item) => ({ minutes: acc.minutes + item.minutes, wertCents: acc.wertCents + item.wertCents }), { minutes: 0, wertCents: 0 });
   const datumRange = preview?.rows.length ? [preview.rows.reduce((min, item) => item.datum < min ? item.datum : min, preview.rows[0].datum), preview.rows.reduce((max, item) => item.datum > max ? item.datum : max, preview.rows[0].datum)] : undefined;
   const neueArten = preview ? preview.arten.filter((art) => !arten.includes(art)) : [];
+  const neueModule = preview ? preview.module.filter((item) => !module.includes(item)) : [];
 
   return <section className="card">
     <h3>Abrechnungen aus CSV importieren</h3>
@@ -81,6 +87,7 @@ export default function AbrechnungCsvImportSettings() {
           {preview.skipped > 0 && <article><span>Übersprungen</span><strong>{preview.skipped}</strong></article>}
         </div>
         {neueArten.length > 0 && <p className="field-help">Neue Abrechnungsart(en) werden beim Import angelegt: {neueArten.join(', ')}</p>}
+        {neueModule.length > 0 && <p className="field-help">Neue Module werden beim Import angelegt: {neueModule.join(', ')}</p>}
         <div className="btn-row">
           <button className="btn" disabled={busy} onClick={handleImport}>{busy ? 'Importiert…' : `${preview.rows.length} Abrechnung(en) importieren`}</button>
           <button className="btn secondary" disabled={busy} onClick={() => { setPreview(null); setFileName(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}>Abbrechen</button>

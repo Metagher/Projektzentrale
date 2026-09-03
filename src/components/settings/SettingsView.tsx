@@ -5,6 +5,7 @@ import DataView from '../data/DataView';
 import AbrechnungsArtenSettings from './AbrechnungsArtenSettings';
 import AbrechnungCsvImportSettings from './AbrechnungCsvImportSettings';
 import AbrechnungFilterPresetSettings from './AbrechnungFilterPresetSettings';
+import AbrechnungModuleSettings from './AbrechnungModuleSettings';
 import AbrechnungProjectMatchSettings from './AbrechnungProjectMatchSettings';
 import DataValidationSettings from './DataValidationSettings';
 import ExplorerPathSettings from './ExplorerPathSettings';
@@ -41,7 +42,7 @@ export default function SettingsView() {
     </div>
     <section id={`settings-panel-${activeTab}`} className="settings-tab-panel" role="tabpanel">
       {activeTab === 'tasks' && <><ModuleSettings /><TaskColorSettings /><WaitingOptionsSettings /><ExplorerPathSettings /></>}
-      {activeTab === 'time' && <><ProjectTimeTypeSettings /><AbrechnungsArtenSettings /><StundensatzSettings /><AbrechnungFilterPresetSettings /><AbrechnungCsvImportSettings /><AbrechnungProjectMatchSettings /></>}
+      {activeTab === 'time' && <><ProjectTimeTypeSettings /><AbrechnungsArtenSettings /><AbrechnungModuleSettings /><StundensatzSettings /><AbrechnungFilterPresetSettings /><AbrechnungCsvImportSettings /><AbrechnungProjectMatchSettings /></>}
       {activeTab === 'validation' && <DataValidationSettings />}
       {activeTab === 'data' && <DataView embedded />}
       {activeTab === 'ai' && <AiSettingsView embedded />}

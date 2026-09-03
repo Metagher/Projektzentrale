@@ -29,6 +29,8 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
   const faktoren = useDataStore((s) => s.abrechnungsFaktoren);
   const stundensaetze = useDataStore((s) => s.stundensaetze);
   const linkedDefaultArt = useDataStore((s) => s.abrechnungLinkedDefaultArt);
+  const abrechnungsModule = useDataStore((s) => s.abrechnungsModule);
+  const saveAbrechnungsModule = useDataStore((s) => s.saveAbrechnungsModule);
   const cache = useDataStore((s) => s.cache);
   const confirm = useModalStore((s) => s.confirm);
 
@@ -56,6 +58,8 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
   const [reisekosten, setReisekosten] = useState(entry?.reisekostenCents ? centsToEuroInput(entry.reisekostenCents) : '');
   const [fahrzeit, setFahrzeit] = useState(entry?.fahrzeitMinutes ? minutesToHoursInput(entry.fahrzeitMinutes) : '');
   const [modul, setModul] = useState(entry?.modul || '');
+  const [addingModul, setAddingModul] = useState(false);
+  const [newModulName, setNewModulName] = useState('');
   const [saving, setSaving] = useState(false);
 
   const projectLocked = !!fixedProjectId;
@@ -63,6 +67,8 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
   const faktor = faktoren[art];
   const linkedTask = taskId && projectId ? cache[projectId]?.tasks.find((task) => task.id === taskId) : undefined;
   const linkedComm = commId && projectId ? cache[projectId]?.comms.find((comm) => comm.id === commId) : undefined;
+  // Falls der gespeicherte Wert (Altdaten) nicht mehr in der festen Liste steht, trotzdem als Option anbieten.
+  const modulOptionen = modul && !abrechnungsModule.includes(modul) ? [...abrechnungsModule, modul].sort((a, b) => a.localeCompare(b, 'de')) : abrechnungsModule;
 
   useEffect(() => {
     if (provisionOverridden || faktor === undefined) return;
@@ -88,6 +94,17 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
 
   function applyStundensatz(stundensatzCents: number) {
     setWert(centsToEuroInput(Math.round((stundensatzCents * hoursInputToMinutes(hours)) / 60)));
+  }
+
+  async function addModul() {
+    const next = newModulName.trim();
+    if (!next) return;
+    if (!abrechnungsModule.some((item) => item.toLocaleLowerCase('de') === next.toLocaleLowerCase('de'))) {
+      await saveAbrechnungsModule([...abrechnungsModule, next]);
+    }
+    setModul(next);
+    setNewModulName('');
+    setAddingModul(false);
   }
 
   async function handleSave() {
@@ -186,7 +203,24 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
           </div>
         )}
         {art === 'MODUL' && (
-          <div className="field"><label>Modul</label><input value={modul} onChange={(event) => setModul(event.target.value)} placeholder="z. B. EDI DESADV" /></div>
+          <div className="field">
+            <label>Modul</label>
+            {addingModul ? (
+              <div className="stundensatz-quick" style={{ marginTop: 0 }}>
+                <input value={newModulName} onChange={(event) => setNewModulName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') addModul(); }} placeholder="z. B. EDI DESADV" autoFocus />
+                <button type="button" className="btn secondary small" onClick={addModul}>Übernehmen</button>
+                <button type="button" className="btn secondary small" onClick={() => { setAddingModul(false); setNewModulName(''); }}>Abbrechen</button>
+              </div>
+            ) : (
+              <>
+                <select value={modul} onChange={(event) => setModul(event.target.value)}>
+                  <option value="">— auswählen —</option>
+                  {modulOptionen.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+                <small className="field-help"><button type="button" className="link-btn" onClick={() => setAddingModul(true)}>+ neues Modul anlegen</button></small>
+              </>
+            )}
+          </div>
         )}
         <div className="field-grid">
           <label className="doku-check-field"><input type="checkbox" checked={freigegeben} onChange={(event) => setFreigegeben(event.target.checked)} /> Zur Rechnungsstellung freigegeben</label>
