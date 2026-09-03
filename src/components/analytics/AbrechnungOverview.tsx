@@ -136,6 +136,12 @@ export default function AbrechnungOverview() {
     return Array.from(map.entries()).sort((a, b) => b[1].wertCents - a[1].wertCents);
   }, [moduleVerkaeufe, moduleJahr, moduleKunde]);
 
+  const moduleTotals = moduleAuswertung.reduce((acc, [, sums]) => ({
+    anzahl: acc.anzahl + sums.anzahl,
+    wertCents: acc.wertCents + sums.wertCents,
+    provisionCents: acc.provisionCents + sums.provisionCents,
+  }), { anzahl: 0, wertCents: 0, provisionCents: 0 });
+
   return (
     <section className="abrechnung-overview">
       <div className="analytics-block-head">
@@ -266,6 +272,14 @@ export default function AbrechnungOverview() {
                   <td>{formatEuro(sums.provisionCents)}</td>
                 </tr>)}
               </tbody>
+              <tfoot>
+                <tr>
+                  <th>Summe</th>
+                  <th>{moduleTotals.anzahl}</th>
+                  <th>{formatEuro(moduleTotals.wertCents)}</th>
+                  <th>{formatEuro(moduleTotals.provisionCents)}</th>
+                </tr>
+              </tfoot>
             </table>
           </div>
         ) : (
