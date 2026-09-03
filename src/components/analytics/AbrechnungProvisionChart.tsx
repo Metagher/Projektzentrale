@@ -1,40 +1,50 @@
 import { useMemo, useState } from 'react';
 import { formatEuro } from '../../lib/money';
+import { formatGehaltsMonat } from '../../lib/gehaltsmonat';
 import type { Abrechnung } from '../../types/entities';
-
-function monthLabel(month: string): string {
-  const [year, m] = month.split('-');
-  return `${m}/${year.slice(2)}`;
-}
 
 function compactEuro(cents: number): string {
   return `${Math.round(cents / 100).toLocaleString('de-DE')} €`;
 }
 
-export default function AbrechnungProvisionChart({ abrechnungen }: { abrechnungen: Abrechnung[] }) {
-  const jahre = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.datum.slice(0, 4)))).sort((a, b) => b.localeCompare(a)), [abrechnungen]);
+interface Props {
+  abrechnungen: Abrechnung[];
+  /** Nach welchem Datum die Monate gebildet werden: Leistungsdatum (item.datum) oder Gehaltsmonat. */
+  basis: 'leistungsdatum' | 'gehaltsmonat';
+}
+
+export default function AbrechnungProvisionChart({ abrechnungen, basis }: Props) {
+  const monthLabel = basis === 'gehaltsmonat' ? formatGehaltsMonat : (month: string) => { const [year, m] = month.split('-'); return `${m}/${year.slice(2)}`; };
+
+  const jahre = useMemo(() => {
+    const values = abrechnungen
+      .map((item) => (basis === 'gehaltsmonat' ? item.gehaltsMonat : item.datum.slice(0, 7)))
+      .filter((value): value is string => !!value);
+    return Array.from(new Set(values.map((value) => value.slice(0, 4)))).sort((a, b) => b.localeCompare(a));
+  }, [abrechnungen, basis]);
   const [jahr, setJahr] = useState('');
 
   const monate = useMemo(() => {
     const map = new Map<string, number>();
-    abrechnungen
-      .filter((item) => !jahr || item.datum.slice(0, 4) === jahr)
-      .forEach((item) => {
-        const month = item.datum.slice(0, 7);
-        map.set(month, (map.get(month) || 0) + item.provisionCents);
-      });
+    abrechnungen.forEach((item) => {
+      const month = basis === 'gehaltsmonat' ? item.gehaltsMonat : item.datum.slice(0, 7);
+      if (!month || (jahr && month.slice(0, 4) !== jahr)) return;
+      map.set(month, (map.get(month) || 0) + item.provisionCents);
+    });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [abrechnungen, jahr]);
+  }, [abrechnungen, jahr, basis]);
 
   const max = Math.max(1, ...monate.map(([, cents]) => cents));
   const total = monate.reduce((sum, [, cents]) => sum + cents, 0);
+  const title = basis === 'gehaltsmonat' ? 'Provision pro Monat (Gehaltsmonat)' : 'Provision pro Monat (Leistungsdatum)';
+  const subtitle = basis === 'gehaltsmonat' ? 'Monat der Gehaltsauszahlung' : 'Monat der erbrachten Leistung';
 
   return (
     <div className="provision-chart-wrap">
       <div className="analytics-block-head">
         <div>
-          <h3>Provision pro Monat</h3>
-          <p>Nach Leistungsdatum · {jahr || 'gesamter Zeitraum'} · Summe {formatEuro(total)}</p>
+          <h3>{title}</h3>
+          <p>{subtitle} · {jahr || 'gesamter Zeitraum'} · Summe {formatEuro(total)}</p>
         </div>
         <select value={jahr} onChange={(event) => setJahr(event.target.value)}>
           <option value="">Alle Jahre</option>
