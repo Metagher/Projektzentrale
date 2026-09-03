@@ -6,7 +6,7 @@ const COLORS = ['#1f5f8b', '#b4532a', '#2f7d55', '#7b4fa3', '#a47a18', '#2b7a78'
 
 export default function AbrechnungArtPieChart({ abrechnungen }: { abrechnungen: Abrechnung[] }) {
   const jahre = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.datum.slice(0, 4)))).sort((a, b) => b.localeCompare(a)), [abrechnungen]);
-  const [jahr, setJahr] = useState('');
+  const [jahr, setJahr] = useState(() => String(new Date().getFullYear()));
 
   const rows = useMemo(() => {
     const map = new Map<string, number>();

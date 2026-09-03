@@ -115,18 +115,26 @@ export default function AbrechnungOverview() {
       .sort((a, b) => b[0].localeCompare(a[0]));
   }, [abrechnungen]);
 
+  const moduleVerkaeufe = useMemo(() => abrechnungen.filter((item) => item.art === 'MODUL' && item.modul), [abrechnungen]);
+  const moduleKunden = useMemo(() => Array.from(new Set(moduleVerkaeufe.map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')), [moduleVerkaeufe]);
+  const moduleJahre = useMemo(() => Array.from(new Set(moduleVerkaeufe.map((item) => item.datum.slice(0, 4)))).sort((a, b) => b.localeCompare(a)), [moduleVerkaeufe]);
+  const [moduleJahr, setModuleJahr] = useState('');
+  const [moduleKunde, setModuleKunde] = useState('');
+
   const moduleAuswertung = useMemo(() => {
     const map = new Map<string, { anzahl: number; wertCents: number; provisionCents: number }>();
-    abrechnungen.forEach((item) => {
-      if (item.art !== 'MODUL' || !item.modul) return;
-      const current = map.get(item.modul) || { anzahl: 0, wertCents: 0, provisionCents: 0 };
-      current.anzahl += 1;
-      current.wertCents += item.wertCents;
-      current.provisionCents += item.provisionCents;
-      map.set(item.modul, current);
-    });
+    moduleVerkaeufe
+      .filter((item) => !moduleJahr || item.datum.slice(0, 4) === moduleJahr)
+      .filter((item) => !moduleKunde || item.kunde === moduleKunde)
+      .forEach((item) => {
+        const current = map.get(item.modul!) || { anzahl: 0, wertCents: 0, provisionCents: 0 };
+        current.anzahl += 1;
+        current.wertCents += item.wertCents;
+        current.provisionCents += item.provisionCents;
+        map.set(item.modul!, current);
+      });
     return Array.from(map.entries()).sort((a, b) => b[1].wertCents - a[1].wertCents);
-  }, [abrechnungen]);
+  }, [moduleVerkaeufe, moduleJahr, moduleKunde]);
 
   return (
     <section className="abrechnung-overview">
@@ -235,8 +243,18 @@ export default function AbrechnungOverview() {
           <div className="empty-state"><h3>Keine Gehaltsmonate</h3><div>Sobald ein Rechnungsdatum eingetragen wird, erscheint hier der zugehörige Gehaltsmonat.</div></div>
         )
       )}
-      {section === 'module' && (
-        moduleAuswertung.length > 0 ? (
+      {section === 'module' && <>
+        <div className="abrechnung-filters">
+          <select value={moduleJahr} onChange={(event) => setModuleJahr(event.target.value)}>
+            <option value="">Alle Jahre</option>
+            {moduleJahre.map((year) => <option key={year} value={year}>{year}</option>)}
+          </select>
+          <select value={moduleKunde} onChange={(event) => setModuleKunde(event.target.value)}>
+            <option value="">Alle Kunden</option>
+            {moduleKunden.map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
+        </div>
+        {moduleAuswertung.length > 0 ? (
           <div className="analytics-table-wrap">
             <table className="an-table">
               <thead><tr><th>Modul</th><th>Anzahl</th><th>Wert</th><th>Provision</th></tr></thead>
@@ -252,8 +270,8 @@ export default function AbrechnungOverview() {
           </div>
         ) : (
           <div className="empty-state"><h3>Keine Modulverkäufe</h3><div>Sobald eine Abrechnung mit Art „MODUL“ ein Modul hinterlegt hat, erscheint hier die Auswertung.</div></div>
-        )
-      )}
+        )}
+      </>}
       {section === 'diagramm' && <>
         <AbrechnungProvisionChart abrechnungen={abrechnungen} basis="leistungsdatum" />
         <AbrechnungProvisionChart abrechnungen={abrechnungen} basis="gehaltsmonat" />

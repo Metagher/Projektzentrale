@@ -22,7 +22,7 @@ export default function AbrechnungProvisionChart({ abrechnungen, basis }: Props)
       .filter((value): value is string => !!value);
     return Array.from(new Set(values.map((value) => value.slice(0, 4)))).sort((a, b) => b.localeCompare(a));
   }, [abrechnungen, basis]);
-  const [jahr, setJahr] = useState('');
+  const [jahr, setJahr] = useState(() => String(new Date().getFullYear()));
 
   const monate = useMemo(() => {
     const map = new Map<string, number>();
