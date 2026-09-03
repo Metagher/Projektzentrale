@@ -3,31 +3,43 @@ import { useDataStore } from '../../store/dataStore';
 import { formatDuration } from '../../lib/timeTracking';
 import { formatEuro } from '../../lib/money';
 import { formatGehaltsMonat } from '../../lib/gehaltsmonat';
-import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS } from '../../lib/abrechnungStatus';
+import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS, ABRECHNUNG_STATUS_FILTER_OPTIONS } from '../../lib/abrechnungStatus';
+import { resolveAbrechnungFilterPreset, sameResolvedFilter, EMPTY_ABRECHNUNG_FILTER } from '../../lib/abrechnungFilterPresets';
 import { fmtDate } from '../../lib/format';
 import AbrechnungForm from '../shared/AbrechnungForm';
 import type { Abrechnung } from '../../types/entities';
 
-const STATUS_OPTIONS = [
-  { id: 'alle', label: 'Alle' },
-  { id: 'offen', label: 'Nur offene' },
-  { id: 'freigegeben', label: 'Nur freigegeben' },
-  { id: 'abgerechnet', label: 'Nur abgerechnet' },
-] as const;
+const STATUS_OPTIONS = ABRECHNUNG_STATUS_FILTER_OPTIONS;
 
 export default function AbrechnungOverview() {
   const abrechnungen = useDataStore((s) => s.abrechnungen);
   const projects = useDataStore((s) => s.projects) || [];
   const arten = useDataStore((s) => s.abrechnungsArten);
+  const presets = useDataStore((s) => s.abrechnungFilterPresets);
   const saveAbrechnung = useDataStore((s) => s.saveAbrechnung);
   const deleteAbrechnung = useDataStore((s) => s.deleteAbrechnung);
   const [editing, setEditing] = useState<Abrechnung | null | 'new'>(null);
-  const [jahr, setJahr] = useState('');
-  const [monat, setMonat] = useState('');
+  const defaultPreset = presets.find((preset) => preset.isDefault);
+  const initialFilter = defaultPreset ? resolveAbrechnungFilterPreset(defaultPreset) : EMPTY_ABRECHNUNG_FILTER;
+  const [jahr, setJahr] = useState(initialFilter.jahr);
+  const [monat, setMonat] = useState(initialFilter.monat);
   const [kunde, setKunde] = useState('');
-  const [art, setArt] = useState('');
-  const [gehaltsMonatFilter, setGehaltsMonatFilter] = useState('');
-  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]['id']>('alle');
+  const [art, setArt] = useState(initialFilter.art);
+  const [gehaltsMonatFilter, setGehaltsMonatFilter] = useState(initialFilter.gehaltsMonat);
+  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]['id']>(initialFilter.status);
+
+  function togglePreset(presetId: string) {
+    const preset = presets.find((item) => item.id === presetId);
+    if (!preset) return;
+    const resolved = resolveAbrechnungFilterPreset(preset);
+    const active = sameResolvedFilter(resolved, { jahr, monat, art, gehaltsMonat: gehaltsMonatFilter, status });
+    const next = active ? EMPTY_ABRECHNUNG_FILTER : resolved;
+    setJahr(next.jahr);
+    setMonat(next.monat);
+    setArt(next.art);
+    setGehaltsMonatFilter(next.gehaltsMonat);
+    setStatus(next.status);
+  }
 
   const projectName = new Map(projects.map((project) => [project.id, project.name]));
   const kunden = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')), [abrechnungen]);
@@ -50,27 +62,32 @@ export default function AbrechnungOverview() {
   }), { minutes: 0, wertCents: 0, provisionCents: 0 });
 
   const gehaltsMonate = useMemo(() => {
-    const map = new Map<string, { minutes: number; provisionCents: number; belege: Map<string, { provisionCents: number; kunden: Set<string> }> }>();
+    const map = new Map<string, { minutes: number; provisionCents: number; belege: Map<string, { belegNr: string; provisionCents: number; kunden: Set<string> }> }>();
     abrechnungen.forEach((item) => {
       if (!item.gehaltsMonat) return;
-      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, belege: new Map<string, { provisionCents: number; kunden: Set<string> }>() };
+      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, belege: new Map<string, { belegNr: string; provisionCents: number; kunden: Set<string> }>() };
       current.minutes += item.minutes;
       current.provisionCents += item.provisionCents;
-      if (item.belegNr) {
-        const beleg = current.belege.get(item.belegNr) || { provisionCents: 0, kunden: new Set<string>() };
-        beleg.provisionCents += item.provisionCents;
-        if (item.kunde) beleg.kunden.add(item.kunde);
-        current.belege.set(item.belegNr, beleg);
-      }
+      // Ohne Belegnummer wird je Kunde eine eigene Zeile geführt statt alle Kunden in einer Zeile zusammenzufassen.
+      const key = item.belegNr || `ohne-beleg:${item.kunde}`;
+      const beleg = current.belege.get(key) || { belegNr: item.belegNr || '', provisionCents: 0, kunden: new Set<string>() };
+      beleg.provisionCents += item.provisionCents;
+      if (item.kunde) beleg.kunden.add(item.kunde);
+      current.belege.set(key, beleg);
       map.set(item.gehaltsMonat, current);
     });
     return Array.from(map.entries())
       .map(([month, sums]) => [month, {
         minutes: sums.minutes,
         provisionCents: sums.provisionCents,
-        items: Array.from(sums.belege.entries())
-          .map(([belegNr, beleg]) => ({ belegNr, provisionCents: beleg.provisionCents, kunden: Array.from(beleg.kunden).sort((a, b) => a.localeCompare(b, 'de')) }))
-          .sort((a, b) => a.belegNr.localeCompare(b.belegNr, 'de', { numeric: true })),
+        items: Array.from(sums.belege.values())
+          .map((beleg) => ({ belegNr: beleg.belegNr, provisionCents: beleg.provisionCents, kunden: Array.from(beleg.kunden).sort((a, b) => a.localeCompare(b, 'de')) }))
+          .sort((a, b) => {
+            if (!a.belegNr && !b.belegNr) return a.kunden.join(', ').localeCompare(b.kunden.join(', '), 'de');
+            if (!a.belegNr) return -1;
+            if (!b.belegNr) return 1;
+            return a.belegNr.localeCompare(b.belegNr, 'de', { numeric: true });
+          }),
       }] as const)
       .sort((a, b) => b[0].localeCompare(a[0]));
   }, [abrechnungen]);
@@ -82,6 +99,11 @@ export default function AbrechnungOverview() {
         <h3>Abrechnung</h3>
         <p>Leistung, Freigabe zur Rechnungsstellung, Rechnungsdatum und Provision – projekt- oder kundenbezogen, unabhängig von Excel.</p>
       </div>
+      {presets.length > 0 && (
+        <div className="abrechnung-preset-filter">
+          {presets.map((preset) => <button key={preset.id} type="button" className={`btn secondary small${sameResolvedFilter(resolveAbrechnungFilterPreset(preset), { jahr, monat, art, gehaltsMonat: gehaltsMonatFilter, status }) ? ' active' : ''}`} onClick={() => togglePreset(preset.id)}>{preset.name}</button>)}
+        </div>
+      )}
       <div className="abrechnung-filters">
         <select value={jahr} onChange={(event) => setJahr(event.target.value)}>
           <option value="">Alle Jahre</option>
@@ -147,7 +169,7 @@ export default function AbrechnungOverview() {
                 <td>{formatEuro(sums.provisionCents)}</td>
                 <td>{sums.items.length ? (
                   <ul className="belegnr-list">
-                    {sums.items.map((item) => <li key={item.belegNr}><span>{item.belegNr}</span><span>{formatEuro(item.provisionCents)}</span><small>{item.kunden.join(', ')}</small></li>)}
+                    {sums.items.map((item) => <li key={`${item.belegNr}|${item.kunden.join(',')}`}><span>{item.belegNr || '–'}</span><span>{formatEuro(item.provisionCents)}</span><small>{item.kunden.join(', ')}</small></li>)}
                   </ul>
                 ) : '–'}</td>
               </tr>)}

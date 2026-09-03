@@ -18,3 +18,10 @@ export const ABRECHNUNG_STATUS_LABELS: Record<AbrechnungStatus, string> = {
   freigegeben: 'freigegeben',
   abgerechnet: 'abgerechnet',
 };
+
+export const ABRECHNUNG_STATUS_FILTER_OPTIONS: { id: AbrechnungStatus | 'alle'; label: string }[] = [
+  { id: 'alle', label: 'Alle' },
+  { id: 'offen', label: 'Nur offene' },
+  { id: 'freigegeben', label: 'Nur freigegeben' },
+  { id: 'abgerechnet', label: 'Nur abgerechnet' },
+];

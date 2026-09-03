@@ -335,6 +335,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .abrechnungsarten-faktor { display: flex; align-items: center; gap: 4px; }
 .abrechnungsarten-faktor input { width: 100%; padding: 5px 7px; }
 .abrechnungsarten-faktor small { color: var(--ink-soft); }
+.abrechnung-filter-preset-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; background: var(--paper-raised); border: 1px solid var(--line-soft); border-radius: 7px; }
+.abrechnung-filter-preset-row input[type="text"], .abrechnung-filter-preset-row input:not([type]) { width: 140px; padding: 6px 8px; }
+.abrechnung-filter-preset-row select { padding: 6px 8px; }
+.abrechnung-filter-preset-default { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; }
 .csv-import-preview { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .stundensatz-quick { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .settings-hub { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin: 20px 0 18px; }
