@@ -59,9 +59,10 @@
 .abrechnung-preset-filter{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;}
 .abrechnung-preset-filter .btn.active{color:#fff;background:#111;border-color:#111;}
 .belegnr-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;}
-.belegnr-list li{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;}
-.belegnr-list li span:first-child{font-weight:700;min-width:60px;}
-.belegnr-list li span:nth-child(2){color:var(--ink-soft);}
+.belegnr-list li{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.belegnr-list li.done{opacity:.5;}
+.belegnr-list .belegnr-num{font-weight:700;min-width:60px;}
+.belegnr-list .belegnr-amount{color:var(--ink-soft);}
 .belegnr-list li small{color:var(--ink-soft);font-style:italic;}
 .provision-chart-wrap .analytics-block-head select{min-width:130px;}
 .provision-chart{display:flex;align-items:flex-end;gap:8px;height:240px;padding:14px 4px 0;overflow-x:auto;border-bottom:1px solid var(--line-soft);}
