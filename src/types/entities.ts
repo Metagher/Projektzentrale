@@ -124,6 +124,8 @@ export interface Abrechnung {
   gehaltsMonat?: string;
   /** Interne Beleg-/Rechnungsnummer zum Abgleich mit der Gehaltsabrechnung. */
   belegNr?: string;
+  /** Manuell gesetzt, sobald der Eintrag mit der tatsächlichen Gehaltsabrechnung abgeglichen wurde. */
+  abgeglichen?: boolean;
   bemerkung?: string;
   teilprojekt?: string;
   /** Nur bei art=VO: Anzahl Tage vor Ort. */

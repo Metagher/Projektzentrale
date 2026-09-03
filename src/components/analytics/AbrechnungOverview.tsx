@@ -28,6 +28,7 @@ export default function AbrechnungOverview() {
   const presets = useDataStore((s) => s.abrechnungFilterPresets);
   const saveAbrechnung = useDataStore((s) => s.saveAbrechnung);
   const deleteAbrechnung = useDataStore((s) => s.deleteAbrechnung);
+  const setAbrechnungenAbgeglichen = useDataStore((s) => s.setAbrechnungenAbgeglichen);
   const [editing, setEditing] = useState<Abrechnung | null | 'new'>(null);
   const defaultPreset = presets.find((preset) => preset.isDefault);
   const initialFilter = defaultPreset ? resolveAbrechnungFilterPreset(defaultPreset) : EMPTY_ABRECHNUNG_FILTER;
@@ -72,18 +73,20 @@ export default function AbrechnungOverview() {
   }), { minutes: 0, wertCents: 0, provisionCents: 0 });
 
   const gehaltsMonate = useMemo(() => {
-    const map = new Map<string, { minutes: number; provisionCents: number; belege: Map<string, { belegNr: string; provisionCents: number; kunden: Set<string> }> }>();
+    const map = new Map<string, { minutes: number; provisionCents: number; belege: Map<string, { belegNr: string; provisionCents: number; kunden: Set<string>; ids: string[]; abgeglichenCount: number }> }>();
     abrechnungen.forEach((item) => {
       if (!item.gehaltsMonat) return;
-      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, belege: new Map<string, { belegNr: string; provisionCents: number; kunden: Set<string> }>() };
+      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, belege: new Map<string, { belegNr: string; provisionCents: number; kunden: Set<string>; ids: string[]; abgeglichenCount: number }>() };
       current.minutes += item.minutes;
       current.provisionCents += item.provisionCents;
       // Ohne Belegnummer wird je Kunde eine eigene Zeile geführt statt alle Kunden in einer Zeile zusammenzufassen.
       // Platzhalter wie "-" (z. B. aus dem Altexport) zählen dabei als "ohne Belegnummer".
       const normalizedBelegNr = meaningfulBelegNr(item.belegNr);
       const key = normalizedBelegNr || `ohne-beleg:${item.kunde}`;
-      const beleg = current.belege.get(key) || { belegNr: normalizedBelegNr || '', provisionCents: 0, kunden: new Set<string>() };
+      const beleg = current.belege.get(key) || { belegNr: normalizedBelegNr || '', provisionCents: 0, kunden: new Set<string>(), ids: [], abgeglichenCount: 0 };
       beleg.provisionCents += item.provisionCents;
+      beleg.ids.push(item.id);
+      if (item.abgeglichen) beleg.abgeglichenCount += 1;
       if (item.kunde) beleg.kunden.add(item.kunde);
       current.belege.set(key, beleg);
       map.set(item.gehaltsMonat, current);
@@ -93,7 +96,14 @@ export default function AbrechnungOverview() {
         minutes: sums.minutes,
         provisionCents: sums.provisionCents,
         items: Array.from(sums.belege.values())
-          .map((beleg) => ({ belegNr: beleg.belegNr, provisionCents: beleg.provisionCents, kunden: Array.from(beleg.kunden).sort((a, b) => a.localeCompare(b, 'de')) }))
+          .map((beleg) => ({
+            belegNr: beleg.belegNr,
+            provisionCents: beleg.provisionCents,
+            kunden: Array.from(beleg.kunden).sort((a, b) => a.localeCompare(b, 'de')),
+            ids: beleg.ids,
+            abgeglichen: beleg.abgeglichenCount === beleg.ids.length,
+            teilweiseAbgeglichen: beleg.abgeglichenCount > 0 && beleg.abgeglichenCount < beleg.ids.length,
+          }))
           .sort((a, b) => {
             if (!a.belegNr && !b.belegNr) return a.kunden.join(', ').localeCompare(b.kunden.join(', '), 'de');
             if (!a.belegNr) return -1;
@@ -202,7 +212,18 @@ export default function AbrechnungOverview() {
                   <td>{formatEuro(sums.provisionCents)}</td>
                   <td>{sums.items.length ? (
                     <ul className="belegnr-list">
-                      {sums.items.map((item) => <li key={`${item.belegNr}|${item.kunden.join(',')}`}><span>{item.belegNr || '–'}</span><span>{formatEuro(item.provisionCents)}</span><small>{item.kunden.join(', ')}</small></li>)}
+                      {sums.items.map((item) => <li key={`${item.belegNr}|${item.kunden.join(',')}`} className={item.abgeglichen ? 'done' : undefined}>
+                        <input
+                          type="checkbox"
+                          checked={item.abgeglichen}
+                          ref={(el) => { if (el) el.indeterminate = item.teilweiseAbgeglichen; }}
+                          onChange={() => setAbrechnungenAbgeglichen(item.ids, !item.abgeglichen)}
+                          title="Mit Gehaltsabrechnung abgeglichen"
+                        />
+                        <span className="belegnr-num">{item.belegNr || '–'}</span>
+                        <span className="belegnr-amount">{formatEuro(item.provisionCents)}</span>
+                        <small>{item.kunden.join(', ')}</small>
+                      </li>)}
                     </ul>
                   ) : '–'}</td>
                 </tr>)}
