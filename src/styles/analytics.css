@@ -65,6 +65,7 @@
 .belegnr-list .belegnr-amount{color:var(--ink-soft);}
 .belegnr-list li small{color:var(--ink-soft);font-style:italic;}
 .provision-chart-wrap .analytics-block-head select{min-width:130px;}
+.provision-chart-wrap + .provision-chart-wrap{margin-top:28px;}
 .provision-chart{display:flex;align-items:flex-end;gap:8px;height:240px;padding:14px 4px 0;overflow-x:auto;border-bottom:1px solid var(--line-soft);}
 .provision-chart-bar{display:flex;flex:0 0 40px;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
 .provision-chart-value{margin-bottom:4px;color:var(--ink-soft);font-size:9px;white-space:nowrap;}

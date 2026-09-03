@@ -9,6 +9,7 @@ import { fmtDate } from '../../lib/format';
 import { meaningfulBelegNr } from '../../lib/abrechnungCsv';
 import AbrechnungForm from '../shared/AbrechnungForm';
 import AbrechnungProvisionChart from './AbrechnungProvisionChart';
+import AbrechnungArtPieChart from './AbrechnungArtPieChart';
 import type { Abrechnung } from '../../types/entities';
 
 const STATUS_OPTIONS = ABRECHNUNG_STATUS_FILTER_OPTIONS;
@@ -253,7 +254,11 @@ export default function AbrechnungOverview() {
           <div className="empty-state"><h3>Keine Modulverkäufe</h3><div>Sobald eine Abrechnung mit Art „MODUL“ ein Modul hinterlegt hat, erscheint hier die Auswertung.</div></div>
         )
       )}
-      {section === 'diagramm' && <AbrechnungProvisionChart abrechnungen={abrechnungen} />}
+      {section === 'diagramm' && <>
+        <AbrechnungProvisionChart abrechnungen={abrechnungen} basis="leistungsdatum" />
+        <AbrechnungProvisionChart abrechnungen={abrechnungen} basis="gehaltsmonat" />
+        <AbrechnungArtPieChart abrechnungen={abrechnungen} />
+      </>}
       {editing && <AbrechnungForm
         entry={editing === 'new' ? undefined : editing}
         onSave={async (entry) => { await saveAbrechnung(entry); setEditing(null); }}
