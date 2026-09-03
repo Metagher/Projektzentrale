@@ -14,6 +14,7 @@ export interface AbrechnungCsvResult {
   rows: Abrechnung[];
   arten: string[];
   kunden: string[];
+  module: string[];
   skipped: number;
 }
 
@@ -63,7 +64,7 @@ function parseGehaltsMonat(gjahr: string, gmonat: string): string | undefined {
 /** Parst den Rohtext des CSV-Exports. Wirft bei fehlenden Pflichtspalten. */
 export function parseAbrechnungCsv(text: string): AbrechnungCsvResult {
   const lines = text.split(/\r\n|\r|\n/).filter((line) => line.trim().length > 0);
-  if (lines.length < 2) return { rows: [], arten: [], kunden: [], skipped: 0 };
+  if (lines.length < 2) return { rows: [], arten: [], kunden: [], module: [], skipped: 0 };
 
   const headers = lines[0].split(';').map((h) => h.trim());
   const missing = REQUIRED_COLUMNS.filter((col) => !headers.includes(col));
@@ -73,6 +74,7 @@ export function parseAbrechnungCsv(text: string): AbrechnungCsvResult {
   const rows: Abrechnung[] = [];
   const arten = new Set<string>();
   const kunden = new Set<string>();
+  const module = new Set<string>();
   const occurrences = new Map<string, number>();
   let skipped = 0;
 
@@ -95,6 +97,7 @@ export function parseAbrechnungCsv(text: string): AbrechnungCsvResult {
     const tageVorOrt = tageVorOrtRaw ? Number(tageVorOrtRaw.replace(',', '.')) : undefined;
     const rksRaw = get('RKs');
     const fahrzeitconversionRaw = get('Fahrzeitconversion');
+    const modulRaw = get('ArtMod') || undefined;
 
     const entry: Abrechnung = {
       id,
@@ -112,16 +115,23 @@ export function parseAbrechnungCsv(text: string): AbrechnungCsvResult {
       tageVorOrt: Number.isFinite(tageVorOrt) && tageVorOrt ? tageVorOrt : undefined,
       reisekostenCents: rksRaw ? parseMoneyCents(rksRaw) : undefined,
       fahrzeitMinutes: fahrzeitconversionRaw ? parseHoursToMinutes(fahrzeitconversionRaw) : undefined,
-      modul: get('ArtMod') || undefined,
+      modul: modulRaw,
       createdAt: new Date().toISOString(),
     };
 
     rows.push(entry);
     arten.add(artRaw);
     kunden.add(kundeRaw);
+    if (modulRaw) module.add(modulRaw);
   }
 
-  return { rows, arten: Array.from(arten).sort((a, b) => a.localeCompare(b, 'de')), kunden: Array.from(kunden).sort((a, b) => a.localeCompare(b, 'de')), skipped };
+  return {
+    rows,
+    arten: Array.from(arten).sort((a, b) => a.localeCompare(b, 'de')),
+    kunden: Array.from(kunden).sort((a, b) => a.localeCompare(b, 'de')),
+    module: Array.from(module).sort((a, b) => a.localeCompare(b, 'de')),
+    skipped,
+  };
 }
 
 /** Liest eine Datei robust in Text um: erkennt UTF-8 (inkl. BOM), fällt sonst auf Windows-1252 zurück (üblich bei Excel-Exporten). */

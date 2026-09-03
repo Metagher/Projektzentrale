@@ -16,6 +16,7 @@ const STATUS_OPTIONS = ABRECHNUNG_STATUS_FILTER_OPTIONS;
 const SECTIONS = [
   { id: 'eintraege', label: 'Einträge' },
   { id: 'gehaltsmonate', label: 'Gehaltsmonate' },
+  { id: 'module', label: 'Module' },
   { id: 'diagramm', label: 'Diagramm' },
 ] as const;
 
@@ -101,6 +102,19 @@ export default function AbrechnungOverview() {
           }),
       }] as const)
       .sort((a, b) => b[0].localeCompare(a[0]));
+  }, [abrechnungen]);
+
+  const moduleAuswertung = useMemo(() => {
+    const map = new Map<string, { anzahl: number; wertCents: number; provisionCents: number }>();
+    abrechnungen.forEach((item) => {
+      if (item.art !== 'MODUL' || !item.modul) return;
+      const current = map.get(item.modul) || { anzahl: 0, wertCents: 0, provisionCents: 0 };
+      current.anzahl += 1;
+      current.wertCents += item.wertCents;
+      current.provisionCents += item.provisionCents;
+      map.set(item.modul, current);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[1].wertCents - a[1].wertCents);
   }, [abrechnungen]);
 
   return (
@@ -197,6 +211,25 @@ export default function AbrechnungOverview() {
           </div>
         ) : (
           <div className="empty-state"><h3>Keine Gehaltsmonate</h3><div>Sobald ein Rechnungsdatum eingetragen wird, erscheint hier der zugehörige Gehaltsmonat.</div></div>
+        )
+      )}
+      {section === 'module' && (
+        moduleAuswertung.length > 0 ? (
+          <div className="analytics-table-wrap">
+            <table className="an-table">
+              <thead><tr><th>Modul</th><th>Anzahl</th><th>Wert</th><th>Provision</th></tr></thead>
+              <tbody>
+                {moduleAuswertung.map(([name, sums]) => <tr key={name}>
+                  <td>{name}</td>
+                  <td>{sums.anzahl}</td>
+                  <td>{formatEuro(sums.wertCents)}</td>
+                  <td>{formatEuro(sums.provisionCents)}</td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state"><h3>Keine Modulverkäufe</h3><div>Sobald eine Abrechnung mit Art „MODUL“ ein Modul hinterlegt hat, erscheint hier die Auswertung.</div></div>
         )
       )}
       {section === 'diagramm' && <AbrechnungProvisionChart abrechnungen={abrechnungen} />}

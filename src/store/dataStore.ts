@@ -109,6 +109,8 @@ interface DataStoreState {
   stundensaetze: number[];
   /** Vorbelegte Abrechnungsart, wenn eine Abrechnung aus einer Aufgabe oder einem Kommunikationseintrag heraus erfasst wird. */
   abrechnungLinkedDefaultArt: string;
+  /** Feste Liste verkaufbarer Module (Abrechnung.modul bei Art=MODUL), damit Bezeichnungen konsistent bleiben. */
+  abrechnungsModule: string[];
   /** Konfigurierbare Standardfilter für die Abrechnungsseiten (Projekt und Global), per Button anwendbar. */
   abrechnungFilterPresets: AbrechnungFilterPreset[];
 
@@ -170,6 +172,7 @@ interface DataStoreState {
   saveAbrechnungsFaktoren: (faktoren: Record<string, number>) => Promise<void>;
   saveStundensaetze: (values: number[]) => Promise<void>;
   saveAbrechnungLinkedDefaultArt: (art: string) => Promise<void>;
+  saveAbrechnungsModule: (modules: string[]) => Promise<void>;
   saveAbrechnungFilterPresets: (presets: AbrechnungFilterPreset[]) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
@@ -246,6 +249,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   abrechnungsFaktoren: {},
   stundensaetze: [],
   abrechnungLinkedDefaultArt: 'BO',
+  abrechnungsModule: [],
   abrechnungFilterPresets: [],
 
   loadAll: async () => {
@@ -255,7 +259,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze, storedAbrechnungLinkedDefaultArt, storedAbrechnungFilterPresets] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze, storedAbrechnungLinkedDefaultArt, storedAbrechnungFilterPresets, storedAbrechnungsModule] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
@@ -273,6 +277,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<number[]>(sb, 'stundensaetze'),
       sGet<string>(sb, 'abrechnung-linked-default-art'),
       sGet<AbrechnungFilterPreset[]>(sb, 'abrechnung-filter-presets'),
+      sGet<string[]>(sb, 'abrechnungs-module'),
     ]);
     const nextModuleIndex = new Map<string, number>();
     const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
@@ -297,6 +302,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       stundensaetze: storedStundensaetze || [],
       abrechnungLinkedDefaultArt: storedAbrechnungLinkedDefaultArt || 'BO',
       abrechnungFilterPresets: storedAbrechnungFilterPresets || [],
+      abrechnungsModule: storedAbrechnungsModule || [],
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -869,6 +875,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   saveAbrechnungLinkedDefaultArt: async (art) => {
     set({ abrechnungLinkedDefaultArt: art });
     await sSet(client(), 'abrechnung-linked-default-art', art);
+  },
+
+  saveAbrechnungsModule: async (modules) => {
+    const next = Array.from(new Set(modules.map((item) => item.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de'));
+    set({ abrechnungsModule: next });
+    await sSet(client(), 'abrechnungs-module', next);
   },
 
   saveAbrechnungFilterPresets: async (presets) => {
