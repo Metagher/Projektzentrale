@@ -3,29 +3,41 @@ import { useDataStore } from '../../store/dataStore';
 import { formatDuration } from '../../lib/timeTracking';
 import { formatEuro } from '../../lib/money';
 import { formatGehaltsMonat } from '../../lib/gehaltsmonat';
-import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS } from '../../lib/abrechnungStatus';
+import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS, ABRECHNUNG_STATUS_FILTER_OPTIONS } from '../../lib/abrechnungStatus';
+import { resolveAbrechnungFilterPreset, sameResolvedFilter, EMPTY_ABRECHNUNG_FILTER } from '../../lib/abrechnungFilterPresets';
 import { fmtDate } from '../../lib/format';
 import AbrechnungForm from './AbrechnungForm';
 import type { Abrechnung, Project } from '../../types/entities';
 
-const STATUS_OPTIONS = [
-  { id: 'alle', label: 'Alle' },
-  { id: 'offen', label: 'Nur offene' },
-  { id: 'freigegeben', label: 'Nur freigegeben' },
-  { id: 'abgerechnet', label: 'Nur abgerechnet' },
-] as const;
+const STATUS_OPTIONS = ABRECHNUNG_STATUS_FILTER_OPTIONS;
 
 export default function AbrechnungTable({ project }: { project: Project }) {
   const alle = useDataStore((s) => s.abrechnungen).filter((item) => item.projectId === project.id);
   const arten = useDataStore((s) => s.abrechnungsArten);
+  const presets = useDataStore((s) => s.abrechnungFilterPresets);
   const saveAbrechnung = useDataStore((s) => s.saveAbrechnung);
   const deleteAbrechnung = useDataStore((s) => s.deleteAbrechnung);
   const [editing, setEditing] = useState<Abrechnung | null | 'new'>(null);
-  const [jahr, setJahr] = useState('');
-  const [monat, setMonat] = useState('');
-  const [art, setArt] = useState('');
-  const [gehaltsMonatFilter, setGehaltsMonatFilter] = useState('');
-  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]['id']>('alle');
+  const defaultPreset = presets.find((preset) => preset.isDefault);
+  const initialFilter = defaultPreset ? resolveAbrechnungFilterPreset(defaultPreset) : EMPTY_ABRECHNUNG_FILTER;
+  const [jahr, setJahr] = useState(initialFilter.jahr);
+  const [monat, setMonat] = useState(initialFilter.monat);
+  const [art, setArt] = useState(initialFilter.art);
+  const [gehaltsMonatFilter, setGehaltsMonatFilter] = useState(initialFilter.gehaltsMonat);
+  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]['id']>(initialFilter.status);
+
+  function togglePreset(presetId: string) {
+    const preset = presets.find((item) => item.id === presetId);
+    if (!preset) return;
+    const resolved = resolveAbrechnungFilterPreset(preset);
+    const active = sameResolvedFilter(resolved, { jahr, monat, art, gehaltsMonat: gehaltsMonatFilter, status });
+    const next = active ? EMPTY_ABRECHNUNG_FILTER : resolved;
+    setJahr(next.jahr);
+    setMonat(next.monat);
+    setArt(next.art);
+    setGehaltsMonatFilter(next.gehaltsMonat);
+    setStatus(next.status);
+  }
 
   const jahre = useMemo(() => Array.from(new Set(alle.map((item) => item.datum.slice(0, 4)))).sort((a, b) => b.localeCompare(a)), [alle]);
   const gehaltsMonatOptionen = useMemo(() => Array.from(new Set(alle.map((item) => item.gehaltsMonat).filter((value): value is string => !!value))).sort((a, b) => b.localeCompare(a)), [alle]);
@@ -52,6 +64,11 @@ export default function AbrechnungTable({ project }: { project: Project }) {
       <button type="button" className="btn small" onClick={() => setEditing('new')}>+ Abrechnung erfassen</button>
     </div>
     {alle.length > 0 ? <>
+      {presets.length > 0 && (
+        <div className="abrechnung-preset-filter">
+          {presets.map((preset) => <button key={preset.id} type="button" className={`btn secondary small${sameResolvedFilter(resolveAbrechnungFilterPreset(preset), { jahr, monat, art, gehaltsMonat: gehaltsMonatFilter, status }) ? ' active' : ''}`} onClick={() => togglePreset(preset.id)}>{preset.name}</button>)}
+        </div>
+      )}
       <div className="abrechnung-filters">
         <select value={jahr} onChange={(event) => setJahr(event.target.value)}>
           <option value="">Alle Jahre</option>

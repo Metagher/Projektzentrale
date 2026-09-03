@@ -56,6 +56,8 @@
 .abrechnung-filters select{min-width:130px;}
 .abrechnung-freigabe-filter{display:flex;gap:4px;}
 .abrechnung-freigabe-filter .btn.active{color:#fff;background:#111;border-color:#111;}
+.abrechnung-preset-filter{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;}
+.abrechnung-preset-filter .btn.active{color:#fff;background:#111;border-color:#111;}
 .belegnr-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;}
 .belegnr-list li{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;}
 .belegnr-list li span:first-child{font-weight:700;min-width:60px;}

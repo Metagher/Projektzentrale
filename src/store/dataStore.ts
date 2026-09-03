@@ -9,6 +9,7 @@ import { hasEchtlauf, todayStr, uid } from '../lib/format';
 import { customerKey, effectiveCustomerOrder, groupProjectsByCustomer } from '../lib/projectGroups';
 import { linkedContactIds, normalizeContactLinks } from '../lib/contacts';
 import { DEFAULT_EXPLORER_BASE_PATH, normalizeExplorerBasePath } from '../lib/explorerPaths';
+import { normalizeAbrechnungFilterPresets, type AbrechnungFilterPreset } from '../lib/abrechnungFilterPresets';
 import type {
   Abrechnung,
   Comm,
@@ -108,6 +109,8 @@ interface DataStoreState {
   stundensaetze: number[];
   /** Vorbelegte Abrechnungsart, wenn eine Abrechnung aus einer Aufgabe oder einem Kommunikationseintrag heraus erfasst wird. */
   abrechnungLinkedDefaultArt: string;
+  /** Konfigurierbare Standardfilter für die Abrechnungsseiten (Projekt und Global), per Button anwendbar. */
+  abrechnungFilterPresets: AbrechnungFilterPreset[];
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -162,10 +165,12 @@ interface DataStoreState {
   saveAbrechnung: (entry: Abrechnung) => Promise<void>;
   importAbrechnungen: (entries: Abrechnung[]) => Promise<{ added: number; updated: number }>;
   deleteAbrechnung: (id: string) => Promise<void>;
+  matchAbrechnungenToProjects: () => Promise<{ updated: number; unmatched: Abrechnung[] }>;
   saveAbrechnungsArten: (arten: string[]) => Promise<void>;
   saveAbrechnungsFaktoren: (faktoren: Record<string, number>) => Promise<void>;
   saveStundensaetze: (values: number[]) => Promise<void>;
   saveAbrechnungLinkedDefaultArt: (art: string) => Promise<void>;
+  saveAbrechnungFilterPresets: (presets: AbrechnungFilterPreset[]) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -241,6 +246,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   abrechnungsFaktoren: {},
   stundensaetze: [],
   abrechnungLinkedDefaultArt: 'BO',
+  abrechnungFilterPresets: [],
 
   loadAll: async () => {
     const sb = client();
@@ -249,7 +255,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze, storedAbrechnungLinkedDefaultArt] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze, storedAbrechnungLinkedDefaultArt, storedAbrechnungFilterPresets] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
@@ -266,6 +272,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<Record<string, number>>(sb, 'abrechnungs-faktoren'),
       sGet<number[]>(sb, 'stundensaetze'),
       sGet<string>(sb, 'abrechnung-linked-default-art'),
+      sGet<AbrechnungFilterPreset[]>(sb, 'abrechnung-filter-presets'),
     ]);
     const nextModuleIndex = new Map<string, number>();
     const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
@@ -289,6 +296,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       abrechnungsFaktoren: storedAbrechnungsFaktoren || {},
       stundensaetze: storedStundensaetze || [],
       abrechnungLinkedDefaultArt: storedAbrechnungLinkedDefaultArt || 'BO',
+      abrechnungFilterPresets: storedAbrechnungFilterPresets || [],
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -816,6 +824,30 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await sSet(client(), 'abrechnungen', abrechnungen);
   },
 
+  matchAbrechnungenToProjects: async () => {
+    const projects = get().projects || [];
+    const projectsByKunde = new Map<string, Project[]>();
+    projects.forEach((project) => {
+      const key = project.kunde.trim().toLocaleLowerCase('de');
+      if (!key) return;
+      projectsByKunde.set(key, [...(projectsByKunde.get(key) || []), project]);
+    });
+    let updated = 0;
+    const abrechnungen = get().abrechnungen.map((item) => {
+      if (item.projectId || !item.kunde.trim()) return item;
+      const matches = projectsByKunde.get(item.kunde.trim().toLocaleLowerCase('de'));
+      if (!matches || matches.length !== 1) return item;
+      updated++;
+      return { ...item, projectId: matches[0].id };
+    });
+    if (updated) {
+      set({ abrechnungen });
+      await sSet(client(), 'abrechnungen', abrechnungen);
+    }
+    const unmatched = abrechnungen.filter((item) => !item.projectId && item.kunde.trim());
+    return { updated, unmatched };
+  },
+
   saveAbrechnungsArten: async (arten) => {
     const normalized = Array.from(new Set(arten.map((art) => art.trim()).filter(Boolean)));
     const next = normalized.length ? normalized : DEFAULT_ABRECHNUNGS_ARTEN;
@@ -837,6 +869,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   saveAbrechnungLinkedDefaultArt: async (art) => {
     set({ abrechnungLinkedDefaultArt: art });
     await sSet(client(), 'abrechnung-linked-default-art', art);
+  },
+
+  saveAbrechnungFilterPresets: async (presets) => {
+    const next = normalizeAbrechnungFilterPresets(presets);
+    set({ abrechnungFilterPresets: next });
+    await sSet(client(), 'abrechnung-filter-presets', next);
   },
 
   saveDocEntry: async (projectId, defId, value) => {
