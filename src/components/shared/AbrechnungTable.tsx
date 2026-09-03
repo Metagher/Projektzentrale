@@ -3,7 +3,7 @@ import { useDataStore } from '../../store/dataStore';
 import { formatDuration } from '../../lib/timeTracking';
 import { formatEuro } from '../../lib/money';
 import { formatGehaltsMonat } from '../../lib/gehaltsmonat';
-import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS, ABRECHNUNG_STATUS_FILTER_OPTIONS } from '../../lib/abrechnungStatus';
+import { abrechnungStatus, matchesAbrechnungStatusFilter, ABRECHNUNG_STATUS_LABELS, ABRECHNUNG_STATUS_FILTER_OPTIONS } from '../../lib/abrechnungStatus';
 import { resolveAbrechnungFilterPreset, sameResolvedFilter, EMPTY_ABRECHNUNG_FILTER } from '../../lib/abrechnungFilterPresets';
 import { fmtDate } from '../../lib/format';
 import AbrechnungForm from './AbrechnungForm';
@@ -47,7 +47,7 @@ export default function AbrechnungTable({ project }: { project: Project }) {
     .filter((item) => !monat || item.datum.slice(5, 7) === monat)
     .filter((item) => !art || item.art === art)
     .filter((item) => !gehaltsMonatFilter || item.gehaltsMonat === gehaltsMonatFilter)
-    .filter((item) => status === 'alle' || abrechnungStatus(item) === status)
+    .filter((item) => matchesAbrechnungStatusFilter(item, status))
     .sort((a, b) => b.datum.localeCompare(a.datum));
 
   const totals = abrechnungen.reduce((acc, item) => ({

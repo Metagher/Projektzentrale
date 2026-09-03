@@ -17,6 +17,16 @@ export interface AbrechnungCsvResult {
   skipped: number;
 }
 
+/**
+ * Filtert Platzhalter wie "-" heraus, die im Altexport "kein Wert" statt einer echten
+ * Belegnummer bedeuten (sonst würden alle so markierten Zeilen fälschlich unter einer
+ * gemeinsamen Belegnummer "-" zusammengefasst). Auch für händisch mit "-" befüllte Felder.
+ */
+export function meaningfulBelegNr(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed && /[0-9a-zA-Z]/.test(trimmed) ? trimmed : undefined;
+}
+
 function hashString(input: string): string {
   let hash = 2166136261;
   for (let i = 0; i < input.length; i++) {
@@ -97,7 +107,7 @@ export function parseAbrechnungCsv(text: string): AbrechnungCsvResult {
       freigegeben: get('Freigabe').toLowerCase() === 'x',
       rechnungsdatum: parseGermanDate(get('RD')),
       gehaltsMonat: parseGehaltsMonat(get('Gjahr'), get('Gmonat')),
-      belegNr: get('VK60_NR') || undefined,
+      belegNr: meaningfulBelegNr(get('VK60_NR')),
       bemerkung: get('Bemerkung') || undefined,
       tageVorOrt: Number.isFinite(tageVorOrt) && tageVorOrt ? tageVorOrt : undefined,
       reisekostenCents: rksRaw ? parseMoneyCents(rksRaw) : undefined,

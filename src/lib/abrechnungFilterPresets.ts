@@ -1,4 +1,4 @@
-import type { AbrechnungStatus } from './abrechnungStatus';
+import type { AbrechnungStatusFilter } from './abrechnungStatus';
 
 /**
  * Gespeicherte Filterkombination für die Abrechnungsseiten (Projekt und Global). Jahr, Monat
@@ -16,7 +16,7 @@ export interface AbrechnungFilterPreset {
   art: string;
   /** '' = alle Gehaltsmonate, 'aktuell' = aktueller Gehaltsmonat, sonst fester Wert (YYYY-MM). */
   gehaltsMonat: string;
-  status: AbrechnungStatus | 'alle';
+  status: AbrechnungStatusFilter;
   isDefault?: boolean;
 }
 
@@ -25,7 +25,7 @@ export interface ResolvedAbrechnungFilter {
   monat: string;
   art: string;
   gehaltsMonat: string;
-  status: AbrechnungStatus | 'alle';
+  status: AbrechnungStatusFilter;
 }
 
 /** Löst 'aktuell' anhand von referenceDate (Default: heute) in feste Werte auf. */
