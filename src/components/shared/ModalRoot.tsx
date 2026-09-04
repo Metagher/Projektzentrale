@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useModalStore } from '../../store/modalStore';
 import { fmtDate } from '../../lib/format';
+import { formatDuration, fromLocalInputValue, toLocalInputValue } from '../../lib/timeTracking';
 import type { ProjectTyp } from '../../types/entities';
 import type { ExtractedTask } from '../../lib/ai';
 
@@ -185,9 +186,76 @@ export default function ModalRoot() {
 
   if (modal.kind === 'choice') return <div className="modal-overlay"><ChoiceForm modal={modal} /></div>;
 
+  if (modal.kind === 'timeEntryReview') {
+    return (
+      <div className="modal-overlay">
+        <TimeEntryReviewForm modal={modal} />
+      </div>
+    );
+  }
+
   return (
     <div className="modal-overlay">
       <TaskExtractionReview tasks={modal.tasks} resolve={modal.resolve} />
+    </div>
+  );
+}
+
+function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useModalStore.getState>['modal'], { kind: 'timeEntryReview' }> }) {
+  const close = useModalStore((s) => s.close);
+  const [startedAt, setStartedAt] = useState(toLocalInputValue(modal.startedAt));
+  const [endedAt, setEndedAt] = useState(toLocalInputValue(modal.endedAt));
+  const [note, setNote] = useState('');
+  const [noteInvalid, setNoteInvalid] = useState(false);
+  const [rangeInvalid, setRangeInvalid] = useState(false);
+
+  const start = new Date(startedAt);
+  const end = new Date(endedAt);
+  const durationMinutes = Number.isFinite(start.getTime()) && Number.isFinite(end.getTime()) ? (end.getTime() - start.getTime()) / 60000 : 0;
+
+  function save() {
+    const trimmedNote = note.trim();
+    const validRange = Number.isFinite(start.getTime()) && Number.isFinite(end.getTime()) && end.getTime() > start.getTime();
+    if (!trimmedNote) setNoteInvalid(true);
+    if (!validRange) setRangeInvalid(true);
+    if (!trimmedNote || !validRange) return;
+    close();
+    modal.resolve({ startedAt: fromLocalInputValue(startedAt), endedAt: fromLocalInputValue(endedAt), note: trimmedNote });
+  }
+
+  function discard() {
+    close();
+    modal.resolve(null);
+  }
+
+  return (
+    <div className="modal-box">
+      <h3>Zeiterfassung beenden</h3>
+      <p>Diese Zeit ist keiner Aufgabe oder Kommunikation zugeordnet ({modal.assignmentLabel}). Bitte trage ein, was in dieser Zeit gemacht wurde, oder verwirf die Zeit.</p>
+      <div className="field-grid">
+        <div className="field">
+          <label>Von</label>
+          <input type="datetime-local" value={startedAt} aria-invalid={rangeInvalid} onChange={(event) => { setStartedAt(event.target.value); setRangeInvalid(false); }} />
+        </div>
+        <div className="field">
+          <label>Bis</label>
+          <input type="datetime-local" value={endedAt} aria-invalid={rangeInvalid} onChange={(event) => { setEndedAt(event.target.value); setRangeInvalid(false); }} />
+        </div>
+      </div>
+      {rangeInvalid && <span className="field-error">„Bis“ muss nach „Von“ liegen.</span>}
+      <div className="field">
+        <label>Dauer</label>
+        <input value={durationMinutes > 0 ? formatDuration(durationMinutes) : '–'} readOnly />
+      </div>
+      <div className="field">
+        <label>Was wurde gemacht?</label>
+        <textarea autoFocus rows={3} value={note} aria-invalid={noteInvalid} placeholder="z. B. Abstimmung mit Kunde, Dokumentation, Recherche …" onChange={(event) => { setNote(event.target.value); setNoteInvalid(false); }} />
+        {noteInvalid && <span className="field-error">Bitte eintragen, was gemacht wurde.</span>}
+      </div>
+      <div className="modal-actions">
+        <button className="btn danger" onClick={discard}>Zeit verwerfen</button>
+        <button className="btn" onClick={save}>Speichern</button>
+      </div>
     </div>
   );
 }
