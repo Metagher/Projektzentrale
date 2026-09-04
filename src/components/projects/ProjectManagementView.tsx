@@ -22,6 +22,7 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
   const ensureProjectData = useDataStore((state) => state.ensureProjectData);
   const [name, setName] = useState(project.name);
   const [kunde, setKunde] = useState(project.kunde || '');
+  const [kuerzel, setKuerzel] = useState(project.kuerzel || '');
   const [typ, setTyp] = useState<ProjectTyp>(project.typ);
   const [status, setStatus] = useState<ProjectStatus>(project.status);
   const [beschreibung, setBeschreibung] = useState(project.beschreibung || '');
@@ -33,7 +34,7 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
 
   async function save() {
     setSaving(true);
-    await updateProject(project.id, { name: name.trim() || project.name, kunde: kunde.trim(), typ, status, beschreibung });
+    await updateProject(project.id, { name: name.trim() || project.name, kunde: kunde.trim(), kuerzel: kuerzel.trim(), typ, status, beschreibung });
     setSaving(false);
     onClose();
   }
@@ -56,6 +57,7 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
       <div className="field-grid">
         <div className="field"><label>Projektname</label><input value={name} onChange={(event) => setName(event.target.value)} /></div>
         <div className="field"><label>Kunde</label><input value={kunde} onChange={(event) => setKunde(event.target.value)} /></div>
+        <div className="field"><label>Kürzel</label><input value={kuerzel} onChange={(event) => setKuerzel(event.target.value)} placeholder="z. B. ABC" /></div>
         <div className="field">
           <label>Typ</label>
           <select value={typ} onChange={(event) => setTyp(event.target.value as ProjectTyp)}>

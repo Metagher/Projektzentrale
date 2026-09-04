@@ -4,7 +4,6 @@ import { useProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
 import { commLinkLabel, todayStr } from '../../lib/format';
 import { contactLinkLabel } from '../../lib/contacts';
-import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
@@ -38,8 +37,6 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [wartetSeit, setWartetSeit] = useState('');
   const [dokuZiel, setDokuZiel] = useState<TaskDocumentationTarget>('');
   const [naechsteBesprechung, setNaechsteBesprechung] = useState(false);
-  const [anforderung, setAnforderung] = useState('');
-  const [aktuellerStand, setAktuellerStand] = useState('');
   const [verlauf, setVerlauf] = useState<TaskProgressEntry[]>([]);
   const [afns, setAfns] = useState<string[]>([]);
   const [commIds, setCommIds] = useState<string[]>([]);
@@ -72,8 +69,6 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       wartetSeit: status === 'wartet' ? wartetSeit : '',
       kontaktId: kontaktIds[0] || '',
       kontaktIds,
-      anforderung,
-      aktuellerStand,
       verlauf,
       afns,
       commIds,
@@ -111,14 +106,6 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       {status === 'wartet' && (
         <TaskWaitingFields waitingFor={wartetAuf} waitingSince={wartetSeit} waitingOptions={waitingOptions} onWaitingForChange={setWartetAuf} onWaitingSinceChange={setWartetSeit} />
       )}
-      <div className="field">
-        <label>Anforderung</label>
-        <RtfField value={anforderung} onChange={setAnforderung} title="Anforderung" placeholder="Was wird benötigt und welche Kriterien müssen erfüllt sein?" />
-      </div>
-      <div className="field">
-        <label>Aktueller Stand</label>
-        <RtfField value={aktuellerStand} onChange={setAktuellerStand} title="Aktueller Stand" placeholder="Was ist aktuell umgesetzt, offen oder blockiert?" />
-      </div>
       <TaskProgressHistoryField value={verlauf} onChange={setVerlauf} />
       </div> : <div className="task-form-section">
       <TaskAppointmentsField value={termine} onChange={setTermine} />

@@ -63,7 +63,6 @@ export default function ProjectQuickBar() {
       <div className="project-quickbar-scroll">
         {sorted.length === 0 && <span className="project-quickbar-empty">Keine Projekte in der Schnellwahl</span>}
         {customerGroups.map((group) => <div className="project-quickbar-group" key={group.key}>
-          <span className="project-quickbar-customer">{group.label}</span>
           <div className="project-quickbar-projects">{group.projects.map((project) => (
             <button
               className={`project-quickbar-item${view === 'project' && selectedId === project.id ? ' active' : ''}`}
@@ -74,7 +73,7 @@ export default function ProjectQuickBar() {
               onClick={() => useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'aufgaben', sidebarOpen: false })}
             >
               <span className={`status-dot ${project.status}`} />
-              <span>{project.name}</span>
+              <span>{project.kuerzel || project.name}</span>
               {projectTodayRanks[project.id]?.map((rank) => <b className="project-today-rank" key={rank}>#{rank}</b>)}
             </button>
           ))}</div>
