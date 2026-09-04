@@ -127,10 +127,6 @@
 .task-progress-entry .doc-section-head>div:first-child{display:flex;align-items:baseline;gap:8px;}
 .task-progress-entry time{color:var(--ink-soft);font-size:10px;}
 .task-progress-entry .rtf-content{margin-top:5px;font-size:12px;}
-.task-details-toggle{margin-top:14px;padding-top:10px;border-top:1px solid var(--line-soft);}
-.task-details-toggle summary{cursor:pointer;color:var(--ink-soft);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
-.task-details-toggle summary:hover{color:var(--ink);}
-.task-details-toggle .field{margin-top:12px;}
 .task-history-list{display:grid;gap:2px;}
 .task-history-entry{display:grid;grid-template-columns:150px minmax(0,1fr);align-items:baseline;gap:10px;padding:8px 0;border-top:1px solid var(--line-soft);}
 .task-history-entry:first-child{border-top:0;}

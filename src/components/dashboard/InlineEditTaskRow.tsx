@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
-import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
 import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
@@ -45,8 +44,6 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const [naechsteBesprechung, setNaechsteBesprechung] = useState(!!task.naechsteBesprechung);
   const [wartetAuf, setWartetAuf] = useState(task.wartetAuf || '');
   const [wartetSeit, setWartetSeit] = useState(task.wartetSeit || '');
-  const [anforderung, setAnforderung] = useState(task.anforderung || '');
-  const [aktuellerStand, setAktuellerStand] = useState(task.aktuellerStand || '');
   const [verlauf, setVerlauf] = useState<TaskProgressEntry[]>(task.verlauf || []);
   const [afns, setAfns] = useState(task.afns || []);
   const [fremdverknuepfung, setFremdverknuepfung] = useState(task.fremdverknuepfung || '');
@@ -81,8 +78,6 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       termine,
       kontaktId: kontaktIds[0] || '',
       kontaktIds,
-      anforderung,
-      aktuellerStand,
       verlauf,
       afns,
       fremdverknuepfung: fremdverknuepfung.trim(),
@@ -118,14 +113,6 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       {status === 'wartet' && (
         <TaskWaitingFields waitingFor={wartetAuf} waitingSince={wartetSeit} waitingOptions={waitingOptions} onWaitingForChange={setWartetAuf} onWaitingSinceChange={setWartetSeit} />
       )}
-      <div className="field">
-        <label>Anforderung</label>
-        <RtfField value={anforderung} onChange={setAnforderung} title="Anforderung" placeholder="Was wird benötigt und welche Kriterien müssen erfüllt sein?" />
-      </div>
-      <div className="field">
-        <label>Aktueller Stand</label>
-        <RtfField value={aktuellerStand} onChange={setAktuellerStand} title="Aktueller Stand" placeholder="Was ist aktuell umgesetzt, offen oder blockiert?" />
-      </div>
       <TaskProgressHistoryField value={verlauf} onChange={setVerlauf} />
       </div> : <div className="task-form-section">
       <TaskAppointmentsField value={termine} onChange={setTermine} />

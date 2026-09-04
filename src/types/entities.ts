@@ -5,6 +5,8 @@ export interface Project {
   id: string;
   name: string;
   kunde: string;
+  /** Kurzes Kürzel, das in der Projektschnellwahl statt des vollen Namens/Kunden angezeigt wird. */
+  kuerzel?: string;
   typ: ProjectTyp;
   status: ProjectStatus;
   beschreibung: string; // RTF html
@@ -244,7 +246,9 @@ export interface Task {
   kontaktId: string;
   /** All linked contacts. kontaktId remains as a legacy first-contact value. */
   kontaktIds?: string[];
+  /** @deprecated Wird beim Laden als Verlaufseintrag migriert. */
   anforderung?: string; // RTF html
+  /** @deprecated Wird beim Laden als Verlaufseintrag migriert. */
   aktuellerStand?: string; // RTF html
   verlauf?: TaskProgressEntry[];
   /** Automatisch protokollierte Änderungen an Status, Fälligkeit, Titel, Farbe und Wartet-auf, neueste zuerst. */
