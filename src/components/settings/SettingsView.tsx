@@ -13,6 +13,7 @@ import ModuleSettings from './ModuleSettings';
 import ProjectTimeTypeSettings from './ProjectTimeTypeSettings';
 import StundensatzSettings from './StundensatzSettings';
 import TaskColorSettings from './TaskColorSettings';
+import TimeEntryReviewSettings from './TimeEntryReviewSettings';
 import WaitingOptionsSettings from './WaitingOptionsSettings';
 
 type SettingsTab = 'tasks' | 'time' | 'validation' | 'data' | 'ai';
@@ -42,7 +43,7 @@ export default function SettingsView() {
     </div>
     <section id={`settings-panel-${activeTab}`} className="settings-tab-panel" role="tabpanel">
       {activeTab === 'tasks' && <><ModuleSettings /><TaskColorSettings /><WaitingOptionsSettings /><ExplorerPathSettings /></>}
-      {activeTab === 'time' && <><ProjectTimeTypeSettings /><AbrechnungsArtenSettings /><AbrechnungModuleSettings /><StundensatzSettings /><AbrechnungFilterPresetSettings /><AbrechnungCsvImportSettings /><AbrechnungProjectMatchSettings /></>}
+      {activeTab === 'time' && <><ProjectTimeTypeSettings /><TimeEntryReviewSettings /><AbrechnungsArtenSettings /><AbrechnungModuleSettings /><StundensatzSettings /><AbrechnungFilterPresetSettings /><AbrechnungCsvImportSettings /><AbrechnungProjectMatchSettings /></>}
       {activeTab === 'validation' && <DataValidationSettings />}
       {activeTab === 'data' && <DataView embedded />}
       {activeTab === 'ai' && <AiSettingsView embedded />}

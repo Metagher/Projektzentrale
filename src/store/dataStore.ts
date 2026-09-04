@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { sDelete, sGet, sSet } from '../lib/supabase';
 import { useConnectionStore } from './connectionStore';
+import { useModalStore } from './modalStore';
 import { DEFAULT_DOC_SECTIONS } from '../lib/constants';
 import { DEFAULT_TASK_COLOR_LABELS, DEFAULT_TASK_COLOR_ORDER, compareTaskColors, compareWaitingPerson, normalizeTaskColorLabels, normalizeTaskColorOrder, type TaskColorLabels } from '../lib/taskColors';
 import { isDefaultWorkday, type WorkdayOverrides } from '../lib/workdays';
@@ -113,6 +114,8 @@ interface DataStoreState {
   abrechnungsModule: string[];
   /** Konfigurierbare Standardfilter für die Abrechnungsseiten (Projekt und Global), per Button anwendbar. */
   abrechnungFilterPresets: AbrechnungFilterPreset[];
+  /** Wenn aktiv, fragt das Stoppen einer nicht Aufgabe/Kommunikation zugeordneten Zeiterfassung per Popup nach, was gemacht wurde. */
+  timeEntryReviewEnabled: boolean;
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -176,6 +179,7 @@ interface DataStoreState {
   saveAbrechnungLinkedDefaultArt: (art: string) => Promise<void>;
   saveAbrechnungsModule: (modules: string[]) => Promise<void>;
   saveAbrechnungFilterPresets: (presets: AbrechnungFilterPreset[]) => Promise<void>;
+  saveTimeEntryReviewEnabled: (value: boolean) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -253,6 +257,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   abrechnungLinkedDefaultArt: 'BO',
   abrechnungsModule: [],
   abrechnungFilterPresets: [],
+  timeEntryReviewEnabled: true,
 
   loadAll: async () => {
     const sb = client();
@@ -261,7 +266,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze, storedAbrechnungLinkedDefaultArt, storedAbrechnungFilterPresets, storedAbrechnungsModule] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze, storedAbrechnungLinkedDefaultArt, storedAbrechnungFilterPresets, storedAbrechnungsModule, storedTimeEntryReviewEnabled] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
@@ -280,6 +285,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<string>(sb, 'abrechnung-linked-default-art'),
       sGet<AbrechnungFilterPreset[]>(sb, 'abrechnung-filter-presets'),
       sGet<string[]>(sb, 'abrechnungs-module'),
+      sGet<boolean>(sb, 'time-entry-review-enabled'),
     ]);
     const nextModuleIndex = new Map<string, number>();
     const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
@@ -305,6 +311,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       abrechnungLinkedDefaultArt: storedAbrechnungLinkedDefaultArt || 'BO',
       abrechnungFilterPresets: storedAbrechnungFilterPresets || [],
       abrechnungsModule: storedAbrechnungsModule || [],
+      timeEntryReviewEnabled: storedTimeEntryReviewEnabled ?? true,
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -893,6 +900,11 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await sSet(client(), 'abrechnung-linked-default-art', art);
   },
 
+  saveTimeEntryReviewEnabled: async (value) => {
+    set({ timeEntryReviewEnabled: value });
+    await sSet(client(), 'time-entry-review-enabled', value);
+  },
+
   saveAbrechnungsModule: async (modules) => {
     const next = Array.from(new Set(modules.map((item) => item.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de'));
     set({ abrechnungsModule: next });
@@ -1063,12 +1075,28 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const timer = get().activeTimer;
     if (!timer) return;
     const endedAt = new Date().toISOString();
+    set({ activeTimer: null });
+    await sDelete(client(), 'active-timer');
+
+    if (!timer.taskId && get().timeEntryReviewEnabled) {
+      const project = get().projects?.find((item) => item.id === timer.projectId);
+      const assignmentLabel = `${project?.name || 'Projekt'} · ${timer.timeTypeName || 'Allgemeine Projektzeit'}`;
+      const result = await useModalStore.getState().timeEntryReview({ startedAt: timer.startedAt, endedAt, assignmentLabel });
+      if (!result) return;
+      const durationMinutes = Math.max(1, Math.round((Date.parse(result.endedAt) - Date.parse(result.startedAt)) / 60000));
+      const entry: TimeEntry = { id: uid(), projectId: timer.projectId, taskId: timer.taskId, timeTypeId: timer.timeTypeId, timeTypeName: timer.timeTypeName, startedAt: result.startedAt, endedAt: result.endedAt, durationMinutes, note: result.note, createdAt: endedAt };
+      const timeEntries = [...get().timeEntries, entry];
+      set({ timeEntries });
+      await sSet(client(), 'time-entries', timeEntries);
+      return;
+    }
+
     const elapsedSeconds = Math.max(1, Math.round((Date.parse(endedAt) - Date.parse(timer.startedAt)) / 1000));
     const durationMinutes = elapsedSeconds / 60;
     const entry: TimeEntry = { id: uid(), ...timer, endedAt, durationMinutes, note: '', createdAt: endedAt };
     const timeEntries = [...get().timeEntries, entry];
-    set({ timeEntries, activeTimer: null });
-    await Promise.all([sSet(client(), 'time-entries', timeEntries), sDelete(client(), 'active-timer')]);
+    set({ timeEntries });
+    await sSet(client(), 'time-entries', timeEntries);
   },
 
   saveTimeEntry: async (entry) => {

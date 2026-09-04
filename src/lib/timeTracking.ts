@@ -22,3 +22,15 @@ export function formatTimeStamp(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '–' : new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'medium' }).format(date);
 }
+
+/** Converts an ISO timestamp into the local value a <input type="datetime-local"> expects. */
+export function toLocalInputValue(iso: string): string {
+  const date = new Date(iso);
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+/** Converts a <input type="datetime-local"> value back into an ISO timestamp. */
+export function fromLocalInputValue(value: string): string {
+  return new Date(value).toISOString();
+}
