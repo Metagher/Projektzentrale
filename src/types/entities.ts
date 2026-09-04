@@ -219,6 +219,13 @@ export interface TaskProgressEntry {
   updatedAt: string;
 }
 
+/** Automatisch protokollierte Änderung an wichtigen Aufgabenfeldern (Status, Fälligkeit, Titel, Farbe, Wartet auf). */
+export interface TaskHistoryEntry {
+  id: string;
+  timestamp: string; // ISO datetime
+  text: string;
+}
+
 export interface Task {
   id: string;
   nr: number;
@@ -240,6 +247,8 @@ export interface Task {
   anforderung?: string; // RTF html
   aktuellerStand?: string; // RTF html
   verlauf?: TaskProgressEntry[];
+  /** Automatisch protokollierte Änderungen an Status, Fälligkeit, Titel, Farbe und Wartet-auf, neueste zuerst. */
+  history?: TaskHistoryEntry[];
   /** @deprecated Wird beim Laden in aktuellerStand migriert. */
   beschreibung?: string;
   /** @deprecated Wird beim Laden in aktuellerStand migriert. */
