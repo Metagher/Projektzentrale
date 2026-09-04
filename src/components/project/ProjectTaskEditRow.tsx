@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
-import { commLinkLabel, todayStr } from '../../lib/format';
+import { commLinkLabel, fmtDateTime, isEmptyHtml, todayStr } from '../../lib/format';
 import { contactLinkLabel, linkedContactIds } from '../../lib/contacts';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
@@ -16,7 +16,8 @@ import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSele
 import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import TaskAppointmentsField from '../shared/TaskAppointmentsField';
 import { taskDocumentationTarget } from '../../lib/taskDocumentation';
-import type { Contact, ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
+import { buildTaskHistoryEntries } from '../../lib/taskHistory';
+import type { Contact, ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskHistoryEntry, TaskProgressEntry, TaskStatus } from '../../types/entities';
 import TaskTimePanel from './TaskTimePanel';
 
 interface Props {
@@ -36,12 +37,14 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const modules = useDataStore((s) => s.modules);
   const customerModules = useDataStore((s) => s.customerModules);
   const project = useDataStore((s) => s.projects?.find((item) => item.id === projectId));
+  const taskColorLabels = useDataStore((s) => s.taskColorLabels);
   const { setEditingTaskId } = useProjectUiStore();
   const confirm = useModalStore((s) => s.confirm);
   const alert = useModalStore((s) => s.alert);
 
   const [titel, setTitel] = useState(task.titel);
-  const [activeSection, setActiveSection] = useState<'task' | 'basics' | 'time'>('task');
+  const [activeSection, setActiveSection] = useState<'task' | 'basics' | 'history' | 'time'>('task');
+  const [detailsOpen, setDetailsOpen] = useState(!isEmptyHtml(task.anforderung) || !isEmptyHtml(task.aktuellerStand));
   const [farbe, setFarbe] = useState<TaskColor | ''>(task.farbe || '');
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [faelligAm, setFaelligAm] = useState(task.faelligAm || '');
@@ -122,12 +125,14 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
     if (status === 'erledigt' && task.status !== 'erledigt') abgeschlossenAm = new Date().toISOString();
     else if (status !== 'erledigt' && task.status === 'erledigt') abgeschlossenAm = null;
     const prevCommIds = task.commIds || [];
+    const finalWartetAuf = status === 'wartet' ? wartetAuf.trim() : '';
+    const newHistoryEntries = buildTaskHistoryEntries(task, { titel: trimmed, status, farbe, faelligAm, wartetAuf: finalWartetAuf }, taskColorLabels);
     await saveTask(projectId, {
       ...task,
       titel: trimmed,
       farbe,
       status,
-      wartetAuf: status === 'wartet' ? wartetAuf.trim() : '',
+      wartetAuf: finalWartetAuf,
       wartetSeit: status === 'wartet' ? wartetSeit : '',
       faelligAm,
       termine,
@@ -136,6 +141,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       anforderung,
       aktuellerStand,
       verlauf,
+      history: [...newHistoryEntries, ...(task.history || [])],
       afns,
       commIds,
       moduleIds,
@@ -161,28 +167,31 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
     setEditingTaskId(null);
   }
 
-  return (
-    <div className="list-item task-edit-row">
-      <div className="meta mono" style={{ marginBottom: 6 }}>
-        <span className="task-nr">{task.nr || '—'}</span>
-      </div>
-      <nav className="task-form-tabs"><button type="button" className={activeSection === 'task' ? 'active' : ''} onClick={() => setActiveSection('task')}>Aufgabe</button><button type="button" className={activeSection === 'basics' ? 'active' : ''} onClick={() => setActiveSection('basics')}>Grunddaten</button><button type="button" className={activeSection === 'time' ? 'active' : ''} onClick={() => setActiveSection('time')}>Zeiten</button></nav>
-      {activeSection === 'task' ? <div className="task-form-section">
+  const history: TaskHistoryEntry[] = task.history || [];
+
+  let sectionContent = null;
+  if (activeSection === 'task') {
+    sectionContent = <div className="task-form-section">
       <div className="field task-title-field"><label>Titel</label><input type="text" value={titel} onChange={(e) => setTitel(e.target.value)} /></div>
       <div className="task-primary-controls"><div className="task-primary-control"><label>Status</label><TaskStatusButtons value={status} onChange={(value) => { setStatus(value); if (value === 'wartet' && !wartetSeit) setWartetSeit(todayStr()); }} /><label>Farbmarkierung</label><TaskColorSelect value={farbe} onChange={setFarbe} /></div><div className="task-primary-control"><label>Fällig am</label><div className="task-date-control"><input type="date" value={faelligAm} onChange={(e) => setFaelligAm(e.target.value)} /><TaskDateQuickSelect value={faelligAm} onChange={setFaelligAm} /></div></div></div>
       {status === 'wartet' && (
         <TaskWaitingFields waitingFor={wartetAuf} waitingSince={wartetSeit} waitingOptions={waitingOptions} onWaitingForChange={setWartetAuf} onWaitingSinceChange={setWartetSeit} />
       )}
-      <div className="field">
-        <label>Anforderung</label>
-        <RtfField value={anforderung} onChange={setAnforderung} title="Anforderung" placeholder="Was wird benötigt und welche Kriterien müssen erfüllt sein?" />
-      </div>
-      <div className="field">
-        <label>Aktueller Stand</label>
-        <RtfField value={aktuellerStand} onChange={setAktuellerStand} title="Aktueller Stand" placeholder="Was ist aktuell umgesetzt, offen oder blockiert?" />
-      </div>
       <TaskProgressHistoryField value={verlauf} onChange={setVerlauf} />
-      </div> : activeSection === 'basics' ? <div className="task-form-section">
+      <details className="task-details-toggle" open={detailsOpen} onToggle={(e) => setDetailsOpen(e.currentTarget.open)}>
+        <summary>Anforderung &amp; früherer Stand {(!isEmptyHtml(anforderung) || !isEmptyHtml(aktuellerStand)) ? '' : '(selten genutzt)'}</summary>
+        <div className="field">
+          <label>Anforderung</label>
+          <RtfField value={anforderung} onChange={setAnforderung} title="Anforderung" placeholder="Was wird benötigt und welche Kriterien müssen erfüllt sein?" />
+        </div>
+        <div className="field">
+          <label>Aktueller Stand</label>
+          <RtfField value={aktuellerStand} onChange={setAktuellerStand} title="Aktueller Stand" placeholder="Was ist aktuell umgesetzt, offen oder blockiert?" />
+        </div>
+      </details>
+    </div>;
+  } else if (activeSection === 'basics') {
+    sectionContent = <div className="task-form-section">
       <TaskAppointmentsField value={termine} onChange={setTermine} />
       <div className="task-basics-grid">
         <div className="field"><label>Ticket</label><input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" /></div>
@@ -191,7 +200,38 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
         <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-edit-${projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-edit-${projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
         <TaskDocumentationTargetSelect value={dokuZiel} onChange={(value) => { if (value !== dokuZiel) setDokuZielChanged(true); setDokuZiel(value); }} />
         <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
-      </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div><div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div><TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} /></div> : <TaskTimePanel projectId={projectId} taskId={task.id} />}
+      </div>
+      <div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div>
+      <div className="field"><label>Verknüpfte Module</label><LinkChipsField ids={moduleIds} items={moduleItems} labelFn={moduleLabel} placeholder="— Kundenmodul auswählen —" onChange={setModuleIds} /></div>
+      <div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div>
+      <TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} />
+    </div>;
+  } else if (activeSection === 'history') {
+    sectionContent = <div className="task-form-section">
+      <div className="task-history-list">
+        {history.length === 0 ? (
+          <div className="meta">Noch keine protokollierten Änderungen.</div>
+        ) : (
+          history.map((entry) => <div className="task-history-entry" key={entry.id}><time>{fmtDateTime(entry.timestamp)}</time><span>{entry.text}</span></div>)
+        )}
+      </div>
+    </div>;
+  } else {
+    sectionContent = <TaskTimePanel projectId={projectId} taskId={task.id} />;
+  }
+
+  return (
+    <div className="list-item task-edit-row">
+      <div className="meta mono" style={{ marginBottom: 6 }}>
+        <span className="task-nr">{task.nr || '—'}</span>
+      </div>
+      <nav className="task-form-tabs">
+        <button type="button" className={activeSection === 'task' ? 'active' : ''} onClick={() => setActiveSection('task')}>Aufgabe</button>
+        <button type="button" className={activeSection === 'basics' ? 'active' : ''} onClick={() => setActiveSection('basics')}>Grunddaten</button>
+        <button type="button" className={activeSection === 'history' ? 'active' : ''} onClick={() => setActiveSection('history')}>Historie{history.length ? ` (${history.length})` : ''}</button>
+        <button type="button" className={activeSection === 'time' ? 'active' : ''} onClick={() => setActiveSection('time')}>Zeiten</button>
+      </nav>
+      {sectionContent}
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn small" onClick={handleSave}>
           Speichern
