@@ -85,6 +85,8 @@ export interface TimeEntry {
   timeTypeId?: string;
   /** Label snapshot so historical entries remain understandable after a type is renamed or removed. */
   timeTypeName?: string;
+  /** Ansprechpartner, die während dieser Zeit beteiligt waren. */
+  kontaktIds?: string[];
   startedAt: string;
   endedAt: string;
   durationMinutes: number;

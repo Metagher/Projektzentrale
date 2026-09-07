@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useModalStore } from '../../store/modalStore';
 import { fmtDate } from '../../lib/format';
 import { formatDuration, fromLocalInputValue, toLocalInputValue } from '../../lib/timeTracking';
+import { contactLinkLabel } from '../../lib/contacts';
 import type { ProjectTyp } from '../../types/entities';
 import type { ExtractedTask } from '../../lib/ai';
+import LinkChipsField from './LinkChipsField';
 
 function NewProjectForm({ resolve }: { resolve: (v: { name: string; kunde: string; typ: ProjectTyp } | null) => void }) {
   const close = useModalStore((s) => s.close);
@@ -208,6 +210,8 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
   const [note, setNote] = useState('');
   const [noteInvalid, setNoteInvalid] = useState(false);
   const [rangeInvalid, setRangeInvalid] = useState(false);
+  const [timeTypeId, setTimeTypeId] = useState(modal.initialTimeTypeId || modal.timeTypes[0]?.id || '');
+  const [kontaktIds, setKontaktIds] = useState<string[]>([]);
 
   const start = new Date(startedAt);
   const end = new Date(endedAt);
@@ -220,7 +224,8 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
     if (!validRange) setRangeInvalid(true);
     if (!trimmedNote || !validRange) return;
     close();
-    modal.resolve({ startedAt: fromLocalInputValue(startedAt), endedAt: fromLocalInputValue(endedAt), note: trimmedNote });
+    const selectedType = modal.timeTypes.find((type) => type.id === timeTypeId);
+    modal.resolve({ startedAt: fromLocalInputValue(startedAt), endedAt: fromLocalInputValue(endedAt), note: trimmedNote, timeTypeId: selectedType?.id, timeTypeName: selectedType?.name, kontaktIds });
   }
 
   function discard() {
@@ -246,6 +251,16 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
       <div className="field">
         <label>Dauer</label>
         <input value={durationMinutes > 0 ? formatDuration(durationMinutes) : '–'} readOnly />
+      </div>
+      <div className="field">
+        <label>Zeittyp</label>
+        <select value={timeTypeId} onChange={(event) => setTimeTypeId(event.target.value)}>
+          {modal.timeTypes.map((type) => <option value={type.id} key={type.id}>{type.name}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label>Ansprechpartner</label>
+        <LinkChipsField ids={kontaktIds} items={modal.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} />
       </div>
       <div className="field">
         <label>Was wurde gemacht?</label>
