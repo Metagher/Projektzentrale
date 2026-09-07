@@ -39,7 +39,11 @@ export default function ProjectQuickBar() {
 
   const sorted = (projects || []).filter((project) => !project.quickbarHidden);
   const customerOrder = useDataStore((state) => state.customerOrder);
-  const customerGroups = orderCustomerGroups(groupProjectsByCustomer(sorted), customerOrder);
+  const zeilen = Array.from(new Set(sorted.map((project) => project.quickbarZeile || 1))).sort((a, b) => a - b);
+  const rows = zeilen.map((zeile) => ({
+    zeile,
+    groups: orderCustomerGroups(groupProjectsByCustomer(sorted.filter((project) => (project.quickbarZeile || 1) === zeile)), customerOrder),
+  }));
   const todayTasks = dashboardData ? dashboardData.tasksWithDate
     .filter((task, index, list) => task.faelligAm === todayStr() && (task.tagesSortierung ?? 999) < 999 && list.findIndex((item) => item.id === task.id) === index)
     .sort((a, b) => (a.tagesSortierung ?? 999) - (b.tagesSortierung ?? 999) || (a.erstelltAm || '').localeCompare(b.erstelltAm || '') || a.nr - b.nr) : [];
@@ -60,23 +64,25 @@ export default function ProjectQuickBar() {
         {aiAvailable && <button className={view === 'ai' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('ai')} title="KI-Suche" aria-label="KI-Suche">✦</button>}
       </div>
       <span className="project-quickbar-label">Projekte</span>
-      <div className="project-quickbar-scroll">
+      <div className="project-quickbar-rows">
         {sorted.length === 0 && <span className="project-quickbar-empty">Keine Projekte in der Schnellwahl</span>}
-        {customerGroups.map((group) => <div className="project-quickbar-group" key={group.key}>
-          <div className="project-quickbar-projects">{group.projects.map((project) => (
-            <button
-              className={`project-quickbar-item${view === 'project' && selectedId === project.id ? ' active' : ''}`}
-              key={project.id}
-              draggable
-              onDragStart={(event) => dragPane(event, { view: 'project', selectedId: project.id, activeTab: 'aufgaben' })}
-              title={`${project.name} · ${group.label}`}
-              onClick={() => useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'aufgaben', sidebarOpen: false })}
-            >
-              <span className={`status-dot ${project.status}`} />
-              <span>{project.kuerzel || project.name}</span>
-              {projectTodayRanks[project.id]?.map((rank) => <b className="project-today-rank" key={rank}>#{rank}</b>)}
-            </button>
-          ))}</div>
+        {rows.map(({ zeile, groups }) => <div className="project-quickbar-scroll" key={zeile}>
+          {groups.map((group) => <div className="project-quickbar-group" key={group.key}>
+            <div className="project-quickbar-projects">{group.projects.map((project) => (
+              <button
+                className={`project-quickbar-item${view === 'project' && selectedId === project.id ? ' active' : ''}`}
+                key={project.id}
+                draggable
+                onDragStart={(event) => dragPane(event, { view: 'project', selectedId: project.id, activeTab: 'aufgaben' })}
+                title={`${project.name} · ${group.label}`}
+                onClick={() => useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'aufgaben', sidebarOpen: false })}
+              >
+                <span className={`status-dot ${project.status}`} />
+                <span>{project.kuerzel || project.name}</span>
+                {projectTodayRanks[project.id]?.map((rank) => <b className="project-today-rank" key={rank}>#{rank}</b>)}
+              </button>
+            ))}</div>
+          </div>)}
         </div>)}
       </div>
       <div className="top-searches" aria-label="Schnellsuchen"><AfnQuickSearch /><TaskFullTextSearch /></div>

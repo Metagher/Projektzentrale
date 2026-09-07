@@ -52,7 +52,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .top-primary-nav button, .top-admin-nav button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; color: #333; background: #f4f4f4; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 16px; }
 .top-primary-nav button:hover, .top-admin-nav button:hover { color: #000; background: #fff; border-color: #777; }
 .top-primary-nav button.active, .top-admin-nav button.active { color: #fff; background: #000; border-color: #000; }
-.project-quickbar-scroll { grid-area:projects;display:flex;align-items:flex-start;gap:5px;min-width:0;overflow-x:auto;overflow-y:hidden;padding:2px 1px 3px;scrollbar-width:thin; }
+.project-quickbar-rows { grid-area:projects;display:flex;flex-direction:column;gap:2px;min-width:0; }
+.project-quickbar-scroll { display:flex;align-items:flex-start;gap:5px;min-width:0;overflow-x:auto;overflow-y:hidden;padding:2px 1px 3px;scrollbar-width:thin; }
 .project-quickbar-group { display:flex;align-items:flex-start;flex-direction:column;gap:2px;min-width:max-content;flex:0 0 auto;padding-right:9px;border-right:1px solid #ddd; }
 .project-quickbar-group:last-child { padding-right: 0; border-right: 0; }
 .project-quickbar-projects { display:flex;flex-wrap:nowrap;gap:4px; }

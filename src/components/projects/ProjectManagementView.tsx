@@ -23,6 +23,7 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
   const [name, setName] = useState(project.name);
   const [kunde, setKunde] = useState(project.kunde || '');
   const [kuerzel, setKuerzel] = useState(project.kuerzel || '');
+  const [quickbarZeile, setQuickbarZeile] = useState(String(project.quickbarZeile || 1));
   const [typ, setTyp] = useState<ProjectTyp>(project.typ);
   const [status, setStatus] = useState<ProjectStatus>(project.status);
   const [beschreibung, setBeschreibung] = useState(project.beschreibung || '');
@@ -34,7 +35,7 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
 
   async function save() {
     setSaving(true);
-    await updateProject(project.id, { name: name.trim() || project.name, kunde: kunde.trim(), kuerzel: kuerzel.trim(), typ, status, beschreibung });
+    await updateProject(project.id, { name: name.trim() || project.name, kunde: kunde.trim(), kuerzel: kuerzel.trim(), quickbarZeile: Math.max(1, Math.round(Number(quickbarZeile) || 1)), typ, status, beschreibung });
     setSaving(false);
     onClose();
   }
@@ -58,6 +59,7 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
         <div className="field"><label>Projektname</label><input value={name} onChange={(event) => setName(event.target.value)} /></div>
         <div className="field"><label>Kunde</label><input value={kunde} onChange={(event) => setKunde(event.target.value)} /></div>
         <div className="field"><label>Kürzel</label><input value={kuerzel} onChange={(event) => setKuerzel(event.target.value)} placeholder="z. B. ABC" /></div>
+        <div className="field"><label>Schnellwahl-Zeile</label><input type="number" min={1} step={1} value={quickbarZeile} onChange={(event) => setQuickbarZeile(event.target.value)} /></div>
         <div className="field">
           <label>Typ</label>
           <select value={typ} onChange={(event) => setTyp(event.target.value as ProjectTyp)}>

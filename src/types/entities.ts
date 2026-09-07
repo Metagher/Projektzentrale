@@ -15,6 +15,8 @@ export interface Project {
   sortIndex: number;
   /** Blendet ausschließlich den Button in der oberen Projektschnellwahl aus. */
   quickbarHidden?: boolean;
+  /** Zeilennummer in der Projektschnellwahl (1, 2, 3, …). Ohne Angabe gilt Zeile 1. */
+  quickbarZeile?: number;
 }
 
 export type ModuleCommercialStatus = 'vertrag' | 'nachlizenzierung';
