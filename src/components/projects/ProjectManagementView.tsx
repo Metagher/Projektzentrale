@@ -4,9 +4,10 @@ import { useModalStore } from '../../store/modalStore';
 import { useUiStore } from '../../store/uiStore';
 import { useDragReorder } from '../../hooks/useDragReorder';
 import { groupProjectsByCustomer, orderCustomerGroups } from '../../lib/projectGroups';
+import { uid } from '../../lib/format';
 import RtfField from '../shared/RtfField';
 import ContactsManager from './ContactsManager';
-import type { Project, ProjectStatus, ProjectTyp } from '../../types/entities';
+import type { Project, ProjectCache, ProjectStatus, ProjectTyp, Subproject } from '../../types/entities';
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   aktiv: 'Aktiv',
@@ -85,7 +86,76 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
         <button className="btn danger project-delete-btn" onClick={remove}>Projekt löschen</button>
       </div>
       {data ? <ContactsManager projectId={project.id} data={data} /> : <div className="loading-note">Ansprechpartner werden geladen…</div>}
+      {data ? <SubprojectsManager projectId={project.id} data={data} /> : <div className="loading-note">Teilprojekte werden geladen…</div>}
     </section>
+  );
+}
+
+function SubprojectsManager({ projectId, data }: { projectId: string; data: ProjectCache }) {
+  const saveSubproject = useDataStore((state) => state.saveSubproject);
+  const deleteSubproject = useDataStore((state) => state.deleteSubproject);
+  const confirm = useModalStore((state) => state.confirm);
+  const alert = useModalStore((state) => state.alert);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState('');
+
+  function edit(subproject: Subproject) {
+    setEditingId(subproject.id);
+    setName(subproject.name);
+  }
+
+  function reset() {
+    setEditingId(null);
+    setName('');
+  }
+
+  async function save() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      await alert('Bitte einen Namen angeben.');
+      return;
+    }
+    if (data.subprojects.some((item) => item.id !== editingId && item.name.toLocaleLowerCase('de') === trimmed.toLocaleLowerCase('de'))) {
+      await alert('Ein Teilprojekt mit diesem Namen existiert bereits.');
+      return;
+    }
+    const existing = editingId ? data.subprojects.find((item) => item.id === editingId) : undefined;
+    await saveSubproject(projectId, {
+      id: editingId || uid(),
+      name: trimmed,
+      sortIndex: existing?.sortIndex ?? data.subprojects.length,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+    });
+    reset();
+  }
+
+  async function remove(id: string) {
+    if (!(await confirm('Dieses Teilprojekt löschen? Bereits erfasste Aufgaben, Kommunikation und Abrechnungen behalten ihre bisherige Zuordnung als Text.'))) return;
+    await deleteSubproject(projectId, id);
+    if (editingId === id) reset();
+  }
+
+  return (
+    <div className="contacts-admin">
+      <div className="section-title">Teilprojekte ({data.subprojects.length})</div>
+      <p className="settings-explanation">Stehen bei Aufgaben, Kommunikation und Abrechnungen dieses Projekts zur Auswahl.</p>
+      <div className="contacts-admin-grid">
+        <div className="contact-form-panel">
+          <h4>{editingId ? 'Teilprojekt bearbeiten' : 'Teilprojekt hinzufügen'}</h4>
+          <div className="field"><label>Name</label><input value={name} onChange={(event) => setName(event.target.value)} placeholder="z. B. Schlachtabrechnung" onKeyDown={(event) => { if (event.key === 'Enter') save(); }} /></div>
+          <div className="btn-row"><button className="btn small" onClick={save}>{editingId ? 'Speichern' : 'Hinzufügen'}</button>{editingId && <button className="btn secondary small" onClick={reset}>Abbrechen</button>}</div>
+        </div>
+        <div className="contact-admin-list">
+          {data.subprojects.length === 0 && <div className="empty-hint">Noch keine Teilprojekte hinterlegt.</div>}
+          {data.subprojects.map((subproject) => (
+            <div className="contact-admin-item" key={subproject.id}>
+              <div><strong>{subproject.name}</strong></div>
+              <div className="actions"><button className="icon-btn edit" onClick={() => edit(subproject)}>Bearbeiten</button><button className="icon-btn" onClick={() => remove(subproject.id)}>Löschen</button></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 

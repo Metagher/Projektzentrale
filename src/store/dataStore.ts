@@ -32,6 +32,7 @@ import type {
   ProjectStatusEntry,
   ProjectCache,
   ProjectTyp,
+  Subproject,
   Task,
   TaskColor,
   UpdateEntry,
@@ -79,7 +80,7 @@ export interface DashboardData {
 }
 
 function emptyProjectCache(): ProjectCache {
-  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [], notes: [], noteFolders: [] };
+  return { contacts: [], comms: [], doc: {}, tasks: [], timeline: [], updates: [], aiSummary: null, moduleConfigs: [], notes: [], noteFolders: [], subprojects: [] };
 }
 
 interface DataStoreState {
@@ -167,6 +168,8 @@ interface DataStoreState {
   saveProjectNote: (projectId: string, note: ProjectNote) => Promise<void>;
   deleteProjectNote: (projectId: string, noteId: string) => Promise<void>;
   saveProjectNoteFolders: (projectId: string, folders: ProjectNoteFolder[]) => Promise<void>;
+  saveSubproject: (projectId: string, subproject: Subproject) => Promise<void>;
+  deleteSubproject: (projectId: string, subprojectId: string) => Promise<void>;
   saveAbrechnung: (entry: Abrechnung) => Promise<void>;
   importAbrechnungen: (entries: Abrechnung[]) => Promise<{ added: number; updated: number }>;
   setAbrechnungenAbgeglichen: (ids: string[], value: boolean) => Promise<void>;
@@ -324,6 +327,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     if (!storedProjectTimeTypes?.length) await sSet(sb, 'project-time-types', DEFAULT_PROJECT_TIME_TYPES);
     if (!storedAbrechnungsArten?.length) await sSet(sb, 'abrechnungs-arten', DEFAULT_ABRECHNUNGS_ARTEN);
     await migrateLegacyBilledTimeToAbrechnungen(get, set);
+    await migrateFreeTextSubprojectsToRecords(get, set);
   },
 
   loadDocDefs: async () => {
@@ -391,7 +395,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const existing = get().cache[id];
     if (existing) return existing;
     const sb = client();
-    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs, notes, noteFolders] = await Promise.all([
+    const [contacts, comms, doc, rawTasks, timeline, updates, aiSummary, moduleConfigs, notes, noteFolders, subprojects] = await Promise.all([
       sGet<Contact[]>(sb, 'contacts:' + id),
       sGet<Comm[]>(sb, 'comms:' + id),
       sGet<DocData>(sb, 'doc:' + id),
@@ -402,6 +406,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<ProjectModuleConfig[]>(sb, 'module-configs:' + id),
       sGet<ProjectNote[]>(sb, 'notes:' + id),
       sGet<ProjectNoteFolder[]>(sb, 'note-folders:' + id),
+      sGet<Subproject[]>(sb, 'subprojects:' + id),
     ]);
     const siblingIds = customerProjectIds(get().projects || [], id).filter((projectId) => projectId !== id);
     const siblingContacts = await Promise.all(siblingIds.map((projectId) => sGet<Contact[]>(sb, 'contacts:' + projectId)));
@@ -438,6 +443,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       moduleConfigs: moduleConfigs || [],
       notes: notes || [],
       noteFolders: noteFolders || [],
+      subprojects: subprojects || [],
     };
     set({ cache: { ...get().cache, [id]: projectCache } });
     return projectCache;
@@ -563,7 +569,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const sb = client();
     await Promise.all([sSet(sb, 'projects', projects), sSet(sb, 'time-entries', timeEntries), sSet(sb, 'abrechnungen', abrechnungen), activeTimer ? sSet(sb, 'active-timer', activeTimer) : sDelete(sb, 'active-timer')]);
     await Promise.all(
-      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:', 'notes:', 'note-folders:'].map((prefix) =>
+      ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'updates:', 'ai-summary:', 'module-configs:', 'notes:', 'note-folders:', 'subprojects:'].map((prefix) =>
         sDelete(sb, prefix + id),
       ),
     );
@@ -1059,6 +1065,24 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     await sSet(client(), 'note-folders:' + projectId, noteFolders);
   },
 
+  saveSubproject: async (projectId, subproject) => {
+    const data = await get().ensureProjectData(projectId);
+    const exists = data.subprojects.some((item) => item.id === subproject.id);
+    const subprojects = (exists ? data.subprojects.map((item) => (item.id === subproject.id ? subproject : item)) : [...data.subprojects, subproject])
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    const cache = { ...get().cache, [projectId]: { ...data, subprojects } };
+    set({ cache });
+    await sSet(client(), 'subprojects:' + projectId, subprojects);
+  },
+
+  deleteSubproject: async (projectId, subprojectId) => {
+    const data = await get().ensureProjectData(projectId);
+    const subprojects = data.subprojects.filter((item) => item.id !== subprojectId);
+    const cache = { ...get().cache, [projectId]: { ...data, subprojects } };
+    set({ cache });
+    await sSet(client(), 'subprojects:' + projectId, subprojects);
+  },
+
   startTimer: async (projectId, taskId = null, timeTypeId) => {
     const current = get().activeTimer;
     const selectedType = taskId ? undefined : get().projectTimeTypes.find((type) => type.id === timeTypeId) || get().projectTimeTypes[0];
@@ -1166,7 +1190,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const previousProjects = get().projects || [];
     for (const p of previousProjects) {
       await Promise.all(
-        ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'ai-summary:', 'updates:', 'module-configs:', 'notes:', 'note-folders:'].map((prefix) =>
+        ['contacts:', 'comms:', 'doc:', 'tasks:', 'timeline:', 'ai-summary:', 'updates:', 'module-configs:', 'notes:', 'note-folders:', 'subprojects:'].map((prefix) =>
           sDelete(sb, prefix + p.id),
         ),
       );
@@ -1314,6 +1338,42 @@ async function migrateLegacyBilledTimeToAbrechnungen(get: () => DataStoreState, 
     set({ cache });
   }
   await sSet(sb, 'abrechnungen-migrated', true);
+}
+
+/**
+ * Einmalige Migration: übernimmt die bisher frei eingegebenen Teilprojekt-Bezeichnungen aus
+ * Aufgaben, Kommunikation und Abrechnungen je Projekt als echte Teilprojekt-Datensätze, damit
+ * an allen Eingabestellen fortan aus dieser Liste ausgewählt werden kann. Läuft dank eines
+ * persistierten Flags nur einmal; bereits angelegte Teilprojekte eines Projekts bleiben unberührt.
+ */
+async function migrateFreeTextSubprojectsToRecords(get: () => DataStoreState, set: (p: Partial<DataStoreState>) => void) {
+  const sb = client();
+  if (await sGet<boolean>(sb, 'subprojects-migrated')) return;
+  const projects = get().projects || [];
+  const now = new Date().toISOString();
+  const cache = { ...get().cache };
+  const abrechnungen = get().abrechnungen;
+  let changed = false;
+
+  for (const project of projects) {
+    const data = cache[project.id];
+    if (!data || data.subprojects.length) continue;
+    const names = new Set<string>();
+    data.tasks.forEach((task) => { const value = task.teilprojekt?.trim(); if (value) names.add(value); });
+    data.comms.forEach((comm) => { const value = comm.teilprojekt?.trim(); if (value) names.add(value); });
+    abrechnungen.forEach((item) => { if (item.projectId !== project.id) return; const value = item.teilprojekt?.trim(); if (value) names.add(value); });
+    if (!names.size) continue;
+    const subprojects: Subproject[] = Array.from(names)
+      .sort((a, b) => a.localeCompare(b, 'de'))
+      .map((name) => ({ id: uid(), name, sortIndex: 0, createdAt: now }))
+      .map((entry, index) => ({ ...entry, sortIndex: index }));
+    cache[project.id] = { ...data, subprojects };
+    await sSet(sb, 'subprojects:' + project.id, subprojects);
+    changed = true;
+  }
+
+  if (changed) set({ cache });
+  await sSet(sb, 'subprojects-migrated', true);
 }
 
 /**

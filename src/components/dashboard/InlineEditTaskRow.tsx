@@ -10,6 +10,7 @@ import TaskWaitingFields from '../shared/TaskWaitingFields';
 import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSelect';
 import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import TaskAppointmentsField from '../shared/TaskAppointmentsField';
+import SubprojectSelect from '../shared/SubprojectSelect';
 import { taskDocumentationTarget } from '../../lib/taskDocumentation';
 import { todayStr } from '../../lib/format';
 import { contactLinkLabel, linkedContactIds } from '../../lib/contacts';
@@ -50,8 +51,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState(task.ticketsystemVerknuepfung || '');
   const [teilprojekt, setTeilprojekt] = useState(task.teilprojekt || '');
   const [projectIds, setProjectIds] = useState<string[]>(task.projectIds?.length ? task.projectIds : [task.projectId]);
-  const teilprojekte = Array.from(new Set((useDataStore((s) => s.cache[task.projectId]?.tasks) || []).map((item) => item.teilprojekt?.trim()).filter((value): value is string => !!value)))
-    .sort((a, b) => a.localeCompare(b, 'de'));
+  const subprojects = useDataStore((s) => s.cache[task.projectId]?.subprojects) || [];
 
   async function handleSave() {
     const trimmed = titel.trim();
@@ -120,7 +120,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
         <div className="field"><label>Ticket</label><input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" /></div>
         <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
         <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} /></div>
-        <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(e) => setTeilprojekt(e.target.value)} list={`teilprojekte-dashboard-${task.projectId}`} placeholder="Teilprojekt neu eingeben oder auswählen" /><datalist id={`teilprojekte-dashboard-${task.projectId}`}>{teilprojekte.map((name) => <option key={name} value={name} />)}</datalist></div>
+        <SubprojectSelect subprojects={subprojects} value={teilprojekt} onChange={setTeilprojekt} />
         <TaskDocumentationTargetSelect value={dokuZiel} onChange={(value) => { if (value !== dokuZiel) setDokuZielChanged(true); setDokuZiel(value); }} />
         <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
       </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} /></div>}

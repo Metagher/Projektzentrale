@@ -13,6 +13,7 @@ import AfnChipsView from '../../shared/AfnChipsView';
 import LinkChipsField from '../../shared/LinkChipsField';
 import LinkChipsView from '../../shared/LinkChipsView';
 import AbrechnungForm from '../../shared/AbrechnungForm';
+import SubprojectSelect from '../../shared/SubprojectSelect';
 import { formatEuro } from '../../../lib/money';
 import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS } from '../../../lib/abrechnungStatus';
 import type { Abrechnung, Comm, Kanal, ProjectCache } from '../../../types/entities';
@@ -48,10 +49,6 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   const [afns, setAfns] = useState<string[]>(editObj?.afns || []);
   const [taskIds, setTaskIds] = useState<string[]>(editObj?.taskIds || []);
   const [teilprojekt, setTeilprojekt] = useState(editObj?.teilprojekt || '');
-  const teilprojekte = Array.from(new Set([
-    ...data.tasks.map((task) => task.teilprojekt?.trim()),
-    ...data.comms.map((comm) => comm.teilprojekt?.trim()),
-  ].filter((value): value is string => !!value))).sort((a, b) => a.localeCompare(b, 'de'));
 
   function resetForm() {
     setDatum(todayStr());
@@ -186,18 +183,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
               <label>Betreff</label>
               <input value={betreff} onChange={(e) => setBetreff(e.target.value)} />
             </div>
-            <div className="field">
-              <label>Teilprojekt</label>
-              <input
-                value={teilprojekt}
-                onChange={(e) => setTeilprojekt(e.target.value)}
-                list={`kommunikation-teilprojekte-${projectId}`}
-                placeholder="Teilprojekt neu eingeben oder auswählen"
-              />
-              <datalist id={`kommunikation-teilprojekte-${projectId}`}>
-                {teilprojekte.map((name) => <option key={name} value={name} />)}
-              </datalist>
-            </div>
+            <SubprojectSelect subprojects={data.subprojects} value={teilprojekt} onChange={setTeilprojekt} />
           </div>
           <div className="field">
             <label>Notiz / Zusammenfassung</label>

@@ -79,6 +79,14 @@ export interface ProjectTimeType {
   name: string;
 }
 
+/** In den Projektgrunddaten definiertes Teilprojekt; steht bei Aufgaben, Kommunikation und Abrechnungen dieses Projekts zur Auswahl. */
+export interface Subproject {
+  id: string;
+  name: string;
+  sortIndex: number;
+  createdAt: string;
+}
+
 export interface TimeEntry {
   id: string;
   projectId: string;
@@ -355,4 +363,5 @@ export interface ProjectCache {
   moduleConfigs: ProjectModuleConfig[];
   notes: ProjectNote[];
   noteFolders: ProjectNoteFolder[];
+  subprojects: Subproject[];
 }

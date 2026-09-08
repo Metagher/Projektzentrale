@@ -5,6 +5,7 @@ import { uid, todayStr } from '../../lib/format';
 import { centsToEuroInput, formatEuro, numberInputToCents } from '../../lib/money';
 import { formatGehaltsMonat, gehaltsMonatFromDate, parseGehaltsMonatInput } from '../../lib/gehaltsmonat';
 import { taskLinkLabel, commLinkLabel } from '../../lib/format';
+import SubprojectSelect from './SubprojectSelect';
 import type { Abrechnung } from '../../types/entities';
 
 function minutesToHoursInput(minutes: number) { return minutes ? (minutes / 60).toFixed(2) : ''; }
@@ -32,6 +33,7 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
   const abrechnungsModule = useDataStore((s) => s.abrechnungsModule);
   const saveAbrechnungsModule = useDataStore((s) => s.saveAbrechnungsModule);
   const cache = useDataStore((s) => s.cache);
+  const ensureProjectData = useDataStore((s) => s.ensureProjectData);
   const confirm = useModalStore((s) => s.confirm);
 
   const [projectId, setProjectId] = useState(entry?.projectId ?? fixedProjectId ?? '');
@@ -69,6 +71,11 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
   const linkedComm = commId && projectId ? cache[projectId]?.comms.find((comm) => comm.id === commId) : undefined;
   // Falls der gespeicherte Wert (Altdaten) nicht mehr in der festen Liste steht, trotzdem als Option anbieten.
   const modulOptionen = modul && !abrechnungsModule.includes(modul) ? [...abrechnungsModule, modul].sort((a, b) => a.localeCompare(b, 'de')) : abrechnungsModule;
+  const subprojects = (projectId && cache[projectId]?.subprojects) || [];
+
+  useEffect(() => {
+    if (projectId) ensureProjectData(projectId);
+  }, [projectId, ensureProjectData]);
 
   useEffect(() => {
     if (provisionOverridden || faktor === undefined) return;
@@ -193,7 +200,9 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
                 : <small className="field-help">Automatisch berechnet ({faktor}% von Wert)</small>
             )}
           </div>
-          <div className="field"><label>Teilprojekt</label><input value={teilprojekt} onChange={(event) => setTeilprojekt(event.target.value)} placeholder="Optional" /></div>
+          {projectId
+            ? <SubprojectSelect subprojects={subprojects} value={teilprojekt} onChange={setTeilprojekt} />
+            : <div className="field"><label>Teilprojekt</label><input value="" disabled placeholder="Erst ein Projekt auswählen" /></div>}
         </div>
         {art === 'VO' && (
           <div className="field-grid">
