@@ -25,7 +25,7 @@ export default function AuswertungTab({ project, data }: { project: Project; dat
         {PROJECT_ANALYTICS_TABS.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={activeSection === tab.id} className={`analytics-subtab${activeSection === tab.id ? ' active' : ''}`} onClick={() => setActiveSection(tab.id)}>{tab.label}</button>)}
       </div>
       {activeSection === 'projekt' ? (
-        <ProjectOperationalOverview data={data} />
+        <ProjectOperationalOverview project={project} data={data} />
       ) : activeSection === 'aufgaben' ? (
         <>
           <div className="analytics-section-intro"><div className="analytics-scope-label">Projektentwicklung</div><h3>Durchlaufzeit und Leistung</h3><p>Historische Entwicklung ausschließlich für dieses Projekt.</p></div>
