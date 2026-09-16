@@ -2,6 +2,7 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { verifySupabaseConnection } from '../lib/supabase';
 import { signInWithPassword, signOut as authSignOut } from '../lib/auth';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config';
 
 const URL_KEY = 'pz_supabase_url';
 const KEY_KEY = 'pz_supabase_key';
@@ -50,12 +51,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   loginError: null,
 
   boot: async () => {
-    const storedUrl = localStorage.getItem(URL_KEY);
-    const storedKey = localStorage.getItem(KEY_KEY);
-    if (!storedUrl || !storedKey) {
-      set({ status: 'setup' });
-      return;
-    }
+    const storedUrl = localStorage.getItem(URL_KEY) || SUPABASE_URL;
+    const storedKey = localStorage.getItem(KEY_KEY) || SUPABASE_ANON_KEY;
     try {
       const client = await verifySupabaseConnection(storedUrl, storedKey);
       attachAuthListener(client, set);
