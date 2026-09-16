@@ -71,17 +71,22 @@ npm run build     # Produktions-Build nach dist/ (wird von der CI ebenfalls ausg
 
 ## 4. Einmalig einrichten
 
-1. Die App-URL öffnen.
-2. Beim ersten Öffnen erscheint der Einrichtungs-Bildschirm: Project URL und anon key
-   eintragen, **"Verbinden & speichern"** klicken.
-3. Danach erscheint der Login-Bildschirm: deine E-Mail-Adresse und dein Passwort eintragen.
-4. Ab jetzt merkt sich der Browser Verbindung und Login — beim nächsten Öffnen erscheint
-   direkt das Dashboard, bis du dich unter **Einstellungen** wieder abmeldest oder der
-   Login abläuft.
+Project URL und anon key sind fest in `src/lib/config.ts` hinterlegt — der
+Einrichtungs-Bildschirm entfällt dadurch, die App öffnet direkt den Login-Bildschirm.
+(Der Einrichtungs-Bildschirm erscheint nur noch als Fallback, falls die Verbindung mit
+diesen Werten mal fehlschlägt, z.B. bei einem Supabase-Ausfall.)
 
-Öffnest du die App auf einem zweiten Gerät (z.B. Handy), muss dieser Schritt dort
-einmal wiederholt werden (URL, Key, E-Mail und Passwort sind identisch, die Eingabe
-passiert lokal auf jedem Gerät).
+1. Die App-URL öffnen.
+2. Auf dem Login-Bildschirm deine E-Mail-Adresse und dein Passwort eintragen.
+3. Ab jetzt merkt sich der Browser den Login — beim nächsten Öffnen erscheint direkt das
+   Dashboard, bis du dich unter **Einstellungen** wieder abmeldest oder der Login abläuft.
+
+Öffnest du die App auf einem zweiten Gerät (z.B. Handy), reicht dort nur der Login
+(E-Mail und Passwort), da URL und Key bereits im Code enthalten sind.
+
+Verwendest du dieses Repo für ein eigenes Supabase-Projekt (z.B. als eigener Fork),
+musst du `src/lib/config.ts` mit deiner eigenen Project URL und deinem eigenen anon key
+überschreiben.
 
 ## 5. KI-Funktionen aktivieren (optional)
 
