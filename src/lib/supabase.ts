@@ -10,14 +10,21 @@ export async function verifySupabaseConnection(url: string, key: string): Promis
   return client;
 }
 
+/** Jede Zeile gehört einem Nutzer (Row-Level-Security schließt daran an); ohne Login kein Zugriff. */
+function currentUserId(): string | null {
+  return useConnectionStore.getState().session?.user.id ?? null;
+}
+
 /**
  * Reads one JSON value from the projektzentrale_kv table. Mirrors the legacy app's sGet:
  * accepts the value both as a JSON string and as a native object, since existing rows in
  * Supabase were written by the old app using the string-wrapped form.
  */
 export async function sGet<T>(client: SupabaseClient, key: string): Promise<T | null> {
+  const userId = currentUserId();
+  if (!userId) return null;
   try {
-    const { data, error } = await client.from(TABLE).select('value').eq('key', key).maybeSingle();
+    const { data, error } = await client.from(TABLE).select('value').eq('key', key).eq('user_id', userId).maybeSingle();
     if (error || !data) return null;
     return typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
   } catch {
@@ -30,10 +37,12 @@ export async function sGet<T>(client: SupabaseClient, key: string): Promise<T | 
  * app's serialization so old and new rows stay indistinguishable in Supabase.
  */
 export async function sSet(client: SupabaseClient, key: string, value: unknown): Promise<boolean> {
+  const userId = currentUserId();
+  if (!userId) return false;
   try {
     const { error } = await client
       .from(TABLE)
-      .upsert({ key, value: JSON.stringify(value), updated_at: new Date().toISOString() });
+      .upsert({ key, user_id: userId, value: JSON.stringify(value), updated_at: new Date().toISOString() });
     if (error) throw error;
     useConnectionStore.getState().hideStorageBanner();
     return true;
@@ -50,8 +59,10 @@ export async function sSet(client: SupabaseClient, key: string, value: unknown):
 }
 
 export async function sDelete(client: SupabaseClient, key: string): Promise<void> {
+  const userId = currentUserId();
+  if (!userId) return;
   try {
-    await client.from(TABLE).delete().eq('key', key);
+    await client.from(TABLE).delete().eq('key', key).eq('user_id', userId);
   } catch {
     // swallow, matches legacy no-op-on-failure behavior
   }
