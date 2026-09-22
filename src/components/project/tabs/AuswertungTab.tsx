@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import TaskAnalytics from '../../analytics/TaskAnalytics';
+import { useDataStore } from '../../../store/dataStore';
 import type { Project, ProjectCache } from '../../../types/entities';
 import ProjectOperationalOverview from '../../analytics/ProjectOperationalOverview';
 import ZeitenTab from './ZeitenTab';
 import AbrechnungTable from '../../shared/AbrechnungTable';
-import AfnOverviewTab from '../../analytics/AfnOverviewTab';
+import AbrechnungGehaltsmonateSection from '../../analytics/AbrechnungGehaltsmonateSection';
 
 type ProjectAnalyticsTab = 'projekt' | 'aufgaben' | 'zeiten' | 'abrechnung';
 
@@ -18,6 +19,7 @@ const PROJECT_ANALYTICS_TABS: { id: ProjectAnalyticsTab; label: string }[] = [
 export default function AuswertungTab({ project, data }: { project: Project; data: ProjectCache }) {
   const [activeSection, setActiveSection] = useState<ProjectAnalyticsTab>('projekt');
   const allTasks = data.tasks.map((t) => ({ ...t, projectId: project.id, projectName: project.name }));
+  const projectAbrechnungen = useDataStore((s) => s.abrechnungen).filter((item) => item.projectId === project.id);
 
   return (
     <>
@@ -37,8 +39,8 @@ export default function AuswertungTab({ project, data }: { project: Project; dat
       ) : (
         <>
           <AbrechnungTable project={project} />
-          <div className="analytics-section-intro"><div className="analytics-scope-label">Verknüpfte AFNs</div><h3>AFN-Übersicht</h3><p>Alle über Aufgaben dieses Projekts verknüpften AFN-Nummern.</p></div>
-          <AfnOverviewTab allTasks={allTasks} />
+          <div className="analytics-section-intro"><div className="analytics-scope-label">Provisionscontrolling</div><h3>Gesammelte Abrechnung</h3><p>Abrechnungen dieses Projekts zusammengefasst nach Gehaltsmonat und Belegnummer.</p></div>
+          <AbrechnungGehaltsmonateSection abrechnungen={projectAbrechnungen} />
         </>
       )}
     </>
