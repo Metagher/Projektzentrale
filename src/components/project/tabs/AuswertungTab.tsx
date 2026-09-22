@@ -4,6 +4,7 @@ import type { Project, ProjectCache } from '../../../types/entities';
 import ProjectOperationalOverview from '../../analytics/ProjectOperationalOverview';
 import ZeitenTab from './ZeitenTab';
 import AbrechnungTable from '../../shared/AbrechnungTable';
+import AfnOverviewTab from '../../analytics/AfnOverviewTab';
 
 type ProjectAnalyticsTab = 'projekt' | 'aufgaben' | 'zeiten' | 'abrechnung';
 
@@ -34,7 +35,11 @@ export default function AuswertungTab({ project, data }: { project: Project; dat
       ) : activeSection === 'zeiten' ? (
         <ZeitenTab project={project} data={data} />
       ) : (
-        <AbrechnungTable project={project} />
+        <>
+          <AbrechnungTable project={project} />
+          <div className="analytics-section-intro"><div className="analytics-scope-label">Verknüpfte AFNs</div><h3>AFN-Übersicht</h3><p>Alle über Aufgaben dieses Projekts verknüpften AFN-Nummern.</p></div>
+          <AfnOverviewTab allTasks={allTasks} />
+        </>
       )}
     </>
   );
