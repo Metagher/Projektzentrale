@@ -3,10 +3,7 @@ import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
 import { getProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
-
-function normalizeAfn(value: string): string {
-  return value.trim().replace(/^AFN[\s:#-]*/i, '').trim().toLocaleUpperCase('de');
-}
+import { normalizeAfn } from '../../lib/afn';
 
 export default function AfnQuickSearch() {
   const projects = useDataStore((state) => state.projects) || [];
