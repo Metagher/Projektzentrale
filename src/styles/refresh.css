@@ -161,7 +161,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* Every filled surface owns its contrasting foreground color. */
 .badge.offen, .badge.in-arbeit, .badge.erledigt, .badge.geplant, .badge.wartet,
-.badge.doku, .wartet-auf-note { color: #fff; background: #111; border-color: #111; }
+.badge.doku, .badge.update-vormerkung, .wartet-auf-note { color: #fff; background: #111; border-color: #111; }
 .status-dot.aktiv, .status-dot.pausiert, .status-dot.abgeschlossen,
 .prio-must, .prio-should, .prio-could, .prio-wont { background: #111; }
 .stamp.aktiv, .stamp.pausiert, .stamp.abgeschlossen,

@@ -284,6 +284,12 @@ export interface Task {
   dokuZiel?: TaskDocumentationTarget;
   /** Für die Themenliste der nächsten Projektbesprechung vorgemerkt. */
   naechsteBesprechung?: boolean;
+  /** Erledigte Aufgabe, deren Ergebnis mit dem nächsten RK-Update ausgeliefert wird. */
+  updateVormerkung?: boolean;
+  /** Vorgesehene Revision für die Update-Vormerkung. */
+  updateRevision?: string;
+  /** Gesetzt, sobald die Vormerkung als Punkt in die Update-Liste übernommen wurde. */
+  updateErledigt?: boolean;
   /** All projects in which this shared task is displayed and editable. */
   projectIds?: string[];
 }
