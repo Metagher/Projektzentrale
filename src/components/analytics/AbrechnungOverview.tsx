@@ -6,8 +6,8 @@ import { formatGehaltsMonat } from '../../lib/gehaltsmonat';
 import { abrechnungStatus, matchesAbrechnungStatusFilter, ABRECHNUNG_STATUS_LABELS, ABRECHNUNG_STATUS_FILTER_OPTIONS } from '../../lib/abrechnungStatus';
 import { resolveAbrechnungFilterPreset, sameResolvedFilter, EMPTY_ABRECHNUNG_FILTER } from '../../lib/abrechnungFilterPresets';
 import { fmtDate } from '../../lib/format';
-import { meaningfulBelegNr } from '../../lib/abrechnungCsv';
 import AbrechnungForm from '../shared/AbrechnungForm';
+import AbrechnungGehaltsmonateSection from './AbrechnungGehaltsmonateSection';
 import AbrechnungProvisionChart from './AbrechnungProvisionChart';
 import AbrechnungArtPieChart from './AbrechnungArtPieChart';
 import type { Abrechnung } from '../../types/entities';
@@ -29,7 +29,6 @@ export default function AbrechnungOverview() {
   const presets = useDataStore((s) => s.abrechnungFilterPresets);
   const saveAbrechnung = useDataStore((s) => s.saveAbrechnung);
   const deleteAbrechnung = useDataStore((s) => s.deleteAbrechnung);
-  const setAbrechnungenAbgeglichen = useDataStore((s) => s.setAbrechnungenAbgeglichen);
   const setAbrechnungenRechnung = useDataStore((s) => s.setAbrechnungenRechnung);
   const [editing, setEditing] = useState<Abrechnung | null | 'new'>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -112,48 +111,6 @@ export default function AbrechnungOverview() {
     wertCents: acc.wertCents + item.wertCents,
     provisionCents: acc.provisionCents + item.provisionCents,
   }), { minutes: 0, wertCents: 0, provisionCents: 0 });
-
-  const gehaltsMonate = useMemo(() => {
-    const map = new Map<string, { minutes: number; provisionCents: number; belege: Map<string, { belegNr: string; provisionCents: number; kunden: Set<string>; ids: string[]; abgeglichenCount: number }> }>();
-    abrechnungen.forEach((item) => {
-      if (!item.gehaltsMonat) return;
-      const current = map.get(item.gehaltsMonat) || { minutes: 0, provisionCents: 0, belege: new Map<string, { belegNr: string; provisionCents: number; kunden: Set<string>; ids: string[]; abgeglichenCount: number }>() };
-      current.minutes += item.minutes;
-      current.provisionCents += item.provisionCents;
-      // Ohne Belegnummer wird je Kunde eine eigene Zeile geführt statt alle Kunden in einer Zeile zusammenzufassen.
-      // Platzhalter wie "-" (z. B. aus dem Altexport) zählen dabei als "ohne Belegnummer".
-      const normalizedBelegNr = meaningfulBelegNr(item.belegNr);
-      const key = normalizedBelegNr || `ohne-beleg:${item.kunde}`;
-      const beleg = current.belege.get(key) || { belegNr: normalizedBelegNr || '', provisionCents: 0, kunden: new Set<string>(), ids: [], abgeglichenCount: 0 };
-      beleg.provisionCents += item.provisionCents;
-      beleg.ids.push(item.id);
-      if (item.abgeglichen) beleg.abgeglichenCount += 1;
-      if (item.kunde) beleg.kunden.add(item.kunde);
-      current.belege.set(key, beleg);
-      map.set(item.gehaltsMonat, current);
-    });
-    return Array.from(map.entries())
-      .map(([month, sums]) => [month, {
-        minutes: sums.minutes,
-        provisionCents: sums.provisionCents,
-        items: Array.from(sums.belege.values())
-          .map((beleg) => ({
-            belegNr: beleg.belegNr,
-            provisionCents: beleg.provisionCents,
-            kunden: Array.from(beleg.kunden).sort((a, b) => a.localeCompare(b, 'de')),
-            ids: beleg.ids,
-            abgeglichen: beleg.abgeglichenCount === beleg.ids.length,
-            teilweiseAbgeglichen: beleg.abgeglichenCount > 0 && beleg.abgeglichenCount < beleg.ids.length,
-          }))
-          .sort((a, b) => {
-            if (!a.belegNr && !b.belegNr) return a.kunden.join(', ').localeCompare(b.kunden.join(', '), 'de');
-            if (!a.belegNr) return -1;
-            if (!b.belegNr) return 1;
-            return a.belegNr.localeCompare(b.belegNr, 'de', { numeric: true });
-          }),
-      }] as const)
-      .sort((a, b) => b[0].localeCompare(a[0]));
-  }, [abrechnungen]);
 
   const moduleVerkaeufe = useMemo(() => abrechnungen.filter((item) => item.art === 'MODUL' && item.modul), [abrechnungen]);
   const moduleKunden = useMemo(() => Array.from(new Set(moduleVerkaeufe.map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')), [moduleVerkaeufe]);
@@ -265,40 +222,7 @@ export default function AbrechnungOverview() {
           <div className="empty-state"><h3>Keine Abrechnungen für diese Filter</h3><div>Passe die Filter an oder erfasse einen neuen Eintrag.</div></div>
         )}
       </>}
-      {section === 'gehaltsmonate' && (
-        gehaltsMonate.length > 0 ? (
-          <div className="analytics-table-wrap">
-            <table className="an-table">
-              <thead><tr><th>Gehaltsmonat</th><th>Stunden</th><th>Provision</th><th>Belegnummer → Provision</th></tr></thead>
-              <tbody>
-                {gehaltsMonate.map(([month, sums]) => <tr key={month}>
-                  <td>{formatGehaltsMonat(month)}</td>
-                  <td>{formatDuration(sums.minutes)}</td>
-                  <td>{formatEuro(sums.provisionCents)}</td>
-                  <td>{sums.items.length ? (
-                    <ul className="belegnr-list">
-                      {sums.items.map((item) => <li key={`${item.belegNr}|${item.kunden.join(',')}`} className={item.abgeglichen ? 'done' : undefined}>
-                        <input
-                          type="checkbox"
-                          checked={item.abgeglichen}
-                          ref={(el) => { if (el) el.indeterminate = item.teilweiseAbgeglichen; }}
-                          onChange={() => setAbrechnungenAbgeglichen(item.ids, !item.abgeglichen)}
-                          title="Mit Gehaltsabrechnung abgeglichen"
-                        />
-                        <span className="belegnr-num">{item.belegNr || '–'}</span>
-                        <span className="belegnr-amount">{formatEuro(item.provisionCents)}</span>
-                        <small>{item.kunden.join(', ')}</small>
-                      </li>)}
-                    </ul>
-                  ) : '–'}</td>
-                </tr>)}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="empty-state"><h3>Keine Gehaltsmonate</h3><div>Sobald ein Rechnungsdatum eingetragen wird, erscheint hier der zugehörige Gehaltsmonat.</div></div>
-        )
-      )}
+      {section === 'gehaltsmonate' && <AbrechnungGehaltsmonateSection abrechnungen={abrechnungen} />}
       {section === 'module' && <>
         <div className="abrechnung-filters">
           <select value={moduleJahr} onChange={(event) => setModuleJahr(event.target.value)}>
