@@ -30,7 +30,12 @@ export default function AbrechnungOverview() {
   const saveAbrechnung = useDataStore((s) => s.saveAbrechnung);
   const deleteAbrechnung = useDataStore((s) => s.deleteAbrechnung);
   const setAbrechnungenAbgeglichen = useDataStore((s) => s.setAbrechnungenAbgeglichen);
+  const setAbrechnungenRechnung = useDataStore((s) => s.setAbrechnungenRechnung);
   const [editing, setEditing] = useState<Abrechnung | null | 'new'>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchRechnungsdatum, setBatchRechnungsdatum] = useState('');
+  const [batchBelegNr, setBatchBelegNr] = useState('');
+  const [applyingBatch, setApplyingBatch] = useState(false);
   const defaultPreset = presets.find((preset) => preset.isDefault);
   const initialFilter = defaultPreset ? resolveAbrechnungFilterPreset(defaultPreset) : EMPTY_ABRECHNUNG_FILTER;
   const [jahr, setJahr] = useState(initialFilter.jahr);
@@ -53,6 +58,36 @@ export default function AbrechnungOverview() {
     setStatus(next.status);
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllFiltered() {
+    setSelectedIds((current) => {
+      const allSelected = filtered.length > 0 && filtered.every((item) => current.has(item.id));
+      if (allSelected) return new Set();
+      return new Set(filtered.map((item) => item.id));
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setBatchRechnungsdatum('');
+    setBatchBelegNr('');
+  }
+
+  async function applyBatch() {
+    if (!batchRechnungsdatum || selectedIds.size === 0 || applyingBatch) return;
+    setApplyingBatch(true);
+    await setAbrechnungenRechnung(Array.from(selectedIds), { rechnungsdatum: batchRechnungsdatum, belegNr: batchBelegNr });
+    setApplyingBatch(false);
+    clearSelection();
+  }
+
   const projectName = new Map(projects.map((project) => [project.id, project.name]));
   const kunden = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')), [abrechnungen]);
   const jahre = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.datum.slice(0, 4)))).sort((a, b) => b.localeCompare(a)), [abrechnungen]);
@@ -66,6 +101,11 @@ export default function AbrechnungOverview() {
     .filter((item) => !gehaltsMonatFilter || item.gehaltsMonat === gehaltsMonatFilter)
     .filter((item) => matchesAbrechnungStatusFilter(item, status))
     .sort((a, b) => b.datum.localeCompare(a.datum));
+
+  const selectedKunden = useMemo(
+    () => Array.from(new Set(abrechnungen.filter((item) => selectedIds.has(item.id)).map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')),
+    [abrechnungen, selectedIds]
+  );
 
   const totals = filtered.reduce((acc, item) => ({
     minutes: acc.minutes + item.minutes,
@@ -192,12 +232,22 @@ export default function AbrechnungOverview() {
           <article><span>Provision</span><strong>{formatEuro(totals.provisionCents)}</strong></article>
           <article><span>Einträge</span><strong>{filtered.length}</strong></article>
         </div>
+        {selectedIds.size > 0 && (
+          <div className="abrechnung-batch-bar">
+            <span>{selectedIds.size} Einträge ausgewählt{selectedKunden.length > 1 ? ` · ${selectedKunden.length} Kunden` : selectedKunden.length === 1 ? ` · ${selectedKunden[0]}` : ''}</span>
+            <div className="field"><label>Rechnungsdatum</label><input type="date" value={batchRechnungsdatum} onChange={(event) => setBatchRechnungsdatum(event.target.value)} /></div>
+            <div className="field"><label>Belegnummer</label><input value={batchBelegNr} onChange={(event) => setBatchBelegNr(event.target.value)} placeholder="Optional" /></div>
+            <button type="button" className="btn small" disabled={!batchRechnungsdatum || applyingBatch} onClick={applyBatch}>{applyingBatch ? 'Speichert…' : 'Übernehmen'}</button>
+            <button type="button" className="btn secondary small" onClick={clearSelection}>Auswahl aufheben</button>
+          </div>
+        )}
         {filtered.length > 0 ? (
           <div className="analytics-table-wrap">
-            <table className="an-table">
-              <thead><tr><th>Datum</th><th>Kunde / Projekt</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Status</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
+            <table className="an-table an-table-selectable">
+              <thead><tr><th><input type="checkbox" checked={filtered.length > 0 && filtered.every((item) => selectedIds.has(item.id))} onChange={toggleSelectAllFiltered} /></th><th>Datum</th><th>Kunde / Projekt</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Status</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
               <tbody>
-                {filtered.map((item) => <tr key={item.id} className="clickable-row" onClick={() => setEditing(item)}>
+                {filtered.map((item) => <tr key={item.id} className={`clickable-row${selectedIds.has(item.id) ? ' selected' : ''}`} onClick={() => setEditing(item)}>
+                  <td onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} /></td>
                   <td>{fmtDate(item.datum)}</td>
                   <td>{item.kunde}{item.projectId && projectName.get(item.projectId) ? ` · ${projectName.get(item.projectId)}` : ''}</td>
                   <td>{item.art}</td>

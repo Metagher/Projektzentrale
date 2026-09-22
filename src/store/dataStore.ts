@@ -12,6 +12,7 @@ import { linkedContactIds, normalizeContactLinks } from '../lib/contacts';
 import { DEFAULT_EXPLORER_BASE_PATH, normalizeExplorerBasePath } from '../lib/explorerPaths';
 import { normalizeAbrechnungFilterPresets, type AbrechnungFilterPreset } from '../lib/abrechnungFilterPresets';
 import { normalizeAfn } from '../lib/afn';
+import { gehaltsMonatFromDate } from '../lib/gehaltsmonat';
 import type {
   Abrechnung,
   Comm,
@@ -176,6 +177,8 @@ interface DataStoreState {
   saveAbrechnung: (entry: Abrechnung) => Promise<void>;
   importAbrechnungen: (entries: Abrechnung[]) => Promise<{ added: number; updated: number }>;
   setAbrechnungenAbgeglichen: (ids: string[], value: boolean) => Promise<void>;
+  /** Trägt Rechnungsdatum und Belegnummer für mehrere Einträge (z. B. eines Kunden, eines Belegs) gleichzeitig ein. */
+  setAbrechnungenRechnung: (ids: string[], patch: { rechnungsdatum: string; belegNr?: string }) => Promise<void>;
   deleteAbrechnung: (id: string) => Promise<void>;
   matchAbrechnungenToProjects: () => Promise<{ updated: number; unmatched: Abrechnung[] }>;
   assignAbrechnungenToProject: (ids: string[], projectId: string) => Promise<void>;
@@ -855,6 +858,23 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   setAbrechnungenAbgeglichen: async (ids, value) => {
     const idSet = new Set(ids);
     const abrechnungen = get().abrechnungen.map((item) => idSet.has(item.id) ? { ...item, abgeglichen: value } : item);
+    set({ abrechnungen });
+    await sSet(client(), 'abrechnungen', abrechnungen);
+  },
+
+  setAbrechnungenRechnung: async (ids, patch) => {
+    const idSet = new Set(ids);
+    const belegNr = patch.belegNr?.trim() || undefined;
+    const abrechnungen = get().abrechnungen.map((item) => {
+      if (!idSet.has(item.id)) return item;
+      return {
+        ...item,
+        freigegeben: true,
+        rechnungsdatum: patch.rechnungsdatum,
+        belegNr,
+        gehaltsMonat: item.gehaltsMonat || gehaltsMonatFromDate(patch.rechnungsdatum),
+      };
+    });
     set({ abrechnungen });
     await sSet(client(), 'abrechnungen', abrechnungen);
   },
