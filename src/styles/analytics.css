@@ -58,6 +58,11 @@
 .abrechnung-freigabe-filter .btn.active{color:#fff;background:#111;border-color:#111;}
 .abrechnung-preset-filter{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;}
 .abrechnung-preset-filter .btn.active{color:#fff;background:#111;border-color:#111;}
+.abrechnung-batch-bar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-bottom:12px;padding:10px 14px;background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);}
+.abrechnung-batch-bar > span{font-size:12px;font-weight:700;margin-bottom:8px;}
+.abrechnung-batch-bar .field{margin-bottom:0;min-width:140px;}
+.an-table tr.selected td{background:var(--paper-raised);}
+.an-table-selectable th:first-child, .an-table-selectable td:first-child{width:26px;padding-right:0;}
 .belegnr-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;}
 .belegnr-list li{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
 .belegnr-list li.done{opacity:.5;}
