@@ -43,6 +43,13 @@ export default function AbrechnungOverview() {
   const [art, setArt] = useState(initialFilter.art);
   const [gehaltsMonatFilter, setGehaltsMonatFilter] = useState(initialFilter.gehaltsMonat);
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]['id']>(initialFilter.status);
+  const [sortBy, setSortBy] = useState<'datum' | 'kunde'>('datum');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  function toggleSort(column: 'datum' | 'kunde') {
+    if (sortBy === column) setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+    else { setSortBy(column); setSortDir(column === 'datum' ? 'desc' : 'asc'); }
+  }
 
   function togglePreset(presetId: string) {
     const preset = presets.find((item) => item.id === presetId);
@@ -88,6 +95,7 @@ export default function AbrechnungOverview() {
   }
 
   const projectName = new Map(projects.map((project) => [project.id, project.name]));
+  const kundeProjektLabel = (item: Abrechnung) => `${item.kunde}${item.projectId && projectName.get(item.projectId) ? ` · ${projectName.get(item.projectId)}` : ''}`;
   const kunden = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')), [abrechnungen]);
   const jahre = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.datum.slice(0, 4)))).sort((a, b) => b.localeCompare(a)), [abrechnungen]);
   const gehaltsMonatOptionen = useMemo(() => Array.from(new Set(abrechnungen.map((item) => item.gehaltsMonat).filter((value): value is string => !!value))).sort((a, b) => b.localeCompare(a)), [abrechnungen]);
@@ -99,7 +107,10 @@ export default function AbrechnungOverview() {
     .filter((item) => !art || item.art === art)
     .filter((item) => !gehaltsMonatFilter || item.gehaltsMonat === gehaltsMonatFilter)
     .filter((item) => matchesAbrechnungStatusFilter(item, status))
-    .sort((a, b) => b.datum.localeCompare(a.datum));
+    .sort((a, b) => {
+      const cmp = sortBy === 'kunde' ? kundeProjektLabel(a).localeCompare(kundeProjektLabel(b), 'de') : a.datum.localeCompare(b.datum);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
 
   const selectedKunden = useMemo(
     () => Array.from(new Set(abrechnungen.filter((item) => selectedIds.has(item.id)).map((item) => item.kunde).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de')),
@@ -201,12 +212,12 @@ export default function AbrechnungOverview() {
         {filtered.length > 0 ? (
           <div className="analytics-table-wrap">
             <table className="an-table an-table-selectable">
-              <thead><tr><th><input type="checkbox" checked={filtered.length > 0 && filtered.every((item) => selectedIds.has(item.id))} onChange={toggleSelectAllFiltered} /></th><th>Datum</th><th>Kunde / Projekt</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Status</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
+              <thead><tr><th><input type="checkbox" checked={filtered.length > 0 && filtered.every((item) => selectedIds.has(item.id))} onChange={toggleSelectAllFiltered} /></th><th className="sortable-col" onClick={() => toggleSort('datum')}>Datum{sortBy === 'datum' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th><th className="sortable-col" onClick={() => toggleSort('kunde')}>Kunde / Projekt{sortBy === 'kunde' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Status</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
               <tbody>
                 {filtered.map((item) => <tr key={item.id} className={`clickable-row${selectedIds.has(item.id) ? ' selected' : ''}`} onClick={() => setEditing(item)}>
                   <td onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} /></td>
                   <td>{fmtDate(item.datum)}</td>
-                  <td>{item.kunde}{item.projectId && projectName.get(item.projectId) ? ` · ${projectName.get(item.projectId)}` : ''}</td>
+                  <td>{kundeProjektLabel(item)}</td>
                   <td>{item.art}</td>
                   <td>{formatDuration(item.minutes)}</td>
                   <td>{formatEuro(item.wertCents)}</td>
