@@ -11,6 +11,7 @@ import { customerKey, effectiveCustomerOrder, groupProjectsByCustomer } from '..
 import { linkedContactIds, normalizeContactLinks } from '../lib/contacts';
 import { DEFAULT_EXPLORER_BASE_PATH, normalizeExplorerBasePath } from '../lib/explorerPaths';
 import { normalizeAbrechnungFilterPresets, type AbrechnungFilterPreset } from '../lib/abrechnungFilterPresets';
+import { normalizeAfn } from '../lib/afn';
 import type {
   Abrechnung,
   Comm,
@@ -117,6 +118,8 @@ interface DataStoreState {
   abrechnungFilterPresets: AbrechnungFilterPreset[];
   /** Wenn aktiv, fragt das Stoppen einer nicht Aufgabe/Kommunikation zugeordneten Zeiterfassung per Popup nach, was gemacht wurde. */
   timeEntryReviewEnabled: boolean;
+  /** Als wichtig markierte AFN-Nummern (normalisiert); erscheinen mit ihrer Aufgabe als ToDo auf dem Dashboard. */
+  markedAfns: string[];
 
   loadAll: () => Promise<void>;
   ensureProjectData: (id: string) => Promise<ProjectCache>;
@@ -183,6 +186,7 @@ interface DataStoreState {
   saveAbrechnungsModule: (modules: string[]) => Promise<void>;
   saveAbrechnungFilterPresets: (presets: AbrechnungFilterPreset[]) => Promise<void>;
   saveTimeEntryReviewEnabled: (value: boolean) => Promise<void>;
+  toggleMarkedAfn: (afn: string) => Promise<void>;
   startTimer: (projectId: string, taskId?: string | null, timeTypeId?: string) => Promise<void>;
   stopTimer: () => Promise<void>;
   saveTimeEntry: (entry: TimeEntry) => Promise<void>;
@@ -261,6 +265,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   abrechnungsModule: [],
   abrechnungFilterPresets: [],
   timeEntryReviewEnabled: true,
+  markedAfns: [],
 
   loadAll: async () => {
     const sb = client();
@@ -269,7 +274,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       projects = projects.map((p, i) => (p.sortIndex === undefined ? { ...p, sortIndex: i } : p));
       await sSet(sb, 'projects', projects);
     }
-    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze, storedAbrechnungLinkedDefaultArt, storedAbrechnungFilterPresets, storedAbrechnungsModule, storedTimeEntryReviewEnabled] = await Promise.all([
+    const [storedColorOrder, storedColorLabels, storedWaitingOptions, storedProjectTimeTypes, workdayOverrides, storedCustomerOrder, modules, customerModules, timeEntries, activeTimer, storedExplorerBasePath, storedAbrechnungen, storedAbrechnungsArten, storedAbrechnungsFaktoren, storedStundensaetze, storedAbrechnungLinkedDefaultArt, storedAbrechnungFilterPresets, storedAbrechnungsModule, storedTimeEntryReviewEnabled, storedMarkedAfns] = await Promise.all([
       sGet<TaskColor[]>(sb, 'task-color-order'),
       sGet<Partial<TaskColorLabels>>(sb, 'task-color-labels'),
       sGet<string[]>(sb, 'waiting-options'),
@@ -289,6 +294,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       sGet<AbrechnungFilterPreset[]>(sb, 'abrechnung-filter-presets'),
       sGet<string[]>(sb, 'abrechnungs-module'),
       sGet<boolean>(sb, 'time-entry-review-enabled'),
+      sGet<string[]>(sb, 'marked-afns'),
     ]);
     const nextModuleIndex = new Map<string, number>();
     const normalizedModules = (modules || []).map((module) => { const parentId = module.parentId || null; const group = parentId || '_root'; const fallbackIndex = nextModuleIndex.get(group) || 0; nextModuleIndex.set(group, fallbackIndex + 1); return { id: module.id, name: module.name, parentId, beschreibung: module.beschreibung || '', notizen: module.notizen || '', createdAt: module.createdAt || new Date().toISOString(), sortIndex: module.sortIndex ?? fallbackIndex }; });
@@ -315,6 +321,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       abrechnungFilterPresets: storedAbrechnungFilterPresets || [],
       abrechnungsModule: storedAbrechnungsModule || [],
       timeEntryReviewEnabled: storedTimeEntryReviewEnabled ?? true,
+      markedAfns: storedMarkedAfns || [],
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
@@ -909,6 +916,15 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   saveTimeEntryReviewEnabled: async (value) => {
     set({ timeEntryReviewEnabled: value });
     await sSet(client(), 'time-entry-review-enabled', value);
+  },
+
+  toggleMarkedAfn: async (afn) => {
+    const normalized = normalizeAfn(afn);
+    if (!normalized) return;
+    const current = get().markedAfns;
+    const next = current.includes(normalized) ? current.filter((item) => item !== normalized) : [...current, normalized];
+    set({ markedAfns: next });
+    await sSet(client(), 'marked-afns', next);
   },
 
   saveAbrechnungsModule: async (modules) => {

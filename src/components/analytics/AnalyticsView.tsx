@@ -3,6 +3,7 @@ import { useAnalyticsStore, type AnalyticsSubTab } from '../../store/analyticsSt
 import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import TaskAnalytics from './TaskAnalytics';
 import AfnLesestandTab from './AfnLesestandTab';
+import AfnOverviewTab from './AfnOverviewTab';
 import GlobalPortfolioOverview from './GlobalPortfolioOverview';
 import TimeAnalyticsOverview, { type BilledTimeRow } from './TimeAnalyticsOverview';
 import AbrechnungOverview from './AbrechnungOverview';
@@ -13,6 +14,7 @@ const ANALYTICS_TABS: { id: AnalyticsSubTab; label: string }[] = [
   { id: 'zeiten', label: 'Zeiten' },
   { id: 'abrechnung', label: 'Abrechnung' },
   { id: 'afn', label: 'AFN-Lesestand' },
+  { id: 'afn-liste', label: 'AFN-Übersicht' },
 ];
 
 export default function AnalyticsView() {
@@ -28,7 +30,7 @@ export default function AnalyticsView() {
   const projectTimeTypes = useDataStore((s) => s.projectTimeTypes);
 
   useEffect(() => {
-    if ((analyticsSubTab !== 'projekte' && analyticsSubTab !== 'aufgaben' && analyticsSubTab !== 'zeiten') || !projects) return;
+    if ((analyticsSubTab !== 'projekte' && analyticsSubTab !== 'aufgaben' && analyticsSubTab !== 'zeiten' && analyticsSubTab !== 'afn-liste') || !projects) return;
     let cancelled = false;
     (async () => {
       const all: TaskWithMeta[] = [];
@@ -87,6 +89,8 @@ export default function AnalyticsView() {
         <AbrechnungOverview />
       ) : !allTasks ? (
         <div className="loading-note">Lade Auswertung…</div>
+      ) : analyticsSubTab === 'afn-liste' ? (
+        <AfnOverviewTab allTasks={allTasks} />
       ) : analyticsSubTab === 'projekte' ? (
         <GlobalPortfolioOverview projects={projects || []} tasks={allTasks} />
       ) : (

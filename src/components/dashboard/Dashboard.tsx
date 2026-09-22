@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
 import { getDashboardSummary } from '../../lib/dashboardModel';
+import { normalizeAfn } from '../../lib/afn';
 import DailyBriefingCard from './DailyBriefingCard';
 import DailyPlanner from './DailyPlanner';
 import DashboardCockpit from './DashboardCockpit';
@@ -22,6 +23,8 @@ export default function Dashboard() {
   const colorLabels = useDataStore((state) => state.taskColorLabels);
   const dashboardEditingTaskId = useUiStore((state) => state.dashboardEditingTaskId);
   const setDashboardEditingTaskId = useUiStore((state) => state.setDashboardEditingTaskId);
+  const markedAfns = useDataStore((state) => state.markedAfns);
+  const toggleMarkedAfn = useDataStore((state) => state.toggleMarkedAfn);
   const [actionFilter, setActionFilter] = useState<ActionFilter>('all');
   const [colorFilter, setColorFilter] = useState<TaskColor | ''>('');
 
@@ -36,6 +39,9 @@ export default function Dashboard() {
   ]);
   const editingTask = allTasks.find((task) => task.id === dashboardEditingTaskId);
   const unfinishedTasks = allTasks.filter((task) => task.status !== 'erledigt');
+  const markedAfnTodos = unfinishedTasks
+    .flatMap((task) => (task.afns || []).map(normalizeAfn).filter((afn) => markedAfns.includes(afn)).map((afn) => ({ afn, task })))
+    .filter((item, index, list) => list.findIndex((other) => other.afn === item.afn && other.task.id === item.task.id) === index);
   const activeTasks = unfinishedTasks.filter((task) => task.status === 'offen' || task.status === 'in Arbeit');
   const actionTasks = actionFilter === 'active' ? activeTasks : actionFilter === 'overdue' ? dashboardData.overdueTasks : actionFilter === 'waiting' ? dashboardData.waitingTasks : unfinishedTasks;
   const filteredTasks = actionTasks.filter((task) => !colorFilter || task.farbe === colorFilter);
@@ -44,6 +50,18 @@ export default function Dashboard() {
     <header className="page-header"><div className="eyebrow">Arbeitsbereich</div><h2>Guten Überblick.</h2><p>Alle Projekte, offenen Aufgaben und anstehenden Echtläufe an einem Ort.</p></header>
     <GlobalProjectNotes projects={projects} />
     <OverdueBanner count={dashboardData.overdueTasks.length} />
+    {markedAfnTodos.length > 0 && <section className="dashboard-marked-afns">
+      <div className="dashboard-section-head"><div><span className="eyebrow">Markierte AFNs</span><h3>AFN-ToDos</h3><p>Als wichtig markierte AFN-Nummern mit ihrer zugehörigen Aufgabe.</p></div></div>
+      {markedAfnTodos.map(({ afn, task }) => (
+        <div className="doku-list-row" key={`${afn}-${task.id}`} onClick={() => setDashboardEditingTaskId(task.id)}>
+          <div className="doku-inbox-copy">
+            <strong>AFN {afn} · <span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong>
+            <small>{task.projectName}</small>
+          </div>
+          <button type="button" className="btn secondary small" onClick={(event) => { event.stopPropagation(); toggleMarkedAfn(afn); }}>Entfernen</button>
+        </div>
+      ))}
+    </section>}
     <DailyBriefingCard />
     <DailyPlanner />
     <section className="dashboard-milestones"><div className="dashboard-section-head"><div><span className="eyebrow">Zeitplan</span><h3>Anstehende Meilensteine</h3><p>Offene Meilensteine aus den Projektzeitplänen.</p></div></div><MilestonesList milestones={dashboardData.upcomingMilestones} /></section>

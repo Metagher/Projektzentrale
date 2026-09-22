@@ -9,7 +9,7 @@ function client() {
   return c;
 }
 
-export type AnalyticsSubTab = 'projekte' | 'aufgaben' | 'zeiten' | 'abrechnung' | 'afn';
+export type AnalyticsSubTab = 'projekte' | 'aufgaben' | 'zeiten' | 'abrechnung' | 'afn' | 'afn-liste';
 
 interface AnalyticsStoreState {
   analyticsYear: number;
