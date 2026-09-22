@@ -6,7 +6,7 @@ import { fmtDate, isEmptyHtml, todayStr, uid } from '../../../lib/format';
 import RtfField from '../../shared/RtfField';
 import AfnChipsField from '../../shared/AfnChipsField';
 import AfnChipsView from '../../shared/AfnChipsView';
-import type { Project, ProjectCache, UpdateEntry } from '../../../types/entities';
+import type { Project, ProjectCache, Task, UpdateEntry } from '../../../types/entities';
 
 type DeliveryState = 'delivered' | 'current' | 'upcoming' | 'unassigned';
 
@@ -38,12 +38,37 @@ function deliveryState(revision: string, currentVersion: string): DeliveryState 
   return 'current';
 }
 
+function latestVerlaufContent(task: Task): string {
+  const sorted = (task.verlauf || []).slice().sort((a, b) => b.datum.localeCompare(a.datum) || b.updatedAt.localeCompare(a.updatedAt));
+  return sorted[0]?.content || '';
+}
+
 export default function UpdateTab({ project, data }: { project: Project; data: ProjectCache }) {
   const saveUpdateEntry = useDataStore((s) => s.saveUpdateEntry);
   const deleteUpdateEntry = useDataStore((s) => s.deleteUpdateEntry);
-  const { showNewUpdateForm, setShowNewUpdateForm, editingUpdateId, setEditingUpdateId } = useProjectUiStore();
+  const saveTask = useDataStore((s) => s.saveTask);
+  const { showNewUpdateForm, setShowNewUpdateForm, editingUpdateId, setEditingUpdateId, jumpToTask } = useProjectUiStore();
   const confirm = useModalStore((s) => s.confirm);
   const alert = useModalStore((s) => s.alert);
+
+  const pendingUpdateTasks = data.tasks
+    .filter((task) => task.updateVormerkung && !task.updateErledigt)
+    .slice()
+    .sort((a, b) => (b.abgeschlossenAm || b.erstelltAm || '').localeCompare(a.abgeschlossenAm || a.erstelltAm || ''));
+
+  async function moveTaskToUpdate(taskId: string) {
+    const task = data.tasks.find((item) => item.id === taskId);
+    if (!task) return;
+    await saveUpdateEntry(project.id, {
+      id: uid(),
+      titel: task.titel,
+      datum: task.abgeschlossenAm?.slice(0, 10) || todayStr(),
+      revision: task.updateRevision || '',
+      beschreibung: latestVerlaufContent(task),
+      afns: task.afns || [],
+    });
+    await saveTask(project.id, { ...task, updateErledigt: true });
+  }
 
   const [titel, setTitel] = useState('');
   const [datum, setDatum] = useState(todayStr());
@@ -133,6 +158,20 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
           {deliveryCounts.unassigned > 0 && <span className="unassigned"><strong>{deliveryCounts.unassigned}</strong> ohne Zuordnung</span>}
         </div>
       </section>
+
+      {pendingUpdateTasks.length > 0 && <section className="doc-inbox">
+        <div className="section-title">Erledigte Aufgaben fürs nächste Update ({pendingUpdateTasks.length})</div>
+        {pendingUpdateTasks.map((task) => (
+          <div className={`doku-list-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} key={task.id} onClick={() => jumpToTask(task.id)}>
+            <div className="doku-inbox-copy">
+              <strong><span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong>
+              <small>{task.updateRevision ? `Revision: ${task.updateRevision}` : 'Keine Revision angegeben'}{task.abgeschlossenAm ? ` · Erledigt: ${fmtDate(task.abgeschlossenAm.slice(0, 10))}` : ''}</small>
+            </div>
+            <button className="btn secondary small" onClick={(event) => { event.stopPropagation(); moveTaskToUpdate(task.id); }}>Als Update-Punkt übernehmen</button>
+          </div>
+        ))}
+      </section>}
+
       {showNewUpdateForm ? (
         <div className="card">
           <div className="top-row" style={{ marginBottom: 10 }}>

@@ -7,6 +7,7 @@ import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
 import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import TaskStatusButtons from '../shared/TaskStatusButtons';
 import TaskWaitingFields from '../shared/TaskWaitingFields';
+import TaskUpdateFields from '../shared/TaskUpdateFields';
 import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSelect';
 import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import TaskAppointmentsField from '../shared/TaskAppointmentsField';
@@ -43,6 +44,9 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const [dokuZiel, setDokuZiel] = useState<TaskDocumentationTarget>(taskDocumentationTarget(task));
   const [dokuZielChanged, setDokuZielChanged] = useState(false);
   const [naechsteBesprechung, setNaechsteBesprechung] = useState(!!task.naechsteBesprechung);
+  const [updateVormerkung, setUpdateVormerkung] = useState(!!task.updateVormerkung);
+  const [updateVormerkungChanged, setUpdateVormerkungChanged] = useState(false);
+  const [updateRevision, setUpdateRevision] = useState(task.updateRevision || '');
   const [wartetAuf, setWartetAuf] = useState(task.wartetAuf || '');
   const [wartetSeit, setWartetSeit] = useState(task.wartetSeit || '');
   const [verlauf, setVerlauf] = useState<TaskProgressEntry[]>(task.verlauf || []);
@@ -88,6 +92,9 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       dokuZiel,
       dokuErledigt: dokuZielChanged ? false : task.dokuErledigt,
       naechsteBesprechung,
+      updateVormerkung,
+      updateRevision: updateVormerkung ? updateRevision.trim() : '',
+      updateErledigt: updateVormerkungChanged ? false : task.updateErledigt,
       projectIds,
     });
     onSave();
@@ -112,6 +119,14 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       <div className="task-primary-controls"><div className="task-primary-control"><label>Status</label><TaskStatusButtons value={status} onChange={(value) => { setStatus(value); if (value === 'wartet' && !wartetSeit) setWartetSeit(todayStr()); }} /><label>Farbmarkierung</label><TaskColorSelect value={farbe} onChange={setFarbe} /></div><div className="task-primary-control"><label>Fällig am</label><div className="task-date-control"><input type="date" value={faelligAm} onChange={(e) => setFaelligAm(e.target.value)} /><TaskDateQuickSelect value={faelligAm} onChange={setFaelligAm} /></div></div></div>
       {status === 'wartet' && (
         <TaskWaitingFields waitingFor={wartetAuf} waitingSince={wartetSeit} waitingOptions={waitingOptions} onWaitingForChange={setWartetAuf} onWaitingSinceChange={setWartetSeit} />
+      )}
+      {status === 'erledigt' && (
+        <TaskUpdateFields
+          vormerkung={updateVormerkung}
+          revision={updateRevision}
+          onVormerkungChange={(value) => { setUpdateVormerkung(value); setUpdateVormerkungChanged(true); }}
+          onRevisionChange={setUpdateRevision}
+        />
       )}
       <TaskProgressHistoryField value={verlauf} onChange={setVerlauf} />
       </div> : <div className="task-form-section">

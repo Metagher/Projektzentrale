@@ -15,6 +15,7 @@ import { formatDuration } from '../../lib/timeTracking';
 import TaskColorBadge from '../shared/TaskColorBadge';
 import { copyPathToClipboard, normalizeExplorerBasePath, taskExplorerPath, toFileUrl } from '../../lib/explorerPaths';
 import { taskDocumentationLabel } from '../../lib/taskDocumentation';
+import { taskUpdateLabel } from '../../lib/taskUpdate';
 
 interface Props {
   task: Task;
@@ -76,6 +77,7 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
           <span className={`badge ${slug(task.status)}`}>{task.status === 'wartet' ? `wartet auf ${task.wartetAuf || 'jemanden'}${task.wartetSeit ? ` · ${waitingDurationLabel(task.wartetSeit)}` : ''}` : task.status}</span>
           {task.teilprojekt?.trim() && <span className="badge teilprojekt">{task.teilprojekt.trim()}</span>}
           {taskDocumentationLabel(task) && <span className="badge doku">{taskDocumentationLabel(task)}</span>}
+          {taskUpdateLabel(task) && <span className="badge update-vormerkung">{taskUpdateLabel(task)}</span>}
           {task.naechsteBesprechung && <span className="badge meeting">Nächste Besprechung</span>}
           {task.afns && task.afns.length > 0 && <AfnChipsView afns={task.afns} />}
         </div>

@@ -22,6 +22,9 @@
 .task-documentation-options button:hover{border-color:#111;color:#111;}
 .task-documentation-options button.active{border-color:#111;background:#111;color:#fff;}
 .badge.doku{background:var(--violet-bg);color:var(--violet);border:1px solid var(--violet-border);}
+.badge.update-vormerkung{background:var(--violet-bg);color:var(--violet);border:1px solid var(--violet-border);}
+.task-update-fields{margin-bottom:4px;}
+.task-update-fields .update-revision-field{max-width:220px;}
 .doku-list-row{
   display:flex;align-items:flex-start;justify-content:space-between;gap:10px;background:var(--paper-raised);
   border:1px solid var(--line-soft);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;cursor:pointer;
