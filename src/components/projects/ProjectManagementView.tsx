@@ -54,7 +54,11 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
     <section className="card project-admin-editor" aria-label={`${project.name} bearbeiten`}>
       <div className="project-admin-editor-head">
         <div><div className="eyebrow">Stammdaten bearbeiten</div><h3>{project.name}</h3></div>
-        <button className="icon-btn" onClick={onClose}>Schließen</button>
+        <div className="btn-row">
+          <button className="btn small" disabled={saving} onClick={save}>{saving ? 'Speichert…' : 'Speichern'}</button>
+          <button className="btn secondary small" onClick={onClose}>Abbrechen</button>
+          <button className="btn danger small" onClick={remove}>Löschen</button>
+        </div>
       </div>
       <div className="field-grid">
         <div className="field"><label>Projektname</label><input value={name} onChange={(event) => setName(event.target.value)} /></div>
@@ -79,11 +83,6 @@ function ProjectEditor({ project, onClose }: { project: Project; onClose: () => 
       <div className="field">
         <label>Kurzbeschreibung</label>
         <RtfField value={beschreibung} onChange={setBeschreibung} title="Kurzbeschreibung" placeholder="Kurzbeschreibung des Projekts erfassen…" />
-      </div>
-      <div className="btn-row">
-        <button className="btn" disabled={saving} onClick={save}>{saving ? 'Speichert…' : 'Änderungen speichern'}</button>
-        <button className="btn secondary" onClick={onClose}>Abbrechen</button>
-        <button className="btn danger project-delete-btn" onClick={remove}>Projekt löschen</button>
       </div>
       {data ? <ContactsManager projectId={project.id} data={data} /> : <div className="loading-note">Ansprechpartner werden geladen…</div>}
       {data ? <SubprojectsManager projectId={project.id} data={data} /> : <div className="loading-note">Teilprojekte werden geladen…</div>}

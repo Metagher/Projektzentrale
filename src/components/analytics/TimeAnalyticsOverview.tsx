@@ -173,6 +173,14 @@ function TimeEntryEditor({
             <span>Zeiteintrag</span>
             <strong>Eintrag bearbeiten</strong>
           </div>
+          <div className="btn-row">
+            <button className="btn small" disabled={!valid || saving} onClick={save}>
+              {saving ? "Speichert…" : "Änderungen speichern"}
+            </button>
+            <button className="btn secondary small" onClick={onClose}>
+              Abbrechen
+            </button>
+          </div>
         </div>
         <div className="field-grid">
           <div className="field">
@@ -218,14 +226,6 @@ function TimeEntryEditor({
             onChange={(event) => setNote(event.target.value)}
             placeholder="Optional, z. B. Workshop oder Abstimmung"
           />
-        </div>
-        <div className="btn-row">
-          <button className="btn" disabled={!valid || saving} onClick={save}>
-            {saving ? "Speichert…" : "Änderungen speichern"}
-          </button>
-          <button className="btn secondary" onClick={onClose}>
-            Abbrechen
-          </button>
         </div>
       </div>
     </div>

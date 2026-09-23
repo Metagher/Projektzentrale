@@ -198,7 +198,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .project-admin-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .project-admin-editor-head .eyebrow { margin-bottom: 3px; color: var(--ink-soft); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .project-admin-editor-head h3 { font-size: 21px; }
-.project-delete-btn { margin-left: auto; }
 .project-admin-group { margin-bottom: 22px; padding: 4px; border-radius: 12px; transition: opacity .15s ease, box-shadow .1s ease; }
 .project-admin-group.dragging { opacity: .4; }
 .project-admin-group.drag-over-top { box-shadow: inset 0 2px 0 0 #000; }
@@ -425,7 +424,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .quick-version { grid-column: 1 / -1; }
   .project-admin-actions { grid-column: 1 / -1; }
   .project-admin-actions .btn { flex: 1; }
-  .project-delete-btn { width: 100%; margin-left: 0; }
   .project-admin-editor .btn-row { flex-wrap: wrap; }
   .contacts-admin-grid { grid-template-columns: 1fr; }
   .kanban-board { margin-right: -18px; padding-right: 18px; }

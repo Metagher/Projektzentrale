@@ -176,9 +176,14 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
         <div className="card">
           <div className="top-row" style={{ marginBottom: 10 }}>
             <h3 style={{ fontSize: 15 }}>Neuer Punkt fürs nächste Update</h3>
-            <button className="icon-btn" onClick={() => setShowNewUpdateForm(false)}>
-              Einklappen
-            </button>
+            <div className="btn-row">
+              <button className="btn small" onClick={handleAddNew}>
+                Hinzufügen
+              </button>
+              <button className="icon-btn" onClick={() => setShowNewUpdateForm(false)}>
+                Einklappen
+              </button>
+            </div>
           </div>
           <div className="field-grid">
             <div className="field">
@@ -211,11 +216,6 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
             <label>AFN-Nummer(n)</label>
             <AfnChipsField value={afns} onChange={setAfns} />
           </div>
-          <div className="btn-row">
-            <button className="btn" onClick={handleAddNew}>
-              Hinzufügen
-            </button>
-          </div>
         </div>
       ) : (
         <button className="btn secondary" style={{ marginBottom: 14 }} onClick={() => setShowNewUpdateForm(true)}>
@@ -240,6 +240,17 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
           return (
           u.id === editingUpdateId ? (
             <div className={`update-entry delivery-${state}`} key={u.id}>
+              <div className="btn-row" style={{ marginBottom: 8 }}>
+                <button className="btn small" onClick={handleSaveEdit}>
+                  Speichern
+                </button>
+                <button className="btn secondary small" onClick={() => setEditingUpdateId(null)}>
+                  Abbrechen
+                </button>
+                <button className="btn danger small" style={{ marginLeft: 'auto' }} onClick={() => handleDelete(u.id)}>
+                  Löschen
+                </button>
+              </div>
               <div className="field-grid">
                 <div className="field">
                   <label>Titel</label>
@@ -261,17 +272,6 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
                 placeholder="Klicken, um zu beschreiben, worum es geht…"
               />
               <AfnChipsField value={editAfns} onChange={setEditAfns} />
-              <div className="btn-row" style={{ marginTop: 8 }}>
-                <button className="btn small" onClick={handleSaveEdit}>
-                  Speichern
-                </button>
-                <button className="btn secondary small" onClick={() => setEditingUpdateId(null)}>
-                  Abbrechen
-                </button>
-                <button className="btn danger small" style={{ marginLeft: 'auto' }} onClick={() => handleDelete(u.id)}>
-                  Löschen
-                </button>
-              </div>
             </div>
           ) : (
             <div className={`update-entry delivery-${state}`} key={u.id} style={{ cursor: 'pointer' }} onClick={() => startEdit(u)}>

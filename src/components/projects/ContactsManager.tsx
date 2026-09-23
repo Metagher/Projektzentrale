@@ -58,7 +58,10 @@ export default function ContactsManager({ projectId, data }: { projectId: string
       {customer && <p className="settings-explanation">Diese Ansprechpartner gelten für alle Projekte des Kunden {customer}.</p>}
       <div className="contacts-admin-grid">
         <div className="contact-form-panel">
-          <h4>{editingId ? 'Ansprechpartner bearbeiten' : 'Ansprechpartner hinzufügen'}</h4>
+          <div className="top-row">
+            <h4>{editingId ? 'Ansprechpartner bearbeiten' : 'Ansprechpartner hinzufügen'}</h4>
+            <div className="btn-row"><button className="btn small" onClick={save}>{editingId ? 'Speichern' : 'Hinzufügen'}</button>{editingId && <button className="btn secondary small" onClick={reset}>Abbrechen</button>}</div>
+          </div>
           <div className="field-grid">
             <div className="field"><label>Name</label><input value={form.name} onChange={(event) => change('name', event.target.value)} /></div>
             <div className="field"><label>Rolle</label><input value={form.rolle} onChange={(event) => change('rolle', event.target.value)} placeholder="z. B. IT-Leitung" /></div>
@@ -66,7 +69,6 @@ export default function ContactsManager({ projectId, data }: { projectId: string
             <div className="field"><label>E-Mail</label><input type="email" value={form.email} onChange={(event) => change('email', event.target.value)} /></div>
           </div>
           <div className="field"><label>Notiz</label><RtfField value={form.notiz} onChange={(value) => change('notiz', value)} title="Notiz" placeholder="Notiz zum Ansprechpartner erfassen…" /></div>
-          <div className="btn-row"><button className="btn small" onClick={save}>{editingId ? 'Speichern' : 'Hinzufügen'}</button>{editingId && <button className="btn secondary small" onClick={reset}>Abbrechen</button>}</div>
         </div>
         <div className="contact-admin-list">
           {data.contacts.length === 0 && <div className="empty-hint">Noch keine Ansprechpartner hinterlegt.</div>}
