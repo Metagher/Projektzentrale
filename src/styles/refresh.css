@@ -238,7 +238,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .task-edit-overlay { position: fixed; z-index: 1500; inset: 0; display: grid; place-items: start center; padding: 28px; overflow-y: auto; background: rgba(0,0,0,.48); backdrop-filter: blur(2px); }
 .task-edit-dialog { width: min(920px, 100%); max-height: calc(100% - 56px); overflow-y: auto; padding: 20px; color: #111; background: #fff; border: 2px solid #000; border-radius: 14px; box-shadow: 0 22px 70px rgba(0,0,0,.28); }
 .task-edit-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #ddd; }
-.task-edit-dialog-head div { display: grid; gap: 2px; }
+.task-edit-dialog-head div:not(.btn-row) { display: grid; gap: 2px; }
+.task-edit-dialog-head .btn-row { flex: 0 0 auto; margin-top: 0; }
 .task-edit-dialog-head span { color: #777; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .task-edit-dialog-head strong { font-size: 16px; }
 .task-edit-dialog .task-edit-row { margin: 0; padding: 0; background: #fff; border: 0; box-shadow: none; }
