@@ -8,8 +8,10 @@ import { resolveAbrechnungFilterPreset, sameResolvedFilter, EMPTY_ABRECHNUNG_FIL
 import { fmtDate } from '../../lib/format';
 import AbrechnungForm from '../shared/AbrechnungForm';
 import AbrechnungGehaltsmonateSection from './AbrechnungGehaltsmonateSection';
-import AbrechnungProvisionChart from './AbrechnungProvisionChart';
-import AbrechnungArtPieChart from './AbrechnungArtPieChart';
+import AbrechnungArtMonatChart from './AbrechnungArtMonatChart';
+import AbrechnungStatusTotals from './AbrechnungStatusTotals';
+import AbrechnungWeeklyHoursChart from './AbrechnungWeeklyHoursChart';
+import AbrechnungKundenUmsatzTable from './AbrechnungKundenUmsatzTable';
 import type { Abrechnung } from '../../types/entities';
 
 const STATUS_OPTIONS = ABRECHNUNG_STATUS_FILTER_OPTIONS;
@@ -272,9 +274,11 @@ export default function AbrechnungOverview() {
         )}
       </>}
       {section === 'diagramm' && <>
-        <AbrechnungProvisionChart abrechnungen={abrechnungen} basis="leistungsdatum" />
-        <AbrechnungProvisionChart abrechnungen={abrechnungen} basis="gehaltsmonat" />
-        <AbrechnungArtPieChart abrechnungen={abrechnungen} />
+        <AbrechnungStatusTotals abrechnungen={abrechnungen} />
+        <AbrechnungArtMonatChart abrechnungen={abrechnungen} arten={arten} basis="gehaltsmonat" />
+        <AbrechnungArtMonatChart abrechnungen={abrechnungen} arten={arten} basis="leistungsdatum" />
+        <AbrechnungWeeklyHoursChart abrechnungen={abrechnungen} arten={arten} />
+        <AbrechnungKundenUmsatzTable abrechnungen={abrechnungen} arten={arten} />
       </>}
       {editing && <AbrechnungForm
         entry={editing === 'new' ? undefined : editing}
