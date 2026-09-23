@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useDataStore } from '../../store/dataStore';
+import { normalizeAfn } from '../../lib/afn';
 
 interface Props {
   value: string[];
@@ -7,6 +9,8 @@ interface Props {
 
 export default function AfnChipsField({ value, onChange }: Props) {
   const [input, setInput] = useState('');
+  const markedAfns = useDataStore((s) => s.markedAfns);
+  const toggleMarkedAfn = useDataStore((s) => s.toggleMarkedAfn);
 
   function addFromInput() {
     const raw = input.trim();
@@ -25,6 +29,13 @@ export default function AfnChipsField({ value, onChange }: Props) {
       <div className="afn-chips">
         {value.map((a) => (
           <span className="afn-chip" key={a}>
+            <input
+              type="checkbox"
+              className="afn-mark"
+              title="Als ToDo auf dem Dashboard markieren"
+              checked={markedAfns.includes(normalizeAfn(a))}
+              onChange={() => toggleMarkedAfn(a)}
+            />
             {a}
             <button type="button" className="afn-remove" title="Entfernen" onClick={() => onChange(value.filter((x) => x !== a))}>
               ×
