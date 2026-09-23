@@ -219,8 +219,19 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
 
   return (
     <div className="list-item task-edit-row">
-      <div className="meta mono" style={{ marginBottom: 6 }}>
-        <span className="task-nr">{task.nr || '—'}</span>
+      <div className="top-row" style={{ marginBottom: 6 }}>
+        <span className="meta mono"><span className="task-nr">{task.nr || '—'}</span></span>
+        <div className="btn-row">
+          <button className="btn small" onClick={handleSave}>
+            Speichern
+          </button>
+          <button className="btn secondary small" onClick={() => setEditingTaskId(null)}>
+            Abbrechen
+          </button>
+          <button className="btn danger small" onClick={handleDelete}>
+            Löschen
+          </button>
+        </div>
       </div>
       <nav className="task-form-tabs">
         <button type="button" className={activeSection === 'task' ? 'active' : ''} onClick={() => setActiveSection('task')}>Aufgabe</button>
@@ -229,17 +240,6 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
         <button type="button" className={activeSection === 'time' ? 'active' : ''} onClick={() => setActiveSection('time')}>Zeiten</button>
       </nav>
       {sectionContent}
-      <div className="btn-row" style={{ marginTop: 8 }}>
-        <button className="btn small" onClick={handleSave}>
-          Speichern
-        </button>
-        <button className="btn secondary small" onClick={() => setEditingTaskId(null)}>
-          Abbrechen
-        </button>
-        <button className="btn danger small" style={{ marginLeft: 'auto' }} onClick={handleDelete}>
-          Löschen
-        </button>
-      </div>
     </div>
   );
 }

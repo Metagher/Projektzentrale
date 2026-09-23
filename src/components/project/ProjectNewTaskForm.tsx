@@ -94,9 +94,14 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
     <div className="card">
       <div className="top-row" style={{ marginBottom: 10 }}>
         <h3 style={{ fontSize: 15 }}>Neue Aufgabe</h3>
-        <button type="button" className="icon-btn" onClick={discardTask}>
-          Verwerfen
-        </button>
+        <div className="btn-row">
+          <button type="button" className="btn small" onClick={handleSave}>
+            Hinzufügen
+          </button>
+          <button type="button" className="btn secondary small" onClick={discardTask}>
+            Verwerfen
+          </button>
+        </div>
       </div>
       <nav className="task-form-tabs"><button type="button" className={activeSection === 'task' ? 'active' : ''} onClick={() => setActiveSection('task')}>Aufgabe</button><button type="button" className={activeSection === 'basics' ? 'active' : ''} onClick={() => setActiveSection('basics')}>Grunddaten</button></nav>
       {activeSection === 'task' ? <div className="task-form-section">
@@ -124,14 +129,6 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       <div className="field"><label>Verknüpfte Kommunikation</label><LinkChipsField ids={commIds} items={data.comms} labelFn={commLinkLabel} placeholder="— Eintrag auswählen —" onChange={setCommIds} /></div>
       <TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} />
       </div>}
-      <div className="btn-row">
-        <button type="button" className="btn" onClick={handleSave}>
-          Hinzufügen
-        </button>
-        <button type="button" className="btn secondary" onClick={discardTask}>
-          Verwerfen
-        </button>
-      </div>
     </div>
   );
 }
