@@ -152,7 +152,14 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
   return (
     <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Abrechnung erfassen">
       <div className="task-edit-dialog">
-        <div className="task-edit-dialog-head"><div><span>Abrechnung</span><strong>{entry ? 'Abrechnung bearbeiten' : 'Abrechnung erfassen'}</strong></div></div>
+        <div className="task-edit-dialog-head">
+          <div><span>Abrechnung</span><strong>{entry ? 'Abrechnung bearbeiten' : 'Abrechnung erfassen'}</strong></div>
+          <div className="btn-row">
+            <button className="btn small" disabled={!valid || saving} onClick={handleSave}>{saving ? 'Speichert…' : 'Speichern'}</button>
+            <button className="btn secondary small" onClick={onClose}>Abbrechen</button>
+            {onDelete && <button className="btn danger small" onClick={handleDelete}>Löschen</button>}
+          </div>
+        </div>
         {(linkedTask || linkedComm) && (
           <div className="field-help" style={{ marginBottom: 10 }}>
             🔗 Verlinkt mit {[linkedTask ? `Aufgabe ${taskLinkLabel(linkedTask)}` : null, linkedComm ? `Kommunikation ${commLinkLabel(linkedComm)}` : null].filter(Boolean).join(' · ')}
@@ -246,11 +253,6 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
           <div className="field"><label>Belegnummer</label><input value={belegNr} onChange={(event) => setBelegNr(event.target.value)} placeholder="Optional" /></div>
         </div>
         <div className="field"><label>Bemerkung</label><input value={bemerkung} onChange={(event) => setBemerkung(event.target.value)} placeholder="Optional" /></div>
-        <div className="btn-row">
-          <button className="btn" disabled={!valid || saving} onClick={handleSave}>{saving ? 'Speichert…' : 'Speichern'}</button>
-          <button className="btn secondary" onClick={onClose}>Abbrechen</button>
-          {onDelete && <button className="btn danger" style={{ marginLeft: 'auto' }} onClick={handleDelete}>Löschen</button>}
-        </div>
       </div>
     </div>
   );

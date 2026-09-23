@@ -178,7 +178,14 @@ export default function KnowledgeView() {
       />
 
       <div className="card">
-        <h3 style={{ marginBottom: 10, fontSize: 15 }}>Eigenen Eintrag hinzufügen</h3>
+        <div className="top-row" style={{ marginBottom: 10 }}>
+          <h3 style={{ fontSize: 15 }}>Eigenen Eintrag hinzufügen</h3>
+          <div className="btn-row">
+            <button className="btn small" onClick={handleAddManual}>
+              Hinzufügen
+            </button>
+          </div>
+        </div>
         <div className="field-grid">
           <div className="field">
             <label>Titel</label>
@@ -194,11 +201,6 @@ export default function KnowledgeView() {
           <RtfField value={newInhalt} onChange={setNewInhalt} title="Inhalt" placeholder="Klicken, um Wissen zu erfassen…" />
         </div>
         <div className="field"><label>Verknüpfte AFN-Nummer(n)</label><AfnChipsField value={newAfns} onChange={setNewAfns} /></div>
-        <div className="btn-row">
-          <button className="btn" onClick={handleAddManual}>
-            Hinzufügen
-          </button>
-        </div>
       </div>
 
       {all.length === 0 ? (
@@ -289,6 +291,17 @@ function KbEditCard({
 
   return (
     <div className="kb-entry-card">
+      <div className="btn-row" style={{ marginBottom: 8 }}>
+        <button className="btn small" onClick={handleSave}>
+          Speichern
+        </button>
+        <button className="btn secondary small" onClick={onCancel}>
+          Abbrechen
+        </button>
+        <button className="btn danger small" style={{ marginLeft: 'auto' }} onClick={onDelete}>
+          Löschen
+        </button>
+      </div>
       <div className="field-grid">
         <div className="field">
           <label>Titel</label>
@@ -301,17 +314,6 @@ function KbEditCard({
       </div>
       <RtfField value={inhalt} onChange={setInhalt} title="Inhalt" placeholder="Klicken, um Wissen zu erfassen…" />
       <div className="field"><label>Verknüpfte AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div>
-      <div className="btn-row" style={{ marginTop: 8 }}>
-        <button className="btn small" onClick={handleSave}>
-          Speichern
-        </button>
-        <button className="btn secondary small" onClick={onCancel}>
-          Abbrechen
-        </button>
-        <button className="btn danger small" style={{ marginLeft: 'auto' }} onClick={onDelete}>
-          Löschen
-        </button>
-      </div>
     </div>
   );
 }

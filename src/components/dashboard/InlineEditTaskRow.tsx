@@ -109,9 +109,19 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
 
   return (
     <div className="list-item task-edit-row">
-      <div className="meta mono" style={{ marginBottom: 6 }}>
-        <span className="task-nr">{task.nr || '—'}</span>
-        {task.projectName}
+      <div className="top-row" style={{ marginBottom: 6 }}>
+        <span className="meta mono"><span className="task-nr">{task.nr || '—'}</span>{task.projectName}</span>
+        <div className="btn-row">
+          <button className="btn small" onClick={handleSave}>
+            Speichern
+          </button>
+          <button className="btn secondary small" onClick={onCancel}>
+            Abbrechen
+          </button>
+          <button className="btn danger small" onClick={handleDelete}>
+            Löschen
+          </button>
+        </div>
       </div>
       <nav className="task-form-tabs"><button type="button" className={activeSection === 'task' ? 'active' : ''} onClick={() => setActiveSection('task')}>Aufgabe</button><button type="button" className={activeSection === 'basics' ? 'active' : ''} onClick={() => setActiveSection('basics')}>Grunddaten</button></nav>
       {activeSection === 'task' ? <div className="task-form-section">
@@ -139,17 +149,6 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
         <TaskDocumentationTargetSelect value={dokuZiel} onChange={(value) => { if (value !== dokuZiel) setDokuZielChanged(true); setDokuZiel(value); }} />
         <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
       </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} /></div>}
-      <div className="btn-row" style={{ marginTop: 8 }}>
-        <button className="btn small" onClick={handleSave}>
-          Speichern
-        </button>
-        <button className="btn secondary small" onClick={onCancel}>
-          Abbrechen
-        </button>
-        <button className="btn danger small" style={{ marginLeft: 'auto' }} onClick={handleDelete}>
-          Löschen
-        </button>
-      </div>
     </div>
   );
 }

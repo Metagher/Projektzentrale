@@ -26,6 +26,7 @@ interface Props {
 }
 
 export default function ProjectTaskRow({ task, project, contacts, data, onDelete }: Props) {
+  const [expanded, setExpanded] = useState(false);
   const [copiedPath, setCopiedPath] = useState<'task' | 'project' | null>(null);
   const { setEditingTaskId, jumpToComm } = useProjectUiStore();
   const dashboardData = useDataStore((state) => state.dashboardData);
@@ -53,9 +54,14 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
     window.setTimeout(() => setCopiedPath((current) => current === kind ? null : current), 1600);
   }
 
+  const hasExtras = !!(
+    task.teilprojekt?.trim() || taskDocumentationLabel(task) || taskUpdateLabel(task) || task.naechsteBesprechung || task.afns?.length
+    || task.termine?.length || contacts.length > 0 || externalHref || ticketHref || task.commIds?.length || explorerBasePath
+  );
+
   return (
     <div
-      className="list-item task-view-row"
+      className={`list-item task-view-row${expanded ? ' expanded' : ''}`}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('[data-no-open]')) return;
         setEditingTaskId(task.id);
@@ -71,34 +77,40 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
             </div>
             <strong className="task-card-title">{task.titel}</strong>
           </div>
+          {hasExtras && <button type="button" className="task-card-expand-toggle" data-no-open aria-expanded={expanded} aria-label={expanded ? 'Weniger anzeigen' : 'Mehr anzeigen'} onClick={() => setExpanded((current) => !current)}>{expanded ? '−' : '+'}</button>}
         </header>
 
-        <div className="task-card-badges">
+        <div className="task-card-summary">
           <span className={`badge ${slug(task.status)}`}>{task.status === 'wartet' ? `wartet auf ${task.wartetAuf || 'jemanden'}${task.wartetSeit ? ` · ${waitingDurationLabel(task.wartetSeit)}` : ''}` : task.status}</span>
-          {task.teilprojekt?.trim() && <span className="badge teilprojekt">{task.teilprojekt.trim()}</span>}
-          {taskDocumentationLabel(task) && <span className="badge doku">{taskDocumentationLabel(task)}</span>}
-          {taskUpdateLabel(task) && <span className="badge update-vormerkung">{taskUpdateLabel(task)}</span>}
-          {task.naechsteBesprechung && <span className="badge meeting">Nächste Besprechung</span>}
-          {task.afns && task.afns.length > 0 && <AfnChipsView afns={task.afns} />}
+          {task.faelligAm && <span className="task-card-due">Fällig {fmtDate(task.faelligAm)}</span>}
         </div>
 
-        <div className="task-card-meta">
-          <span><b>Fällig</b>{fmtDate(task.faelligAm)}</span>
-          {!!task.termine?.length && <span><b>Termine</b>{task.termine.map(fmtDate).join(', ')}</span>}
-          {contacts.length > 0 && <span><b>Ansprechpartner</b>{contacts.map((contact) => contact.name).join(', ')}</span>}
-          {task.erstelltAm && <span><b>Erstellt</b>{fmtDate(task.erstelltAm.slice(0, 10))}</span>}
-          {task.abgeschlossenAm && <span><b>Erledigt</b>{fmtDate(task.abgeschlossenAm.slice(0, 10))}</span>}
-        </div>
+        {expanded && <>
+          <div className="task-card-badges">
+            {task.teilprojekt?.trim() && <span className="badge teilprojekt">{task.teilprojekt.trim()}</span>}
+            {taskDocumentationLabel(task) && <span className="badge doku">{taskDocumentationLabel(task)}</span>}
+            {taskUpdateLabel(task) && <span className="badge update-vormerkung">{taskUpdateLabel(task)}</span>}
+            {task.naechsteBesprechung && <span className="badge meeting">Nächste Besprechung</span>}
+            {task.afns && task.afns.length > 0 && <AfnChipsView afns={task.afns} />}
+          </div>
 
-        {(externalHref || ticketHref) && <div className="task-card-links" data-no-open>
-          {externalHref && <a href={externalHref} target="_blank" rel="noreferrer">↗ Fremdlink</a>}
-          {ticketHref && <a href={ticketHref} target="_blank" rel="noreferrer">↗ Ticket</a>}
-        </div>}
-        <div className="task-card-relations" data-no-open><LinkChipsView ids={task.commIds} items={data.comms} labelFn={commLinkLabel} onJump={jumpToComm} /></div>
-        {explorerBasePath && <div className="task-explorer-paths" data-no-open>
-          {explorerTaskUrl && <a href={explorerTaskUrl} target="_blank" rel="noreferrer" title={explorerTaskPath} onClick={() => copyExplorerPath('task')}>{copiedPath === 'task' ? 'Pfad kopiert' : 'Aufgabenordner öffnen'}</a>}
-          {explorerBaseUrl && <a href={explorerBaseUrl} target="_blank" rel="noreferrer" title={explorerBasePath} onClick={() => copyExplorerPath('project')}>{copiedPath === 'project' ? 'Pfad kopiert' : 'Basisordner öffnen'}</a>}
-        </div>}
+          <div className="task-card-meta">
+            {!!task.termine?.length && <span><b>Termine</b>{task.termine.map(fmtDate).join(', ')}</span>}
+            {contacts.length > 0 && <span><b>Ansprechpartner</b>{contacts.map((contact) => contact.name).join(', ')}</span>}
+            {task.erstelltAm && <span><b>Erstellt</b>{fmtDate(task.erstelltAm.slice(0, 10))}</span>}
+            {task.abgeschlossenAm && <span><b>Erledigt</b>{fmtDate(task.abgeschlossenAm.slice(0, 10))}</span>}
+          </div>
+
+          {(externalHref || ticketHref) && <div className="task-card-links" data-no-open>
+            {externalHref && <a href={externalHref} target="_blank" rel="noreferrer">↗ Fremdlink</a>}
+            {ticketHref && <a href={ticketHref} target="_blank" rel="noreferrer">↗ Ticket</a>}
+          </div>}
+          <div className="task-card-relations" data-no-open><LinkChipsView ids={task.commIds} items={data.comms} labelFn={commLinkLabel} onJump={jumpToComm} /></div>
+          {explorerBasePath && <div className="task-explorer-paths" data-no-open>
+            {explorerTaskUrl && <a href={explorerTaskUrl} target="_blank" rel="noreferrer" title={explorerTaskPath} onClick={() => copyExplorerPath('task')}>{copiedPath === 'task' ? 'Pfad kopiert' : 'Aufgabenordner öffnen'}</a>}
+            {explorerBaseUrl && <a href={explorerBaseUrl} target="_blank" rel="noreferrer" title={explorerBasePath} onClick={() => copyExplorerPath('project')}>{copiedPath === 'project' ? 'Pfad kopiert' : 'Basisordner öffnen'}</a>}
+          </div>}
+        </>}
 
         <footer className="task-card-actions" data-no-open>
           <button type="button" className={`meeting-task-toggle${task.naechsteBesprechung ? ' active' : ''}`} aria-pressed={!!task.naechsteBesprechung} title={task.naechsteBesprechung ? 'Vormerkung für die nächste Besprechung entfernen' : 'Für die nächste Besprechung vormerken'} onClick={() => void saveTask(project.id, { ...task, naechsteBesprechung: !task.naechsteBesprechung })}>Besprechung</button>

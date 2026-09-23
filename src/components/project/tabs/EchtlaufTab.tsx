@@ -68,7 +68,12 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
   return (
     <>
       <button className="btn" style={{ marginBottom: 14 }} onClick={() => { resetForm(); setEditingMilestone(null); setShowForm(true); }}>+ Neuer Meilenstein</button>
-      {(showForm || editObj) && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label={editObj ? 'Meilenstein bearbeiten' : 'Meilenstein anlegen'}><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Zeitplan</span><strong>{editObj ? editObj.titel : 'Neuer Meilenstein'}</strong></div></div><div className="card">
+      {(showForm || editObj) && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label={editObj ? 'Meilenstein bearbeiten' : 'Meilenstein anlegen'}><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Zeitplan</span><strong>{editObj ? editObj.titel : 'Neuer Meilenstein'}</strong></div><div className="btn-row">
+          <button className="btn small" onClick={handleSave}>
+            {editObj ? 'Speichern' : 'Hinzufügen'}
+          </button>
+          <button className="btn secondary small" onClick={() => { setEditingMilestone(null); setShowForm(false); resetForm(); }}>Abbrechen</button>
+        </div></div><div className="card">
         <h3 style={{ marginBottom: 10, fontSize: 15 }}>{editObj ? 'Meilenstein bearbeiten' : 'Neuer Meilenstein'}</h3>
         <div className="field-grid">
           <div className="field">
@@ -94,12 +99,6 @@ export default function EchtlaufTab({ projectId, data }: { projectId: string; da
         <div className="field">
           <label>Notiz</label>
           <RtfField value={notiz} onChange={setNotiz} title="Notiz" placeholder="Klicken, um eine Notiz zu erfassen…" />
-        </div>
-        <div className="btn-row">
-          <button className="btn" onClick={handleSave}>
-            {editObj ? 'Speichern' : 'Hinzufügen'}
-          </button>
-          <button className="btn secondary" onClick={() => { setEditingMilestone(null); setShowForm(false); resetForm(); }}>Abbrechen</button>
         </div>
       </div></div></div>}
       <div className="section-title">Zeitplan</div>
