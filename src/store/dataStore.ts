@@ -1142,10 +1142,10 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
       const project = get().projects?.find((item) => item.id === timer.projectId);
       const assignmentLabel = `${project?.name || 'Projekt'} · ${timer.timeTypeName || 'Allgemeine Projektzeit'}`;
       const data = await get().ensureProjectData(timer.projectId);
-      const result = await useModalStore.getState().timeEntryReview({ startedAt: timer.startedAt, endedAt, assignmentLabel, timeTypes: get().projectTimeTypes, initialTimeTypeId: timer.timeTypeId, contacts: data.contacts });
+      const result = await useModalStore.getState().timeEntryReview({ startedAt: timer.startedAt, endedAt, assignmentLabel, timeTypes: get().projectTimeTypes, initialTimeTypeId: timer.timeTypeId, contacts: data.contacts, tasks: data.tasks });
       if (!result) return;
       const durationMinutes = Math.max(1, Math.round((Date.parse(result.endedAt) - Date.parse(result.startedAt)) / 60000));
-      const entry: TimeEntry = { id: uid(), projectId: timer.projectId, taskId: timer.taskId, timeTypeId: result.timeTypeId, timeTypeName: result.timeTypeName, kontaktIds: result.kontaktIds, startedAt: result.startedAt, endedAt: result.endedAt, durationMinutes, note: result.note, createdAt: endedAt };
+      const entry: TimeEntry = { id: uid(), projectId: timer.projectId, taskId: result.taskId || timer.taskId, timeTypeId: result.taskId ? undefined : result.timeTypeId, timeTypeName: result.taskId ? undefined : result.timeTypeName, kontaktIds: result.kontaktIds, startedAt: result.startedAt, endedAt: result.endedAt, durationMinutes, note: result.note, createdAt: endedAt };
       const timeEntries = [...get().timeEntries, entry];
       set({ timeEntries });
       await sSet(client(), 'time-entries', timeEntries);

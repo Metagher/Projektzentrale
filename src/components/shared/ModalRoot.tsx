@@ -210,22 +210,23 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
   const [note, setNote] = useState('');
   const [noteInvalid, setNoteInvalid] = useState(false);
   const [rangeInvalid, setRangeInvalid] = useState(false);
-  const [timeTypeId, setTimeTypeId] = useState(modal.initialTimeTypeId || modal.timeTypes[0]?.id || '');
+  const [assignment, setAssignment] = useState(`type:${modal.initialTimeTypeId || modal.timeTypes[0]?.id || ''}`);
   const [kontaktIds, setKontaktIds] = useState<string[]>([]);
 
   const start = new Date(startedAt);
   const end = new Date(endedAt);
   const durationMinutes = Number.isFinite(start.getTime()) && Number.isFinite(end.getTime()) ? (end.getTime() - start.getTime()) / 60000 : 0;
+  const selectedTaskId = assignment.startsWith('task:') ? assignment.slice(5) : null;
 
   function save() {
     const trimmedNote = note.trim();
     const validRange = Number.isFinite(start.getTime()) && Number.isFinite(end.getTime()) && end.getTime() > start.getTime();
-    if (!trimmedNote) setNoteInvalid(true);
+    if (!selectedTaskId && !trimmedNote) setNoteInvalid(true);
     if (!validRange) setRangeInvalid(true);
-    if (!trimmedNote || !validRange) return;
+    if ((!selectedTaskId && !trimmedNote) || !validRange) return;
     close();
-    const selectedType = modal.timeTypes.find((type) => type.id === timeTypeId);
-    modal.resolve({ startedAt: fromLocalInputValue(startedAt), endedAt: fromLocalInputValue(endedAt), note: trimmedNote, timeTypeId: selectedType?.id, timeTypeName: selectedType?.name, kontaktIds });
+    const selectedType = assignment.startsWith('type:') ? modal.timeTypes.find((type) => type.id === assignment.slice(5)) : undefined;
+    modal.resolve({ startedAt: fromLocalInputValue(startedAt), endedAt: fromLocalInputValue(endedAt), note: trimmedNote, timeTypeId: selectedType?.id, timeTypeName: selectedType?.name, kontaktIds, taskId: selectedTaskId || undefined });
   }
 
   function discard() {
@@ -236,7 +237,7 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
   return (
     <div className="modal-box">
       <h3>Zeiterfassung beenden</h3>
-      <p>Diese Zeit ist keiner Aufgabe oder Kommunikation zugeordnet ({modal.assignmentLabel}). Bitte trage ein, was in dieser Zeit gemacht wurde, oder verwirf die Zeit.</p>
+      <p>Diese Zeit ist keiner Aufgabe oder Kommunikation zugeordnet ({modal.assignmentLabel}). Ordne sie einer Aufgabe zu oder trage ein, was in dieser Zeit gemacht wurde, oder verwirf die Zeit.</p>
       <div className="field-grid">
         <div className="field">
           <label>Von</label>
@@ -253,9 +254,16 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
         <input value={durationMinutes > 0 ? formatDuration(durationMinutes) : '–'} readOnly />
       </div>
       <div className="field">
-        <label>Zeittyp</label>
-        <select value={timeTypeId} onChange={(event) => setTimeTypeId(event.target.value)}>
-          {modal.timeTypes.map((type) => <option value={type.id} key={type.id}>{type.name}</option>)}
+        <label>Zuordnung</label>
+        <select value={assignment} onChange={(event) => setAssignment(event.target.value)}>
+          <optgroup label="Projektzeit">
+            {modal.timeTypes.map((type) => <option value={`type:${type.id}`} key={type.id}>{type.name}</option>)}
+          </optgroup>
+          {modal.tasks.length > 0 && (
+            <optgroup label="Aufgaben">
+              {modal.tasks.map((task) => <option value={`task:${task.id}`} key={task.id}>{task.nr} · {task.titel}</option>)}
+            </optgroup>
+          )}
         </select>
       </div>
       <div className="field">
@@ -263,7 +271,7 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
         <LinkChipsField ids={kontaktIds} items={modal.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} />
       </div>
       <div className="field">
-        <label>Was wurde gemacht?</label>
+        <label>Was wurde gemacht?{selectedTaskId ? ' (optional)' : ''}</label>
         <textarea autoFocus rows={3} value={note} aria-invalid={noteInvalid} placeholder="z. B. Abstimmung mit Kunde, Dokumentation, Recherche …" onChange={(event) => { setNote(event.target.value); setNoteInvalid(false); }} />
         {noteInvalid && <span className="field-error">Bitte eintragen, was gemacht wurde.</span>}
       </div>

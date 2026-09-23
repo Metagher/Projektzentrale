@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Contact, ProjectTimeType, ProjectTyp } from '../types/entities';
+import type { Contact, ProjectTimeType, ProjectTyp, Task } from '../types/entities';
 import type { ExtractedTask } from '../lib/ai';
 
 export interface NewProjectResult {
@@ -16,7 +16,7 @@ type ModalSpec =
   | { kind: 'choice'; title: string; message: string; label: string; options: string[]; initialValue: string; confirmLabel: string; resolve: (v: string | null) => void }
   | { kind: 'newProject'; resolve: (v: NewProjectResult | null) => void }
   | { kind: 'taskExtractionReview'; tasks: ExtractedTask[]; resolve: (v: ExtractedTask[] | null) => void }
-  | { kind: 'timeEntryReview'; startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; resolve: (v: TimeEntryReviewResult | null) => void };
+  | { kind: 'timeEntryReview'; startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[]; resolve: (v: TimeEntryReviewResult | null) => void };
 
 export interface TimeEntryReviewResult {
   startedAt: string;
@@ -25,6 +25,8 @@ export interface TimeEntryReviewResult {
   timeTypeId?: string;
   timeTypeName?: string;
   kontaktIds: string[];
+  /** Wenn gesetzt, wird die Zeit dieser Aufgabe zugeordnet statt als allgemeine Projektzeit erfasst. */
+  taskId?: string;
 }
 
 interface ModalStoreState {
@@ -35,7 +37,7 @@ interface ModalStoreState {
   choice: (options: { title: string; message: string; label: string; options: string[]; initialValue?: string; confirmLabel?: string }) => Promise<string | null>;
   newProjectForm: () => Promise<NewProjectResult | null>;
   taskExtractionReview: (tasks: ExtractedTask[]) => Promise<ExtractedTask[] | null>;
-  timeEntryReview: (options: { startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[] }) => Promise<TimeEntryReviewResult | null>;
+  timeEntryReview: (options: { startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[] }) => Promise<TimeEntryReviewResult | null>;
   close: () => void;
 }
 
@@ -84,7 +86,7 @@ export const useModalStore = create<ModalStoreState>((set) => ({
     }),
   timeEntryReview: (options) =>
     new Promise<TimeEntryReviewResult | null>((resolve) => {
-      set({ modal: { kind: 'timeEntryReview', startedAt: options.startedAt, endedAt: options.endedAt, assignmentLabel: options.assignmentLabel, timeTypes: options.timeTypes, initialTimeTypeId: options.initialTimeTypeId, contacts: options.contacts, resolve } });
+      set({ modal: { kind: 'timeEntryReview', startedAt: options.startedAt, endedAt: options.endedAt, assignmentLabel: options.assignmentLabel, timeTypes: options.timeTypes, initialTimeTypeId: options.initialTimeTypeId, contacts: options.contacts, tasks: options.tasks, resolve } });
     }),
   close: () => set({ modal: { kind: 'none' } }),
 }));
