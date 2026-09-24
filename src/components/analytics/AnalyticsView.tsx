@@ -63,6 +63,10 @@ export default function AnalyticsView() {
     () => Object.fromEntries((allTasks || []).map((task) => [task.id, `${task.nr} · ${task.titel}`])),
     [allTasks],
   );
+  const timeTaskCategories = useMemo(
+    () => Object.fromEntries((allTasks || []).map((task) => [task.id, task.kategorie || 'Sonstiges'])),
+    [allTasks],
+  );
 
   return (
     <div className="main-inner">
@@ -84,7 +88,7 @@ export default function AnalyticsView() {
       {analyticsSubTab === 'afn' ? (
         <AfnLesestandTab />
       ) : analyticsSubTab === 'zeiten' ? (
-        <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" billedRows={billedRows} taskLabels={timeTaskLabels} timeTypeLabels={Object.fromEntries(projectTimeTypes.map((type) => [type.id, type.name]))} onSaveEntry={saveTimeEntry} onDeleteEntry={deleteTimeEntry} />
+        <TimeAnalyticsOverview entries={timeEntries} projects={projects || []} workdayOverrides={workdayOverrides} heading="Projektübergreifende Zeitauswertung" billedRows={billedRows} taskLabels={timeTaskLabels} taskCategories={timeTaskCategories} timeTypeLabels={Object.fromEntries(projectTimeTypes.map((type) => [type.id, type.name]))} onSaveEntry={saveTimeEntry} onDeleteEntry={deleteTimeEntry} />
       ) : analyticsSubTab === 'abrechnung' ? (
         <AbrechnungOverview />
       ) : !allTasks ? (

@@ -11,7 +11,8 @@ import {
   localDateKey,
   type WorkdayOverrides,
 } from "../../lib/workdays";
-import type { Project, TimeEntry } from "../../types/entities";
+import { TASK_KATEGORIEN } from "../../lib/constants";
+import type { Project, TaskKategorie, TimeEntry } from "../../types/entities";
 import { useModalStore } from "../../store/modalStore";
 
 /** Aggregierte Abrechnungs-Minuten je Projekt, gespeist aus dem Abrechnungsmodul (unabhängig von der Abrechnungsart). */
@@ -37,6 +38,8 @@ interface Props {
   heading?: string;
   billedRows?: BilledTimeRow[];
   taskLabels?: Record<string, string>;
+  /** Kategorie (Support/Beratung/Sonstiges) je Aufgaben-Id; Zeit ohne Aufgabenbezug zählt als Sonstiges. */
+  taskCategories?: Record<string, TaskKategorie>;
   timeTypeLabels?: Record<string, string>;
   onSaveEntry?: (entry: TimeEntry) => Promise<void>;
   onDeleteEntry?: (id: string) => Promise<void>;
@@ -383,6 +386,7 @@ export default function TimeAnalyticsOverview({
   heading = "Zeitauswertung",
   billedRows = [],
   taskLabels = {},
+  taskCategories = {},
   timeTypeLabels = {},
   onSaveEntry,
   onDeleteEntry,
@@ -551,6 +555,21 @@ export default function TimeAnalyticsOverview({
     })
     .filter((row) => row.minutes > 0 || row.billedMinutes > 0)
     .sort((a, b) => b.minutes - a.minutes);
+  const categoryTotals = useMemo(() => {
+    const totals = new Map<TaskKategorie, number>(TASK_KATEGORIEN.map((kategorie) => [kategorie, 0]));
+    entries.forEach((entry) => {
+      const kategorie = (entry.taskId && taskCategories[entry.taskId]) || "Sonstiges";
+      totals.set(kategorie, (totals.get(kategorie) || 0) + entry.durationMinutes);
+    });
+    return TASK_KATEGORIEN.map((kategorie) => ({
+      kategorie,
+      minutes: totals.get(kategorie) || 0,
+    }));
+  }, [entries, taskCategories]);
+  const categoryTotalMinutes = categoryTotals.reduce(
+    (sum, row) => sum + row.minutes,
+    0,
+  );
   const projectRowsTotal = projectRows.reduce(
     (acc, row) => ({
       minutes: acc.minutes + row.minutes,
@@ -638,6 +657,34 @@ export default function TimeAnalyticsOverview({
           <small>{activeDays.length} Tage mit Buchung</small>
         </article>
       </div>
+      {entries.length > 0 && (
+        <section className="time-category-section analytics-detail-card">
+          <div className="analytics-block-head">
+            <div>
+              <h3>Zeit nach Kategorie</h3>
+              <p>
+                Getrackte Gesamtzeit nach der Klassifizierung der Aufgabe.
+                Zeit ohne Aufgabenbezug oder ohne gesetzte Kategorie zählt
+                als Sonstiges.
+              </p>
+            </div>
+          </div>
+          <div className="analytics-kpi-grid">
+            {categoryTotals.map(({ kategorie, minutes }) => (
+              <article key={kategorie}>
+                <strong>{formatDuration(minutes)}</strong>
+                <span>{kategorie}</span>
+                <small>
+                  {categoryTotalMinutes
+                    ? Math.round((minutes / categoryTotalMinutes) * 100)
+                    : 0}
+                  %
+                </small>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       {(entries.length > 0 || billedGrandTotal > 0) && (
         <section className="daily-explorer analytics-detail-card">
           <div className="analytics-block-head">

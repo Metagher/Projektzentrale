@@ -1,4 +1,4 @@
-import type { Kanal, MilestoneStatus, TaskColor, TaskPrio, TaskStatus } from '../types/entities';
+import type { Kanal, MilestoneStatus, TaskColor, TaskKategorie, TaskPrio, TaskStatus } from '../types/entities';
 
 export const DEFAULT_DOC_SECTIONS = [
   { id: 'ausgangslage', title: 'Ausgangslage & Scope', level: 1 as const },
@@ -29,6 +29,7 @@ export function prioAbbr(key: TaskPrio | string): string {
   return '[' + (PRIO_ABBR[key as TaskPrio] || '?') + ']';
 }
 export const MILESTONE_STATUS: MilestoneStatus[] = ['geplant', 'in Arbeit', 'erledigt'];
+export const TASK_KATEGORIEN: TaskKategorie[] = ['Support', 'Beratung', 'Sonstiges'];
 
 export const CSV_COLUMNS = [
   'Typ', 'ProjektId', 'Id', 'Titel', 'Kunde', 'ProjektTyp', 'Status', 'Beschreibung',
@@ -48,4 +49,5 @@ export const CSV_COLUMNS = [
   'KontaktIds',
   'Termine',
   'OrdnerId',
+  'Kategorie',
 ] as const;
