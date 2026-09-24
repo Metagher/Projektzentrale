@@ -62,6 +62,8 @@
 .badge.geplant{background:var(--violet-bg);color:var(--violet);}
 .badge.wartet{background:var(--violet-bg);color:var(--violet);}
 .badge.aktuell{background:#111;color:#fff;}
+.badge.kategorie-support{background:var(--rust-bg,#f5e3da);color:var(--rust,#b4532a);}
+.badge.kategorie-beratung{background:var(--violet-bg);color:var(--violet);}
 
 .channel-tag{font-size:10.5px;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);border:1px solid var(--line);padding:1px 6px;border-radius:2px;}
 

@@ -7,6 +7,7 @@ import { contactLinkLabel } from '../../lib/contacts';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
+import TaskCategorySelect from '../shared/TaskCategorySelect';
 import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
 import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import TaskStatusButtons from '../shared/TaskStatusButtons';
@@ -15,7 +16,7 @@ import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSele
 import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import TaskAppointmentsField from '../shared/TaskAppointmentsField';
 import SubprojectSelect from '../shared/SubprojectSelect';
-import type { ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
+import type { ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskKategorie, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const createTask = useDataStore((s) => s.createTask);
@@ -45,6 +46,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
   const [fremdverknuepfung, setFremdverknuepfung] = useState('');
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState('');
   const [teilprojekt, setTeilprojekt] = useState('');
+  const [kategorie, setKategorie] = useState<TaskKategorie>('Sonstiges');
   const [projectIds, setProjectIds] = useState<string[]>([projectId]);
   const assignedModuleIds = new Set(customerModules.filter((item) => item.kunde === project?.kunde).map((item) => item.moduleId));
   const moduleItems = modules.filter((module) => assignedModuleIds.has(module.id)).sort((a, b) => { const parentA = modules.find((item) => item.id === a.parentId) || a; const parentB = modules.find((item) => item.id === b.parentId) || b; return parentA.sortIndex - parentB.sortIndex || a.sortIndex - b.sortIndex; });
@@ -75,6 +77,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       fremdverknuepfung: fremdverknuepfung.trim(),
       ticketsystemVerknuepfung: ticketsystemVerknuepfung.trim(),
       teilprojekt: teilprojekt.trim(),
+      kategorie,
       doku: dokuZiel !== '',
       dokuErledigt: false,
       dokuZiel,
@@ -118,6 +121,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
       <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={data.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} /></div>
       <SubprojectSelect subprojects={data.subprojects} value={teilprojekt} onChange={setTeilprojekt} />
+      <TaskCategorySelect value={kategorie} onChange={setKategorie} />
       <TaskDocumentationTargetSelect value={dokuZiel} onChange={setDokuZiel} />
       <div className="doku-check-field"><label><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label></div>
       </div>

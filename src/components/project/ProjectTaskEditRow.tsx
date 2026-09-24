@@ -7,6 +7,7 @@ import { contactLinkLabel, linkedContactIds } from '../../lib/contacts';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
+import TaskCategorySelect from '../shared/TaskCategorySelect';
 import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
 import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import TaskStatusButtons from '../shared/TaskStatusButtons';
@@ -18,7 +19,7 @@ import TaskAppointmentsField from '../shared/TaskAppointmentsField';
 import SubprojectSelect from '../shared/SubprojectSelect';
 import { taskDocumentationTarget } from '../../lib/taskDocumentation';
 import { buildTaskHistoryEntries } from '../../lib/taskHistory';
-import type { Contact, ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskHistoryEntry, TaskProgressEntry, TaskStatus } from '../../types/entities';
+import type { Contact, ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskHistoryEntry, TaskKategorie, TaskProgressEntry, TaskStatus } from '../../types/entities';
 import TaskTimePanel from './TaskTimePanel';
 
 interface Props {
@@ -65,6 +66,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   const [fremdverknuepfung, setFremdverknuepfung] = useState(task.fremdverknuepfung || '');
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState(task.ticketsystemVerknuepfung || '');
   const [teilprojekt, setTeilprojekt] = useState(task.teilprojekt || '');
+  const [kategorie, setKategorie] = useState<TaskKategorie>(task.kategorie || 'Sonstiges');
   const [projectIds, setProjectIds] = useState<string[]>(task.projectIds?.length ? task.projectIds : [projectId]);
   const assignedModuleIds = new Set(customerModules.filter((item) => item.kunde === project?.kunde).map((item) => item.moduleId));
   const moduleItems = modules.filter((module) => assignedModuleIds.has(module.id) || moduleIds.includes(module.id)).sort((a, b) => { const parentA = modules.find((item) => item.id === a.parentId) || a; const parentB = modules.find((item) => item.id === b.parentId) || b; return parentA.sortIndex - parentB.sortIndex || a.sortIndex - b.sortIndex; });
@@ -145,6 +147,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
       fremdverknuepfung: fremdverknuepfung.trim(),
       ticketsystemVerknuepfung: ticketsystemVerknuepfung.trim(),
       teilprojekt: teilprojekt.trim(),
+      kategorie,
       abgeschlossenAm,
       doku: dokuZiel !== '',
       dokuZiel,
@@ -195,6 +198,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
         <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
         <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} /></div>
         <SubprojectSelect subprojects={data.subprojects} value={teilprojekt} onChange={setTeilprojekt} />
+        <TaskCategorySelect value={kategorie} onChange={setKategorie} />
         <TaskDocumentationTargetSelect value={dokuZiel} onChange={(value) => { if (value !== dokuZiel) setDokuZielChanged(true); setDokuZiel(value); }} />
         <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
       </div>

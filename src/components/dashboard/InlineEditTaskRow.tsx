@@ -3,6 +3,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import AfnChipsField from '../shared/AfnChipsField';
 import TaskColorSelect from '../shared/TaskColorSelect';
+import TaskCategorySelect from '../shared/TaskCategorySelect';
 import TaskProgressHistoryField from '../shared/TaskProgressHistoryField';
 import TaskDateQuickSelect from '../shared/TaskDateQuickSelect';
 import TaskStatusButtons from '../shared/TaskStatusButtons';
@@ -17,7 +18,7 @@ import { todayStr } from '../../lib/format';
 import { contactLinkLabel, linkedContactIds } from '../../lib/contacts';
 import LinkChipsField from '../shared/LinkChipsField';
 import type { TaskWithMeta } from '../../store/dataStore';
-import type { TaskColor, TaskDocumentationTarget, TaskProgressEntry, TaskStatus } from '../../types/entities';
+import type { TaskColor, TaskDocumentationTarget, TaskKategorie, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 interface Props {
   task: TaskWithMeta;
@@ -54,6 +55,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   const [fremdverknuepfung, setFremdverknuepfung] = useState(task.fremdverknuepfung || '');
   const [ticketsystemVerknuepfung, setTicketsystemVerknuepfung] = useState(task.ticketsystemVerknuepfung || '');
   const [teilprojekt, setTeilprojekt] = useState(task.teilprojekt || '');
+  const [kategorie, setKategorie] = useState<TaskKategorie>(task.kategorie || 'Sonstiges');
   const [projectIds, setProjectIds] = useState<string[]>(task.projectIds?.length ? task.projectIds : [task.projectId]);
   const subprojects = useDataStore((s) => s.cache[task.projectId]?.subprojects) || [];
 
@@ -87,6 +89,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       fremdverknuepfung: fremdverknuepfung.trim(),
       ticketsystemVerknuepfung: ticketsystemVerknuepfung.trim(),
       teilprojekt: teilprojekt.trim(),
+      kategorie,
       abgeschlossenAm,
       doku: dokuZiel !== '',
       dokuZiel,
@@ -146,6 +149,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
         <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
         <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} /></div>
         <SubprojectSelect subprojects={subprojects} value={teilprojekt} onChange={setTeilprojekt} />
+        <TaskCategorySelect value={kategorie} onChange={setKategorie} />
         <TaskDocumentationTargetSelect value={dokuZiel} onChange={(value) => { if (value !== dokuZiel) setDokuZielChanged(true); setDokuZiel(value); }} />
         <label className="doku-check-field"><input type="checkbox" checked={naechsteBesprechung} onChange={(e) => setNaechsteBesprechung(e.target.checked)} /> Für nächste Besprechung vormerken</label>
       </div><div className="field"><label>AFN-Nummer(n)</label><AfnChipsField value={afns} onChange={setAfns} /></div><TaskProjectAssignmentField value={projectIds} onChange={setProjectIds} /></div>}

@@ -223,6 +223,7 @@ export type DocData = Record<string, DocEntryValue | string[] | ProjectStatusEnt
 export type TaskStatus = 'offen' | 'in Arbeit' | 'wartet' | 'erledigt';
 export type TaskPrio = 'must' | 'should' | 'could' | 'wont';
 export type TaskColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'gray';
+export type TaskKategorie = 'Support' | 'Beratung' | 'Sonstiges';
 
 export interface TaskProgressEntry {
   id: string;
@@ -276,6 +277,8 @@ export interface Task {
   fremdverknuepfung?: string;
   ticketsystemVerknuepfung?: string;
   teilprojekt?: string;
+  /** Klassifizierung der Aufgabe für die Zeitauswertung. Fehlt der Wert, gilt die Aufgabe als "Sonstiges". */
+  kategorie?: TaskKategorie;
   erstelltAm: string; // ISO datetime
   abgeschlossenAm: string | null; // ISO datetime
   doku: boolean;

@@ -88,6 +88,7 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
         {expanded && <>
           <div className="task-card-badges">
             {task.teilprojekt?.trim() && <span className="badge teilprojekt">{task.teilprojekt.trim()}</span>}
+            {task.kategorie && task.kategorie !== 'Sonstiges' && <span className={`badge kategorie-${slug(task.kategorie)}`}>{task.kategorie}</span>}
             {taskDocumentationLabel(task) && <span className="badge doku">{taskDocumentationLabel(task)}</span>}
             {taskUpdateLabel(task) && <span className="badge update-vormerkung">{taskUpdateLabel(task)}</span>}
             {task.naechsteBesprechung && <span className="badge meeting">Nächste Besprechung</span>}

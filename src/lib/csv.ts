@@ -95,7 +95,7 @@ export async function buildExportCsv(): Promise<string> {
         Typ: 'aufgabe', ProjektId: p.id, Id: t.id, Titel: t.titel, Datum: t.faelligAm || '', Termine: (t.termine || []).join(';'), Prioritaet: t.prioritaet || '', Farbe: t.farbe || '', TagesSortierung: t.tagesSortierung ?? 999,
         Status: t.status || '', KontaktId: t.kontaktId || '', KontaktIds: linkedContactIds(t).join(';'), Anforderung: t.anforderung || '', AktuellerStand: t.aktuellerStand || '', Verlauf: JSON.stringify(t.verlauf || []), ErstelltAm: t.erstelltAm || '',
         AbgeschlossenAm: t.abgeschlossenAm || '', AFN: (t.afns || []).join(';'), WartetAuf: t.wartetAuf || '', WartetSeit: t.wartetSeit || '',
-        Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), VerknuepfteModulIds: (t.moduleIds || []).join(';'), Teilprojekt: t.teilprojekt || '', NaechsteBesprechung: t.naechsteBesprechung ? 'ja' : 'nein',
+        Nr: t.nr || '', VerknuepfteKommIds: (t.commIds || []).join(';'), VerknuepfteModulIds: (t.moduleIds || []).join(';'), Teilprojekt: t.teilprojekt || '', Kategorie: t.kategorie || '', NaechsteBesprechung: t.naechsteBesprechung ? 'ja' : 'nein',
         DokuZiel: t.dokuZiel || (t.doku ? 'project' : ''), DokuErledigt: t.dokuErledigt ? 'ja' : 'nein',
         VerknuepfteProjektIds: (t.projectIds || [p.id]).join(';'),
       });
@@ -245,6 +245,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
         afns: splitList(r.AFN as string), wartetAuf: String(r.WartetAuf || ''), wartetSeit: String(r.WartetSeit || ''), verlauf: parseTaskHistory(r.Verlauf),
         nr: Number.isFinite(nrRaw) ? nrRaw : 0, tagesSortierung: Number(r.TagesSortierung) || 999, commIds: splitList(r.VerknuepfteKommIds as string), moduleIds: splitList(r.VerknuepfteModulIds as string),
         teilprojekt: String(r.Teilprojekt || ''),
+        kategorie: (r.Kategorie as Task['kategorie']) || undefined,
         doku: r.DokuZiel === 'project' || r.DokuZiel === 'global',
         dokuZiel: r.DokuZiel === 'global' ? 'global' : r.DokuZiel === 'project' ? 'project' : '',
         dokuErledigt: String(r.DokuErledigt || '').toLowerCase() === 'ja',

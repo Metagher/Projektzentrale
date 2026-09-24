@@ -22,6 +22,7 @@ export default function TaskListRow({ task, onClick }: Props) {
         <span className="task-nr">{task.nr || '—'}</span>
         {task.titel}
         {task.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{task.teilprojekt.trim()}</span>}
+        {task.kategorie && task.kategorie !== 'Sonstiges' && <span className={`badge kategorie-${task.kategorie.toLowerCase()}`} style={{ marginLeft: 4 }}>{task.kategorie}</span>}
         {taskDocumentationLabel(task) && <span className="badge doku" style={{ marginLeft: 4 }}>{taskDocumentationLabel(task)}</span>}
         {task.naechsteBesprechung && <span className="badge meeting" style={{ marginLeft: 4 }}>Nächste Besprechung</span>}
         {externalHref && <a className="task-external-link-inline" href={externalHref} target="_blank" rel="noreferrer" title="Fremdverknüpfung öffnen" onClick={(event) => event.stopPropagation()}>↗</a>}
