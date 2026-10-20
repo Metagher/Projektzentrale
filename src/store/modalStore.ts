@@ -8,6 +8,13 @@ export interface NewProjectResult {
   typ: ProjectTyp;
 }
 
+export interface NewContactResult {
+  name: string;
+  rolle: string;
+  telefon: string;
+  email: string;
+}
+
 type ModalSpec =
   | { kind: 'none' }
   | { kind: 'confirm'; message: string; confirmLabel: string; danger: boolean; resolve: (v: boolean) => void }
@@ -15,8 +22,9 @@ type ModalSpec =
   | { kind: 'prompt'; title: string; message: string; label: string; placeholder: string; initialValue: string; confirmLabel: string; resolve: (v: string | null) => void }
   | { kind: 'choice'; title: string; message: string; label: string; options: string[]; initialValue: string; confirmLabel: string; resolve: (v: string | null) => void }
   | { kind: 'newProject'; resolve: (v: NewProjectResult | null) => void }
+  | { kind: 'newContact'; customer: string; resolve: (v: NewContactResult | null) => void }
   | { kind: 'taskExtractionReview'; tasks: ExtractedTask[]; resolve: (v: ExtractedTask[] | null) => void }
-  | { kind: 'timeEntryReview'; startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[]; resolve: (v: TimeEntryReviewResult | null) => void };
+  | { kind: 'timeEntryReview'; startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[]; projectId: string; resolve: (v: TimeEntryReviewResult | null) => void };
 
 export interface TimeEntryReviewResult {
   startedAt: string;
@@ -36,8 +44,9 @@ interface ModalStoreState {
   prompt: (options: { title: string; message: string; label: string; placeholder?: string; initialValue?: string; confirmLabel?: string }) => Promise<string | null>;
   choice: (options: { title: string; message: string; label: string; options: string[]; initialValue?: string; confirmLabel?: string }) => Promise<string | null>;
   newProjectForm: () => Promise<NewProjectResult | null>;
+  newContactForm: (options?: { customer?: string }) => Promise<NewContactResult | null>;
   taskExtractionReview: (tasks: ExtractedTask[]) => Promise<ExtractedTask[] | null>;
-  timeEntryReview: (options: { startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[] }) => Promise<TimeEntryReviewResult | null>;
+  timeEntryReview: (options: { startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[]; projectId: string }) => Promise<TimeEntryReviewResult | null>;
   close: () => void;
 }
 
@@ -80,13 +89,17 @@ export const useModalStore = create<ModalStoreState>((set) => ({
     new Promise<NewProjectResult | null>((resolve) => {
       set({ modal: { kind: 'newProject', resolve } });
     }),
+  newContactForm: (options) =>
+    new Promise<NewContactResult | null>((resolve) => {
+      set({ modal: { kind: 'newContact', customer: options?.customer || '', resolve } });
+    }),
   taskExtractionReview: (tasks) =>
     new Promise<ExtractedTask[] | null>((resolve) => {
       set({ modal: { kind: 'taskExtractionReview', tasks, resolve } });
     }),
   timeEntryReview: (options) =>
     new Promise<TimeEntryReviewResult | null>((resolve) => {
-      set({ modal: { kind: 'timeEntryReview', startedAt: options.startedAt, endedAt: options.endedAt, assignmentLabel: options.assignmentLabel, timeTypes: options.timeTypes, initialTimeTypeId: options.initialTimeTypeId, contacts: options.contacts, tasks: options.tasks, resolve } });
+      set({ modal: { kind: 'timeEntryReview', startedAt: options.startedAt, endedAt: options.endedAt, assignmentLabel: options.assignmentLabel, timeTypes: options.timeTypes, initialTimeTypeId: options.initialTimeTypeId, contacts: options.contacts, tasks: options.tasks, projectId: options.projectId, resolve } });
     }),
   close: () => set({ modal: { kind: 'none' } }),
 }));

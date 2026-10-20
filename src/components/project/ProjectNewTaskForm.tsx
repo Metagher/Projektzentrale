@@ -16,9 +16,11 @@ import TaskDocumentationTargetSelect from '../shared/TaskDocumentationTargetSele
 import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import TaskAppointmentsField from '../shared/TaskAppointmentsField';
 import SubprojectSelect from '../shared/SubprojectSelect';
+import { useCreateContact } from '../../hooks/useCreateContact';
 import type { ProjectCache, Task, TaskColor, TaskDocumentationTarget, TaskKategorie, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
 export default function ProjectNewTaskForm({ projectId, data }: { projectId: string; data: ProjectCache }) {
+  const createContact = useCreateContact(projectId);
   const createTask = useDataStore((s) => s.createTask);
   const waitingOptions = useDataStore((s) => s.waitingOptions);
   const syncCommLinksForTask = useDataStore((s) => s.syncCommLinksForTask);
@@ -119,7 +121,7 @@ export default function ProjectNewTaskForm({ projectId, data }: { projectId: str
       <div className="task-basics-grid">
       <div className="field"><label>Ticket</label><input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" /></div>
       <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
-      <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={data.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} /></div>
+      <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={data.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} onCreateNew={createContact} createLabel="Neuer Ansprechpartner" /></div>
       <SubprojectSelect subprojects={data.subprojects} value={teilprojekt} onChange={setTeilprojekt} />
       <TaskCategorySelect value={kategorie} onChange={setKategorie} />
       <TaskDocumentationTargetSelect value={dokuZiel} onChange={setDokuZiel} />

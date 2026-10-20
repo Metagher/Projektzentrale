@@ -16,9 +16,11 @@ import AbrechnungForm from '../../shared/AbrechnungForm';
 import SubprojectSelect from '../../shared/SubprojectSelect';
 import { formatEuro } from '../../../lib/money';
 import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS } from '../../../lib/abrechnungStatus';
+import { useCreateContact } from '../../../hooks/useCreateContact';
 import type { Abrechnung, Comm, Kanal, ProjectCache } from '../../../types/entities';
 
 export default function KommunikationTab({ projectId, data }: { projectId: string; data: ProjectCache }) {
+  const createContact = useCreateContact(projectId);
   const saveComm = useDataStore((s) => s.saveComm);
   const deleteComm = useDataStore((s) => s.deleteComm);
   const syncTaskLinksForComm = useDataStore((s) => s.syncTaskLinksForComm);
@@ -192,7 +194,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
             </div>
             <div className="field">
               <label>Ansprechpartner</label>
-              <LinkChipsField ids={kontaktIds} items={data.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} />
+              <LinkChipsField ids={kontaktIds} items={data.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} onCreateNew={createContact} createLabel="Neuer Ansprechpartner" />
             </div>
             <div className="field">
               <label>Betreff</label>

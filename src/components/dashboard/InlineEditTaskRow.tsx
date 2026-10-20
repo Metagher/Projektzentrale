@@ -17,6 +17,7 @@ import { taskDocumentationTarget } from '../../lib/taskDocumentation';
 import { todayStr } from '../../lib/format';
 import { contactLinkLabel, linkedContactIds } from '../../lib/contacts';
 import LinkChipsField from '../shared/LinkChipsField';
+import { useCreateContact } from '../../hooks/useCreateContact';
 import type { TaskWithMeta } from '../../store/dataStore';
 import type { TaskColor, TaskDocumentationTarget, TaskKategorie, TaskProgressEntry, TaskStatus } from '../../types/entities';
 
@@ -29,6 +30,7 @@ interface Props {
 
 export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: Props) {
   const contacts = useDataStore((s) => s.cache[task.projectId]?.contacts) || [];
+  const createContact = useCreateContact(task.projectId);
   const waitingOptions = useDataStore((s) => s.waitingOptions);
   const saveTask = useDataStore((s) => s.saveTask);
   const deleteTask = useDataStore((s) => s.deleteTask);
@@ -147,7 +149,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
       <div className="task-basics-grid">
         <div className="field"><label>Ticket</label><input type="url" value={ticketsystemVerknuepfung} onChange={(e) => setTicketsystemVerknuepfung(e.target.value)} placeholder="https://ticketsystem/…" /></div>
         <div className="field"><label>Fremdverknüpfung</label><input type="url" value={fremdverknuepfung} onChange={(e) => setFremdverknuepfung(e.target.value)} placeholder="https://…" /></div>
-        <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} /></div>
+        <div className="field"><label>Ansprechpartner</label><LinkChipsField ids={kontaktIds} items={contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} onCreateNew={createContact} createLabel="Neuer Ansprechpartner" /></div>
         <SubprojectSelect subprojects={subprojects} value={teilprojekt} onChange={setTeilprojekt} />
         <TaskCategorySelect value={kategorie} onChange={setKategorie} />
         <TaskDocumentationTargetSelect value={dokuZiel} onChange={(value) => { if (value !== dokuZiel) setDokuZielChanged(true); setDokuZiel(value); }} />

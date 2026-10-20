@@ -11,9 +11,11 @@ interface Props<T extends Item> {
   placeholder: string;
   onChange: (ids: string[]) => void;
   onJump?: (id: string) => void;
+  onCreateNew?: () => Promise<string | null>;
+  createLabel?: string;
 }
 
-export default function LinkChipsField<T extends Item>({ ids, items, labelFn, placeholder, onChange, onJump }: Props<T>) {
+export default function LinkChipsField<T extends Item>({ ids, items, labelFn, placeholder, onChange, onJump, onCreateNew, createLabel }: Props<T>) {
   const [selectVal, setSelectVal] = useState('');
   const available = items.filter((it) => !ids.includes(it.id));
 
@@ -21,6 +23,12 @@ export default function LinkChipsField<T extends Item>({ ids, items, labelFn, pl
     if (!selectVal) return;
     if (!ids.includes(selectVal)) onChange([...ids, selectVal]);
     setSelectVal('');
+  }
+
+  async function createNew() {
+    if (!onCreateNew) return;
+    const newId = await onCreateNew();
+    if (newId && !ids.includes(newId)) onChange([...ids, newId]);
   }
 
   return (
@@ -64,6 +72,11 @@ export default function LinkChipsField<T extends Item>({ ids, items, labelFn, pl
         <button type="button" className="btn secondary small link-add-btn" onClick={addSelected}>
           + Verknüpfen
         </button>
+        {onCreateNew && (
+          <button type="button" className="btn secondary small link-add-btn" onClick={createNew}>
+            + {createLabel || 'Neu anlegen'}
+          </button>
+        )}
       </div>
     </div>
   );
