@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { fmtDate } from '../../lib/format';
 import { formatDuration, fromLocalInputValue, toLocalInputValue } from '../../lib/timeTracking';
 import { contactLinkLabel } from '../../lib/contacts';
+import { useCreateContact } from '../../hooks/useCreateContact';
 import type { ProjectTyp } from '../../types/entities';
 import type { ExtractedTask } from '../../lib/ai';
 import LinkChipsField from './LinkChipsField';
@@ -67,6 +69,74 @@ function NewProjectForm({ resolve }: { resolve: (v: { name: string; kunde: strin
         </button>
         <button className="btn" onClick={submit}>
           Projekt anlegen
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NewContactForm({ modal }: { modal: Extract<ReturnType<typeof useModalStore.getState>['modal'], { kind: 'newContact' }> }) {
+  const close = useModalStore((s) => s.close);
+  const [name, setName] = useState('');
+  const [rolle, setRolle] = useState('');
+  const [telefon, setTelefon] = useState('');
+  const [email, setEmail] = useState('');
+  const [invalid, setInvalid] = useState(false);
+
+  function submit() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setInvalid(true);
+      return;
+    }
+    close();
+    modal.resolve({ name: trimmed, rolle: rolle.trim(), telefon: telefon.trim(), email: email.trim() });
+  }
+
+  return (
+    <div className="modal-box">
+      <h3>Neuer Ansprechpartner{modal.customer ? ` für ${modal.customer}` : ''}</h3>
+      <div className="field">
+        <label>Name</label>
+        <input
+          autoFocus
+          value={name}
+          aria-invalid={invalid}
+          style={invalid ? { borderColor: 'var(--rust)' } : undefined}
+          onChange={(e) => {
+            setName(e.target.value);
+            setInvalid(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+          }}
+        />
+        {invalid && <span className="field-error">Bitte einen Namen angeben.</span>}
+      </div>
+      <div className="field">
+        <label>Rolle</label>
+        <input value={rolle} onChange={(e) => setRolle(e.target.value)} placeholder="z. B. IT-Leitung" />
+      </div>
+      <div className="field">
+        <label>Telefon</label>
+        <input value={telefon} onChange={(e) => setTelefon(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>E-Mail</label>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </div>
+      <div className="modal-actions">
+        <button
+          className="btn secondary"
+          onClick={() => {
+            close();
+            modal.resolve(null);
+          }}
+        >
+          Abbrechen
+        </button>
+        <button className="btn" onClick={submit}>
+          Ansprechpartner anlegen
         </button>
       </div>
     </div>
@@ -182,6 +252,14 @@ export default function ModalRoot() {
     );
   }
 
+  if (modal.kind === 'newContact') {
+    return (
+      <div className="modal-overlay">
+        <NewContactForm modal={modal} />
+      </div>
+    );
+  }
+
   if (modal.kind === 'prompt') {
     return <div className="modal-overlay"><PromptForm modal={modal} /></div>;
   }
@@ -205,6 +283,8 @@ export default function ModalRoot() {
 
 function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useModalStore.getState>['modal'], { kind: 'timeEntryReview' }> }) {
   const close = useModalStore((s) => s.close);
+  const createContact = useCreateContact(modal.projectId);
+  const [contacts, setContacts] = useState(modal.contacts);
   const [startedAt, setStartedAt] = useState(toLocalInputValue(modal.startedAt));
   const [endedAt, setEndedAt] = useState(toLocalInputValue(modal.endedAt));
   const [note, setNote] = useState('');
@@ -212,6 +292,14 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
   const [rangeInvalid, setRangeInvalid] = useState(false);
   const [assignment, setAssignment] = useState(`type:${modal.initialTimeTypeId || modal.timeTypes[0]?.id || ''}`);
   const [kontaktIds, setKontaktIds] = useState<string[]>([]);
+
+  async function createAndAddContact() {
+    const newId = await createContact();
+    if (!newId) return null;
+    const created = useDataStore.getState().cache[modal.projectId]?.contacts.find((c) => c.id === newId);
+    if (created) setContacts((current) => (current.some((c) => c.id === newId) ? current : [...current, created]));
+    return newId;
+  }
 
   const start = new Date(startedAt);
   const end = new Date(endedAt);
@@ -268,7 +356,7 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
       </div>
       <div className="field">
         <label>Ansprechpartner</label>
-        <LinkChipsField ids={kontaktIds} items={modal.contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} />
+        <LinkChipsField ids={kontaktIds} items={contacts} labelFn={contactLinkLabel} placeholder="— Ansprechpartner auswählen —" onChange={setKontaktIds} onCreateNew={createAndAddContact} createLabel="Neuer Ansprechpartner" />
       </div>
       <div className="field">
         <label>Was wurde gemacht?{selectedTaskId ? ' (optional)' : ''}</label>
