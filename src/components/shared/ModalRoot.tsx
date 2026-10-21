@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
-import { useModalStore } from '../../store/modalStore';
+import { useModalStore, type ContactModalSpec } from '../../store/modalStore';
 import { fmtDate } from '../../lib/format';
 import { formatDuration, fromLocalInputValue, toLocalInputValue } from '../../lib/timeTracking';
 import { contactLinkLabel } from '../../lib/contacts';
@@ -75,8 +75,8 @@ function NewProjectForm({ resolve }: { resolve: (v: { name: string; kunde: strin
   );
 }
 
-function NewContactForm({ modal }: { modal: Extract<ReturnType<typeof useModalStore.getState>['modal'], { kind: 'newContact' }> }) {
-  const close = useModalStore((s) => s.close);
+function NewContactForm({ contactModal }: { contactModal: ContactModalSpec }) {
+  const closeContactModal = useModalStore((s) => s.closeContactModal);
   const [name, setName] = useState('');
   const [rolle, setRolle] = useState('');
   const [telefon, setTelefon] = useState('');
@@ -89,55 +89,57 @@ function NewContactForm({ modal }: { modal: Extract<ReturnType<typeof useModalSt
       setInvalid(true);
       return;
     }
-    close();
-    modal.resolve({ name: trimmed, rolle: rolle.trim(), telefon: telefon.trim(), email: email.trim() });
+    closeContactModal();
+    contactModal.resolve({ name: trimmed, rolle: rolle.trim(), telefon: telefon.trim(), email: email.trim() });
   }
 
   return (
-    <div className="modal-box">
-      <h3>Neuer Ansprechpartner{modal.customer ? ` für ${modal.customer}` : ''}</h3>
-      <div className="field">
-        <label>Name</label>
-        <input
-          autoFocus
-          value={name}
-          aria-invalid={invalid}
-          style={invalid ? { borderColor: 'var(--rust)' } : undefined}
-          onChange={(e) => {
-            setName(e.target.value);
-            setInvalid(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submit();
-          }}
-        />
-        {invalid && <span className="field-error">Bitte einen Namen angeben.</span>}
-      </div>
-      <div className="field">
-        <label>Rolle</label>
-        <input value={rolle} onChange={(e) => setRolle(e.target.value)} placeholder="z. B. IT-Leitung" />
-      </div>
-      <div className="field">
-        <label>Telefon</label>
-        <input value={telefon} onChange={(e) => setTelefon(e.target.value)} />
-      </div>
-      <div className="field">
-        <label>E-Mail</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      </div>
-      <div className="modal-actions">
-        <button
-          className="btn secondary"
-          onClick={() => {
-            close();
-            modal.resolve(null);
-          }}
-        >
-          Abbrechen
-        </button>
-        <button className="btn" onClick={submit}>
-          Ansprechpartner anlegen
-        </button>
+    <div className="modal-overlay">
+      <div className="modal-box">
+        <h3>Neuer Ansprechpartner{contactModal.customer ? ` für ${contactModal.customer}` : ''}</h3>
+        <div className="field">
+          <label>Name</label>
+          <input
+            autoFocus
+            value={name}
+            aria-invalid={invalid}
+            style={invalid ? { borderColor: 'var(--rust)' } : undefined}
+            onChange={(e) => {
+              setName(e.target.value);
+              setInvalid(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submit();
+            }}
+          />
+          {invalid && <span className="field-error">Bitte einen Namen angeben.</span>}
+        </div>
+        <div className="field">
+          <label>Rolle</label>
+          <input value={rolle} onChange={(e) => setRolle(e.target.value)} placeholder="z. B. IT-Leitung" />
+        </div>
+        <div className="field">
+          <label>Telefon</label>
+          <input value={telefon} onChange={(e) => setTelefon(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>E-Mail</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+        <div className="modal-actions">
+          <button
+            className="btn secondary"
+            onClick={() => {
+              closeContactModal();
+              contactModal.resolve(null);
+            }}
+          >
+            Abbrechen
+          </button>
+          <button className="btn" onClick={submit}>
+            Ansprechpartner anlegen
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -187,6 +189,17 @@ function ChoiceForm({ modal }: { modal: Extract<ReturnType<typeof useModalStore.
 }
 
 export default function ModalRoot() {
+  const contactModal = useModalStore((s) => s.contactModal);
+
+  return (
+    <>
+      <MainModal />
+      {contactModal && <NewContactForm contactModal={contactModal} />}
+    </>
+  );
+}
+
+function MainModal() {
   const modal = useModalStore((s) => s.modal);
   const close = useModalStore((s) => s.close);
 
@@ -248,14 +261,6 @@ export default function ModalRoot() {
     return (
       <div className="modal-overlay">
         <NewProjectForm resolve={modal.resolve} />
-      </div>
-    );
-  }
-
-  if (modal.kind === 'newContact') {
-    return (
-      <div className="modal-overlay">
-        <NewContactForm modal={modal} />
       </div>
     );
   }
