@@ -22,9 +22,13 @@ type ModalSpec =
   | { kind: 'prompt'; title: string; message: string; label: string; placeholder: string; initialValue: string; confirmLabel: string; resolve: (v: string | null) => void }
   | { kind: 'choice'; title: string; message: string; label: string; options: string[]; initialValue: string; confirmLabel: string; resolve: (v: string | null) => void }
   | { kind: 'newProject'; resolve: (v: NewProjectResult | null) => void }
-  | { kind: 'newContact'; customer: string; resolve: (v: NewContactResult | null) => void }
   | { kind: 'taskExtractionReview'; tasks: ExtractedTask[]; resolve: (v: ExtractedTask[] | null) => void }
   | { kind: 'timeEntryReview'; startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[]; projectId: string; resolve: (v: TimeEntryReviewResult | null) => void };
+
+export interface ContactModalSpec {
+  customer: string;
+  resolve: (v: NewContactResult | null) => void;
+}
 
 export interface TimeEntryReviewResult {
   startedAt: string;
@@ -39,6 +43,8 @@ export interface TimeEntryReviewResult {
 
 interface ModalStoreState {
   modal: ModalSpec;
+  /** Eigenständig vom `modal`-Slot, damit das Anlegen eines Ansprechpartners aus einem anderen offenen Dialog (z. B. Zeiterfassung beenden) diesen nicht schließt. */
+  contactModal: ContactModalSpec | null;
   confirm: (message: string, opts?: { confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
   alert: (message: string) => Promise<void>;
   prompt: (options: { title: string; message: string; label: string; placeholder?: string; initialValue?: string; confirmLabel?: string }) => Promise<string | null>;
@@ -48,10 +54,12 @@ interface ModalStoreState {
   taskExtractionReview: (tasks: ExtractedTask[]) => Promise<ExtractedTask[] | null>;
   timeEntryReview: (options: { startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[]; projectId: string }) => Promise<TimeEntryReviewResult | null>;
   close: () => void;
+  closeContactModal: () => void;
 }
 
 export const useModalStore = create<ModalStoreState>((set) => ({
   modal: { kind: 'none' },
+  contactModal: null,
   confirm: (message, opts) =>
     new Promise<boolean>((resolve) => {
       set({
@@ -91,7 +99,7 @@ export const useModalStore = create<ModalStoreState>((set) => ({
     }),
   newContactForm: (options) =>
     new Promise<NewContactResult | null>((resolve) => {
-      set({ modal: { kind: 'newContact', customer: options?.customer || '', resolve } });
+      set({ contactModal: { customer: options?.customer || '', resolve } });
     }),
   taskExtractionReview: (tasks) =>
     new Promise<ExtractedTask[] | null>((resolve) => {
@@ -102,4 +110,5 @@ export const useModalStore = create<ModalStoreState>((set) => ({
       set({ modal: { kind: 'timeEntryReview', startedAt: options.startedAt, endedAt: options.endedAt, assignmentLabel: options.assignmentLabel, timeTypes: options.timeTypes, initialTimeTypeId: options.initialTimeTypeId, contacts: options.contacts, tasks: options.tasks, projectId: options.projectId, resolve } });
     }),
   close: () => set({ modal: { kind: 'none' } }),
+  closeContactModal: () => set({ contactModal: null }),
 }));
