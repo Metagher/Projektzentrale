@@ -6,9 +6,18 @@
 
 html.touch-mode body { font-size: 16px; line-height: 1.6; }
 
-html.touch-mode input,
+/* Every free-text field app-wide gets a comfortable minimum size, including ones
+   not wrapped in .field (chip inputs, inline prompts, quick-add rows). 16px also
+   avoids iOS auto-zoom on focus. More specific rules further down (e.g. .field
+   input, the quickbar searches) size individual fields more generously on top
+   of this floor. This is also what makes writing with the Apple Pencil (Scribble)
+   comfortable: Scribble itself is a system feature of iPadOS/Safari that works on
+   any such field automatically — nothing here needs to "turn it on", these rules
+   just give it enough room to write into. */
+html.touch-mode input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
 html.touch-mode select,
-html.touch-mode textarea { font-size: 16px; } /* also avoids iOS auto-zoom on focus */
+html.touch-mode textarea { min-height: 44px; padding: 11px 13px; font-size: 16px; }
+html.touch-mode textarea { min-height: 88px; line-height: 1.6; }
 
 /* --- Top bar / navigation --- */
 html.touch-mode .project-quickbar { min-height: 108px; gap: 8px 12px; padding: 10px 16px 11px; }
@@ -94,3 +103,13 @@ html.touch-mode .task-edit-overlay { padding: 16px; }
 
 /* --- Split-screen drag targets are mouse-only; keep the button reachable but skip encouraging touch dragging --- */
 html.touch-mode .workspace-pane-head button { width: 30px; height: 30px; }
+
+/* --- Rich-text editor (notes, documentation, update entries): the main Apple-Pencil
+   writing surface in the app. A standard contenteditable area already supports
+   iPadOS Scribble on its own; this just gives the Pencil more comfortable room. --- */
+html.touch-mode .rtf-editor { min-height: 320px; padding: 16px 18px; font-size: 16px; line-height: 1.7; }
+html.touch-mode .rtf-field-preview { padding: 14px 16px; font-size: 15px; }
+html.touch-mode .rtf-toolbar { gap: 7px; margin-bottom: 12px; }
+html.touch-mode .rtf-btn { min-height: 42px; padding: 10px 14px; font-size: 14px; }
+html.touch-mode .afn-input,
+html.touch-mode .link-select { min-width: 160px; }
