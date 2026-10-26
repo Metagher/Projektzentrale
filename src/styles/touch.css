@@ -1,0 +1,96 @@
+/* ===== TABLET / TOUCH MODE =====
+   Opt-in, device-local (see uiStore touchMode). Scoped entirely under
+   html.touch-mode so the default desktop layout in every other file
+   is completely untouched. Enlarges tap targets and text instead of
+   restructuring the layout, so every view keeps working as-is. */
+
+html.touch-mode body { font-size: 16px; line-height: 1.6; }
+
+html.touch-mode input,
+html.touch-mode select,
+html.touch-mode textarea { font-size: 16px; } /* also avoids iOS auto-zoom on focus */
+
+/* --- Top bar / navigation --- */
+html.touch-mode .project-quickbar { min-height: 108px; gap: 8px 12px; padding: 10px 16px 11px; }
+html.touch-mode .top-brand { width: 50px; height: 50px; border-radius: 12px; font-size: 12px; }
+html.touch-mode .top-primary-nav button,
+html.touch-mode .top-admin-nav button { width: 50px; height: 50px; border-radius: 10px; font-size: 21px; }
+html.touch-mode .top-primary-nav button.active,
+html.touch-mode .top-admin-nav button.active { box-shadow: inset 0 0 0 2px #fff; }
+html.touch-mode .top-release { height: 50px; padding-inline: 10px; }
+html.touch-mode .project-quickbar-item { height: 48px; gap: 9px; padding: 0 16px; font-size: 14.5px; border-radius: 10px; }
+html.touch-mode .project-quickbar-group { padding-right: 14px; }
+html.touch-mode .project-quickbar-manage { height: 44px; padding: 0 14px; font-size: 12px; }
+html.touch-mode .project-today-rank { min-width: 26px; height: 22px; font-size: 9px; }
+
+html.touch-mode .afn-quick-search,
+html.touch-mode .task-fulltext-search { flex-basis: auto; }
+html.touch-mode .afn-quick-search form,
+html.touch-mode .task-fulltext-search form { height: 48px; }
+html.touch-mode .afn-quick-search input,
+html.touch-mode .task-fulltext-search input { padding: 10px 12px; font-size: 15px; }
+html.touch-mode .afn-quick-search form button,
+html.touch-mode .task-fulltext-search form button { width: 48px; font-size: 19px; }
+
+/* --- Primary buttons & icon buttons --- */
+html.touch-mode .btn { min-height: 46px; padding: 12px 20px; font-size: 15px; border-radius: 10px; }
+html.touch-mode .btn.small { min-height: 40px; padding: 9px 15px; font-size: 13.5px; }
+html.touch-mode .icon-btn { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; padding: 6px 10px; font-size: 14px; }
+html.touch-mode .link-btn { padding: 6px 2px; }
+
+/* --- Form fields --- */
+html.touch-mode .field input:not([type="checkbox"]):not([type="radio"]),
+html.touch-mode .field select,
+html.touch-mode .field textarea { padding: 13px 14px; font-size: 15.5px; min-height: 48px; }
+html.touch-mode .field textarea { min-height: 96px; }
+html.touch-mode .field-grid { gap: 16px; }
+html.touch-mode .field label { font-size: 12.5px; }
+html.touch-mode input[type="checkbox"],
+html.touch-mode input[type="radio"] { width: 21px; height: 21px; }
+html.touch-mode .doku-check-field input[type="checkbox"],
+html.touch-mode .doku-check-inline input[type="checkbox"] { width: 19px; height: 19px; }
+html.touch-mode .doku-check-field label,
+html.touch-mode .doku-check-inline { padding: 6px 0; gap: 9px; }
+
+/* --- Task controls --- */
+html.touch-mode .task-status-buttons { gap: 7px; }
+html.touch-mode .task-status-buttons button { padding: 11px 16px; min-height: 42px; font-size: 13px; border-radius: 8px; }
+html.touch-mode .time-tracking-btn { padding: 11px 16px; min-height: 42px; font-size: 13px; }
+html.touch-mode .task-color-choice { width: 32px; height: 32px; }
+html.touch-mode .task-date-quick-select button { padding: 8px 12px; font-size: 11px; }
+html.touch-mode .task-form-tabs button { padding: 11px 16px; font-size: 13px; }
+html.touch-mode .task-card-expand-toggle { width: 30px; height: 30px; font-size: 15px; }
+html.touch-mode .meeting-task-toggle { padding: 8px 12px; font-size: 11px; }
+html.touch-mode .workday-toggle { width: 26px; height: 26px; font-size: 10px; }
+html.touch-mode .daily-rank { min-width: 38px; height: 36px; }
+
+/* --- List / card rows --- */
+html.touch-mode .list-item,
+html.touch-mode .agg-row,
+html.touch-mode .doku-list-row { padding: 16px 18px; margin-bottom: 10px; border-radius: 12px; }
+html.touch-mode .agg-row .agg-title { font-size: 14.5px; }
+html.touch-mode .agg-row .agg-date,
+html.touch-mode .agg-row .agg-project { font-size: 12px; }
+html.touch-mode .badge { padding: 5px 11px; font-size: 11.5px; }
+html.touch-mode .task-card-title { font-size: 14px; }
+html.touch-mode .task-card-actions { gap: 9px; padding-top: 10px; }
+html.touch-mode .kanban-task .list-item { padding: 14px; }
+
+/* --- Tables --- */
+html.touch-mode .an-table th,
+html.touch-mode .an-table td { padding: 13px 12px; font-size: 13.5px; }
+html.touch-mode .an-table-selectable th:first-child,
+html.touch-mode .an-table-selectable td:first-child { width: 36px; }
+
+/* --- Tabs --- */
+html.touch-mode .tab-btn { padding: 11px 16px; font-size: 13.5px; }
+html.touch-mode .settings-hub button { padding: 18px; min-height: 68px; }
+
+/* --- Modals / overlays --- */
+html.touch-mode .modal-box { padding: 26px 28px; }
+html.touch-mode .modal-actions { gap: 10px; }
+html.touch-mode .task-edit-dialog { padding: 24px; }
+html.touch-mode .task-edit-overlay { padding: 16px; }
+
+/* --- Split-screen drag targets are mouse-only; keep the button reachable but skip encouraging touch dragging --- */
+html.touch-mode .workspace-pane-head button { width: 30px; height: 30px; }
