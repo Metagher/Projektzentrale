@@ -25,6 +25,33 @@ export interface DashFilter {
 
 const EMPTY_DASH_FILTER: DashFilter = { projectId: '', kontaktId: '', von: '', bis: '' };
 
+const TOUCH_MODE_KEY = 'pz-touch-mode';
+
+function readStoredTouchMode(): boolean | null {
+  try {
+    const raw = localStorage.getItem(TOUCH_MODE_KEY);
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+  } catch { /* localStorage unavailable */ }
+  return null;
+}
+
+/** First launch on a device with no stored preference: guess tablet-sized touch screens (e.g. iPad), never phones or desktop mice. */
+function detectTabletByDefault(): boolean {
+  try {
+    return window.matchMedia('(pointer: coarse)').matches
+      && window.matchMedia('(min-width: 700px)').matches
+      && window.matchMedia('(max-width: 1400px)').matches;
+  } catch { return false; }
+}
+
+function applyTouchModeClass(active: boolean) {
+  try { document.documentElement.classList.toggle('touch-mode', active); } catch { /* no DOM yet */ }
+}
+
+const initialTouchMode = readStoredTouchMode() ?? detectTabletByDefault();
+applyTouchModeClass(initialTouchMode);
+
 interface UiState {
   view: View;
   selectedId: string | null;
@@ -33,6 +60,7 @@ interface UiState {
   moreNavExpanded: boolean;
   sidebarOpen: boolean;
   secondaryPane: WorkspacePane | null;
+  touchMode: boolean;
 
   dashboardTab: DashboardTab;
   calendarMonth: { year: number; month: number } | null;
@@ -49,6 +77,8 @@ interface UiState {
   setSecondaryTab: (tab: string) => void;
   closeSecondaryPane: () => void;
   setActiveTab: (tab: string) => void;
+  setTouchMode: (value: boolean) => void;
+  toggleTouchMode: () => void;
 
   setDashboardTab: (tab: DashboardTab) => void;
   setCalendarMonth: (m: { year: number; month: number }) => void;
@@ -58,7 +88,7 @@ interface UiState {
   setDashboardEditingTaskId: (id: string | null) => void;
 }
 
-export const useUiStore = create<UiState>((set) => ({
+export const useUiStore = create<UiState>((set, get) => ({
   view: 'dashboard',
   selectedId: null,
   activeTab: 'aufgaben',
@@ -66,6 +96,7 @@ export const useUiStore = create<UiState>((set) => ({
   moreNavExpanded: false,
   sidebarOpen: false,
   secondaryPane: null,
+  touchMode: initialTouchMode,
 
   dashboardTab: 'liste',
   calendarMonth: null,
@@ -82,6 +113,12 @@ export const useUiStore = create<UiState>((set) => ({
   setSecondaryTab: (activeTab) => set((state) => ({ secondaryPane: state.secondaryPane ? { ...state.secondaryPane, activeTab } : null })),
   closeSecondaryPane: () => set({ secondaryPane: null }),
   setActiveTab: (tab) => set({ activeTab: tab }),
+  setTouchMode: (value) => {
+    applyTouchModeClass(value);
+    try { localStorage.setItem(TOUCH_MODE_KEY, String(value)); } catch { /* localStorage unavailable */ }
+    set({ touchMode: value });
+  },
+  toggleTouchMode: () => get().setTouchMode(!get().touchMode),
 
   setDashboardTab: (tab) => set({ dashboardTab: tab }),
   setCalendarMonth: (m) => set({ calendarMonth: m }),

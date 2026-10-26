@@ -20,6 +20,8 @@ export default function ProjectQuickBar() {
   const selectedId = useUiStore((state) => state.selectedId);
   const secondaryPane = useUiStore((state) => state.secondaryPane);
   const setSecondaryPane = useUiStore((state) => state.setSecondaryPane);
+  const touchMode = useUiStore((state) => state.touchMode);
+  const toggleTouchMode = useUiStore((state) => state.toggleTouchMode);
   const aiAvailable = useAiStore((state) => state.keyPresent);
   const newProjectForm = useModalStore((state) => state.newProjectForm);
   const createProject = useDataStore((state) => state.createProject);
@@ -87,6 +89,7 @@ export default function ProjectQuickBar() {
       </div>
       <div className="top-searches" aria-label="Schnellsuchen"><AfnQuickSearch /><TaskFullTextSearch /></div>
       <div className="top-admin-nav">
+        <button className={touchMode ? 'active' : ''} onClick={toggleTouchMode} aria-pressed={touchMode} title={touchMode ? 'Tablet-Modus ausschalten' : 'Tablet-Modus einschalten – größere Schaltflächen für Touch-Bedienung'} aria-label="Tablet-Modus">▣</button>
         <button onClick={() => window.location.reload()} title="App vollständig aktualisieren" aria-label="App aktualisieren">↻</button>
         {canInstall && <button onClick={install} title="App auf diesem Gerät installieren" aria-label="App installieren">⇩</button>}
         <button className={secondaryPane ? 'active' : ''} onClick={() => secondaryPane ? useUiStore.getState().closeSecondaryPane() : setSecondaryPane({ view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} title={secondaryPane ? 'Geteilte Ansicht schließen' : 'Bildschirm teilen'} aria-label="Bildschirm teilen">◫</button>
