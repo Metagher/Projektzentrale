@@ -17,6 +17,7 @@ import SubprojectSelect from '../../shared/SubprojectSelect';
 import { formatEuro } from '../../../lib/money';
 import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS } from '../../../lib/abrechnungStatus';
 import { useCreateContact } from '../../../hooks/useCreateContact';
+import { exportCommsToPdf } from '../../../lib/commPdfExport';
 import type { Abrechnung, Comm, Kanal, ProjectCache } from '../../../types/entities';
 
 export default function KommunikationTab({ projectId, data }: { projectId: string; data: ProjectCache }) {
@@ -143,6 +144,15 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
 
   const sorted = data.comms.slice().sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
 
+  async function handleExportPdf() {
+    if (!project) return;
+    try {
+      exportCommsToPdf(project, data.comms, data.contacts, data.tasks);
+    } catch (err) {
+      await alert((err as Error).message);
+    }
+  }
+
   return (
     <>
       <section className="meeting-agenda">
@@ -229,7 +239,14 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
           + Neuer Kommunikationseintrag
         </button>
       )}
-      <div className="section-title">Verlauf ({data.comms.length})</div>
+      <div className="top-row">
+        <div className="section-title">Verlauf ({data.comms.length})</div>
+        {data.comms.length > 0 && (
+          <button type="button" className="icon-btn" onClick={handleExportPdf}>
+            PDF-Export
+          </button>
+        )}
+      </div>
       {sorted.length === 0 ? (
         <div className="empty-state">
           <h3>Noch keine Einträge</h3>
