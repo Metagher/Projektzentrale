@@ -7,6 +7,18 @@
 }
 .rtf-btn:hover{border-color:var(--focus);background:#eee;}
 .rtf-btn.rtf-heading{font-family:'Fraunces',serif;font-weight:600;}
+.rtf-btn.active{color:#fff;background:#111;border-color:#111;}
+
+/* Freihand-Zeichenfläche für Apple Pencil/Touch/Maus. Ersetzt die Vorschau des rtf-editor
+   während der Aufnahme, damit die Handschrift als Bild exakt so übernommen wird wie gezeichnet
+   (kein Scribble, keine Texterkennung — dafür ist das Feld ein <canvas>, kein Textfeld). */
+.ink-pad{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
+.ink-canvas{
+  width:100%;height:260px;touch-action:none;border:1px solid var(--line);border-radius:var(--radius);
+  background:#fff;cursor:crosshair;
+}
+.ink-pad-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.ink-pad-actions-end{display:flex;gap:8px;}
 .rtf-sep{width:1px;align-self:stretch;background:var(--line);margin:0 4px;}
 .rtf-editor{
   min-height:220px;max-height:50vh;overflow-y:auto;padding:12px 14px;border:1px solid var(--line);

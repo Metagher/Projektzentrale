@@ -93,6 +93,7 @@ export function truncateText(str: string, max: number): string {
 
 export function isEmptyHtml(html: string | null | undefined): boolean {
   if (!html) return true;
+  if (/<img[\s>]/i.test(html)) return false;
   return htmlToPlainText(html).length === 0;
 }
 
