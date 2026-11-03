@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
 import { normalizeRichTextTypography } from '../../lib/richText';
 import InkPad from './InkPad';
 
@@ -13,6 +13,7 @@ export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }:
   const editableRef = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
   const [inkOpen, setInkOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   // Referenziell stabil halten: der Editor bleibt beim Umschalten in den Zeichenmodus gemountet
   // (nur per CSS ausgeblendet), damit Tipp- und Zeichen-Einfügungen erhalten bleiben. Ein neues
   // { __html } -Objekt bei jedem Render würde React sonst veranlassen, den vom Nutzer bereits
@@ -64,6 +65,67 @@ export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }:
       editable.appendChild(img);
     }
     editable.focus();
+  }
+
+  function rangeAtDropPoint(editable: HTMLDivElement, x: number, y: number): Range {
+    const doc = document as Document & {
+      caretRangeFromPoint?: (x: number, y: number) => Range | null;
+      caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+    };
+    let range: Range | null = null;
+    if (doc.caretRangeFromPoint) {
+      range = doc.caretRangeFromPoint(x, y);
+    } else if (doc.caretPositionFromPoint) {
+      const pos = doc.caretPositionFromPoint(x, y);
+      if (pos) {
+        range = document.createRange();
+        range.setStart(pos.offsetNode, pos.offset);
+        range.collapse(true);
+      }
+    }
+    if (!range || !editable.contains(range.startContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(editable);
+      range.collapse(false);
+    }
+    return range;
+  }
+
+  function insertImageFile(file: File, range: Range) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') return;
+      const img = document.createElement('img');
+      img.src = reader.result;
+      img.alt = file.name || 'Bild';
+      img.className = 'dropped-image';
+      img.style.maxWidth = '100%';
+      img.style.display = 'block';
+      img.style.margin = '6px 0';
+      range.insertNode(img);
+      range.setStartAfter(img);
+      range.collapse(true);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    if (!Array.from(event.dataTransfer.items).some((item) => item.kind === 'file')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setDragOver(true);
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    const files = Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith('image/'));
+    setDragOver(false);
+    if (files.length === 0) return;
+    event.preventDefault();
+    const editable = editableRef.current;
+    if (!editable) return;
+    editable.focus();
+    const range = rangeAtDropPoint(editable, event.clientX, event.clientY);
+    files.forEach((file) => insertImageFile(file, range));
   }
 
   function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
@@ -148,12 +210,15 @@ export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }:
         </div>
         {inkOpen && <InkPad onInsert={insertInk} onCancel={() => setInkOpen(false)} />}
         <div
-          className="rtf-editor rtf-content"
+          className={`rtf-editor rtf-content${dragOver ? ' drag-over' : ''}`}
           style={inkOpen ? { display: 'none' } : undefined}
           contentEditable
           suppressContentEditableWarning
           ref={editableRef}
           onPaste={handlePaste}
+          onDragOver={handleDragOver}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
           dangerouslySetInnerHTML={initialHtmlProp}
         />
         <div className="modal-actions">
