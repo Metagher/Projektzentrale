@@ -78,8 +78,8 @@ export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }:
   }
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-box rtf-modal">
+    <div className={`modal-overlay${inkOpen ? ' ink-fullscreen' : ''}`}>
+      <div className={`modal-box rtf-modal${inkOpen ? ' ink-fullscreen' : ''}`}>
         <h3>{title}</h3>
         <div className="rtf-toolbar">
           <button

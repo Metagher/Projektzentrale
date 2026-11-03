@@ -26,6 +26,7 @@ export interface DashFilter {
 const EMPTY_DASH_FILTER: DashFilter = { projectId: '', kontaktId: '', von: '', bis: '' };
 
 const TOUCH_MODE_KEY = 'pz-touch-mode';
+const HEADER_COLLAPSED_KEY = 'pz-header-collapsed';
 
 function readStoredTouchMode(): boolean | null {
   try {
@@ -34,6 +35,12 @@ function readStoredTouchMode(): boolean | null {
     if (raw === 'false') return false;
   } catch { /* localStorage unavailable */ }
   return null;
+}
+
+function readStoredHeaderCollapsed(): boolean {
+  try {
+    return localStorage.getItem(HEADER_COLLAPSED_KEY) === 'true';
+  } catch { return false; }
 }
 
 /** First launch on a device with no stored preference: guess tablet-sized touch screens (e.g. iPad), never phones or desktop mice. */
@@ -61,6 +68,7 @@ interface UiState {
   sidebarOpen: boolean;
   secondaryPane: WorkspacePane | null;
   touchMode: boolean;
+  headerCollapsed: boolean;
 
   dashboardTab: DashboardTab;
   calendarMonth: { year: number; month: number } | null;
@@ -79,6 +87,8 @@ interface UiState {
   setActiveTab: (tab: string) => void;
   setTouchMode: (value: boolean) => void;
   toggleTouchMode: () => void;
+  setHeaderCollapsed: (value: boolean) => void;
+  toggleHeaderCollapsed: () => void;
 
   setDashboardTab: (tab: DashboardTab) => void;
   setCalendarMonth: (m: { year: number; month: number }) => void;
@@ -97,6 +107,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   sidebarOpen: false,
   secondaryPane: null,
   touchMode: initialTouchMode,
+  headerCollapsed: readStoredHeaderCollapsed(),
 
   dashboardTab: 'liste',
   calendarMonth: null,
@@ -119,6 +130,11 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ touchMode: value });
   },
   toggleTouchMode: () => get().setTouchMode(!get().touchMode),
+  setHeaderCollapsed: (value) => {
+    try { localStorage.setItem(HEADER_COLLAPSED_KEY, String(value)); } catch { /* localStorage unavailable */ }
+    set({ headerCollapsed: value });
+  },
+  toggleHeaderCollapsed: () => get().setHeaderCollapsed(!get().headerCollapsed),
 
   setDashboardTab: (tab) => set({ dashboardTab: tab }),
   setCalendarMonth: (m) => set({ calendarMonth: m }),

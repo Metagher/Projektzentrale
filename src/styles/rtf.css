@@ -1,5 +1,23 @@
 /* RTF rich-text editor popup */
 .modal-box.rtf-modal{max-width:660px;}
+
+/* Zeichenmodus über den ganzen Bildschirm: auf einem Tablet ist die reguläre Modalgröße für
+   Handschrift zu knapp. Löst sich bewusst aus der zentrierten Modal-Box und füllt den Viewport,
+   die Zeichenfläche wächst mit flex auf die verbleibende Höhe. */
+.modal-overlay.ink-fullscreen{padding:0;}
+.modal-box.rtf-modal.ink-fullscreen{
+  position:fixed;inset:0;width:100vw;max-width:none;height:100vh;height:100dvh;
+  display:flex;flex-direction:column;border-radius:0;
+  padding:14px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
+}
+.modal-box.rtf-modal.ink-fullscreen h3,
+.modal-box.rtf-modal.ink-fullscreen .rtf-toolbar{flex:0 0 auto;}
+/* Die Felder-Aktionen (Abbrechen/Übernehmen für das gesamte Feld) blendet der Zeichenmodus aus —
+   direkt über der eigenen Abbrechen/Übernehmen-Zeile des Zeichenblocks wären sie nur verwirrend
+   doppelt. Sie kommen zurück, sobald wieder der Text-Editor sichtbar ist. */
+.modal-box.rtf-modal.ink-fullscreen .modal-actions{display:none;}
+.modal-box.rtf-modal.ink-fullscreen .ink-pad{flex:1;min-height:0;margin-bottom:0;}
+.modal-box.rtf-modal.ink-fullscreen .ink-canvas{flex:1;min-height:0;height:auto;}
 .rtf-toolbar{display:flex;gap:4px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
 .rtf-btn{
   padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);color:var(--ink);

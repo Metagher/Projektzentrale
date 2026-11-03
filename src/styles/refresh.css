@@ -42,8 +42,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .workspace-panes.split .main-inner { max-width: 100%; padding-right: 24px; padding-left: 24px; }
 #main { background: radial-gradient(circle at 85% 0%, rgba(0, 0, 0, .045), transparent 28%), var(--paper); }
 .project-quickbar { display:grid;grid-template-columns:auto auto minmax(260px,510px) auto minmax(0,1fr);grid-template-areas:'brand primary searches admin .' 'label projects projects projects projects';align-items:center;gap:5px 10px;min-height:88px;flex:0 0 auto;min-width:0;padding:6px 14px 7px;color:#111;background:#fff;border-bottom:1px solid #d8d8d8;box-shadow:0 2px 10px rgba(0,0,0,.035); }
+/* Header einklappen: nur die Marke/den Umschalter rendern (siehe ProjectQuickBar.tsx) lässt die
+   restlichen Grid-Bereiche leer; implizite Zeilen ohne Inhalt fallen dann auf 0 zusammen. Das
+   feste min-height muss dafür mit aufgehoben werden — Spezifität schlägt den Touch-Modus-Wert
+   in touch.css, siehe dortige Regel. */
+.project-quickbar.collapsed { min-height: 0; }
+.quickbar-brand-group { grid-area:brand;display:flex;align-items:center;gap:6px; }
 .project-quickbar-label { grid-area:label;align-self:center;color:#777;font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase; }
-.top-brand { grid-area:brand;display:grid;place-items:center;width:38px;height:38px;color:#fff;background:#000;border:0;border-radius:10px;cursor:pointer;font-size:11px;font-weight:900;letter-spacing:.05em; }
+.top-brand { display:grid;place-items:center;width:38px;height:38px;color:#fff;background:#000;border:0;border-radius:10px;cursor:pointer;font-size:11px;font-weight:900;letter-spacing:.05em; }
+.quickbar-collapse-toggle { display:grid;place-items:center;width:26px;height:26px;padding:0;color:#777;background:#f4f4f4;border:1px solid #ddd;border-radius:7px;cursor:pointer;font-size:13px;line-height:1; }
+.quickbar-collapse-toggle:hover { color:#111;background:#fff;border-color:#aaa; }
 .top-primary-nav, .top-admin-nav { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
 .top-primary-nav { grid-area:primary;padding-right:9px;border-right:1px solid #ddd; }
 .top-admin-nav { grid-area:admin;padding-left:4px; }

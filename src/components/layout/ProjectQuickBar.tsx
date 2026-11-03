@@ -22,6 +22,8 @@ export default function ProjectQuickBar() {
   const setSecondaryPane = useUiStore((state) => state.setSecondaryPane);
   const touchMode = useUiStore((state) => state.touchMode);
   const toggleTouchMode = useUiStore((state) => state.toggleTouchMode);
+  const headerCollapsed = useUiStore((state) => state.headerCollapsed);
+  const toggleHeaderCollapsed = useUiStore((state) => state.toggleHeaderCollapsed);
   const aiAvailable = useAiStore((state) => state.keyPresent);
   const newProjectForm = useModalStore((state) => state.newProjectForm);
   const createProject = useDataStore((state) => state.createProject);
@@ -55,52 +57,68 @@ export default function ProjectQuickBar() {
   }, {});
 
   return (
-    <nav className="project-quickbar" aria-label="Projektschnellwahl">
-      <button className="top-brand" onClick={() => useUiStore.getState().goTo('dashboard')} title="Projektzentrale">PZ</button>
-      <div className="top-primary-nav" aria-label="Hauptbereiche">
-        <button draggable className={view === 'dashboard' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('dashboard')} title="Dashboard – ziehen oder öffnen" aria-label="Dashboard">⌂</button>
-        <button draggable className={view === 'calendar' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'calendar', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('calendar')} title="Kalender – ziehen oder öffnen" aria-label="Kalender">▤</button>
-        <button draggable className={view === 'knowledge' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'knowledge', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('knowledge')} title="Wissensdatenbank – ziehen oder öffnen" aria-label="Wissensdatenbank">◇</button>
-        <button className={view === 'analytics' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('analytics')} title="Auswertung" aria-label="Auswertung">↗</button>
-        <button className={view === 'company-chatbot' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('company-chatbot')} title="Unternehmens-Chatbot" aria-label="Unternehmens-Chatbot">◉</button>
-        {aiAvailable && <button className={view === 'ai' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('ai')} title="KI-Suche" aria-label="KI-Suche">✦</button>}
+    <nav className={`project-quickbar${headerCollapsed ? ' collapsed' : ''}`} aria-label="Projektschnellwahl">
+      <div className="quickbar-brand-group">
+        <button className="top-brand" onClick={() => useUiStore.getState().goTo('dashboard')} title="Projektzentrale">PZ</button>
+        <button
+          type="button"
+          className="quickbar-collapse-toggle"
+          onClick={toggleHeaderCollapsed}
+          aria-expanded={!headerCollapsed}
+          title={headerCollapsed ? 'Kopfleiste einblenden' : 'Kopfleiste ausblenden'}
+          aria-label={headerCollapsed ? 'Kopfleiste einblenden' : 'Kopfleiste ausblenden'}
+        >
+          {headerCollapsed ? '⌄' : '⌃'}
+        </button>
       </div>
-      <span className="project-quickbar-label">Projekte</span>
-      <div className="project-quickbar-rows">
-        {sorted.length === 0 && <span className="project-quickbar-empty">Keine Projekte in der Schnellwahl</span>}
-        {rows.map(({ zeile, groups }) => <div className="project-quickbar-scroll" key={zeile}>
-          {groups.map((group) => <div className="project-quickbar-group" key={group.key}>
-            <div className="project-quickbar-projects">{group.projects.map((project) => (
-              <button
-                className={`project-quickbar-item${view === 'project' && selectedId === project.id ? ' active' : ''}`}
-                key={project.id}
-                draggable
-                onDragStart={(event) => dragPane(event, { view: 'project', selectedId: project.id, activeTab: 'aufgaben' })}
-                title={`${project.name} · ${group.label}`}
-                onClick={() => useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'aufgaben', sidebarOpen: false })}
-              >
-                <span className={`status-dot ${project.status}`} />
-                <span>{project.kuerzel || project.name}</span>
-                {projectTodayRanks[project.id]?.map((rank) => <b className="project-today-rank" key={rank}>#{rank}</b>)}
-              </button>
-            ))}</div>
-          </div>)}
-        </div>)}
-      </div>
-      <div className="top-searches" aria-label="Schnellsuchen"><AfnQuickSearch /><TaskFullTextSearch /></div>
-      <div className="top-admin-nav">
-        <button className={touchMode ? 'active' : ''} onClick={toggleTouchMode} aria-pressed={touchMode} title={touchMode ? 'Tablet-Modus ausschalten' : 'Tablet-Modus einschalten – größere Schaltflächen für Touch-Bedienung'} aria-label="Tablet-Modus">▣</button>
-        <button onClick={() => window.location.reload()} title="App vollständig aktualisieren" aria-label="App aktualisieren">↻</button>
-        {canInstall && <button onClick={install} title="App auf diesem Gerät installieren" aria-label="App installieren">⇩</button>}
-        <button className={secondaryPane ? 'active' : ''} onClick={() => secondaryPane ? useUiStore.getState().closeSecondaryPane() : setSecondaryPane({ view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} title={secondaryPane ? 'Geteilte Ansicht schließen' : 'Bildschirm teilen'} aria-label="Bildschirm teilen">◫</button>
-        <button onClick={create} title="Neues Projekt" aria-label="Neues Projekt">＋</button>
-        <button className={view === 'project-management' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('project-management')} title="Projektverwaltung" aria-label="Projektverwaltung">▦</button>
-        <button className={view === 'settings' || view === 'data' || view === 'ai-settings' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('settings')} title="Einstellungen" aria-label="Einstellungen">⚙</button>
-        <span className="top-release" title={`Release ${__APP_VERSION__}, Commit ${__COMMIT_HASH__}, gebaut am ${BUILD_DATE}`} aria-label={`Release ${__APP_VERSION__}, Commit ${__COMMIT_HASH__}`}>
-          <strong>v{__APP_VERSION__}</strong>
-          <small>{__COMMIT_HASH__ === 'local' ? 'lokal' : __COMMIT_HASH__}</small>
-        </span>
-      </div>
+      {!headerCollapsed && (
+        <>
+          <div className="top-primary-nav" aria-label="Hauptbereiche">
+            <button draggable className={view === 'dashboard' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('dashboard')} title="Dashboard – ziehen oder öffnen" aria-label="Dashboard">⌂</button>
+            <button draggable className={view === 'calendar' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'calendar', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('calendar')} title="Kalender – ziehen oder öffnen" aria-label="Kalender">▤</button>
+            <button draggable className={view === 'knowledge' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'knowledge', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('knowledge')} title="Wissensdatenbank – ziehen oder öffnen" aria-label="Wissensdatenbank">◇</button>
+            <button className={view === 'analytics' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('analytics')} title="Auswertung" aria-label="Auswertung">↗</button>
+            <button className={view === 'company-chatbot' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('company-chatbot')} title="Unternehmens-Chatbot" aria-label="Unternehmens-Chatbot">◉</button>
+            {aiAvailable && <button className={view === 'ai' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('ai')} title="KI-Suche" aria-label="KI-Suche">✦</button>}
+          </div>
+          <span className="project-quickbar-label">Projekte</span>
+          <div className="project-quickbar-rows">
+            {sorted.length === 0 && <span className="project-quickbar-empty">Keine Projekte in der Schnellwahl</span>}
+            {rows.map(({ zeile, groups }) => <div className="project-quickbar-scroll" key={zeile}>
+              {groups.map((group) => <div className="project-quickbar-group" key={group.key}>
+                <div className="project-quickbar-projects">{group.projects.map((project) => (
+                  <button
+                    className={`project-quickbar-item${view === 'project' && selectedId === project.id ? ' active' : ''}`}
+                    key={project.id}
+                    draggable
+                    onDragStart={(event) => dragPane(event, { view: 'project', selectedId: project.id, activeTab: 'aufgaben' })}
+                    title={`${project.name} · ${group.label}`}
+                    onClick={() => useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'aufgaben', sidebarOpen: false })}
+                  >
+                    <span className={`status-dot ${project.status}`} />
+                    <span>{project.kuerzel || project.name}</span>
+                    {projectTodayRanks[project.id]?.map((rank) => <b className="project-today-rank" key={rank}>#{rank}</b>)}
+                  </button>
+                ))}</div>
+              </div>)}
+            </div>)}
+          </div>
+          <div className="top-searches" aria-label="Schnellsuchen"><AfnQuickSearch /><TaskFullTextSearch /></div>
+          <div className="top-admin-nav">
+            <button className={touchMode ? 'active' : ''} onClick={toggleTouchMode} aria-pressed={touchMode} title={touchMode ? 'Tablet-Modus ausschalten' : 'Tablet-Modus einschalten – größere Schaltflächen für Touch-Bedienung'} aria-label="Tablet-Modus">▣</button>
+            <button onClick={() => window.location.reload()} title="App vollständig aktualisieren" aria-label="App aktualisieren">↻</button>
+            {canInstall && <button onClick={install} title="App auf diesem Gerät installieren" aria-label="App installieren">⇩</button>}
+            <button className={secondaryPane ? 'active' : ''} onClick={() => secondaryPane ? useUiStore.getState().closeSecondaryPane() : setSecondaryPane({ view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} title={secondaryPane ? 'Geteilte Ansicht schließen' : 'Bildschirm teilen'} aria-label="Bildschirm teilen">◫</button>
+            <button onClick={create} title="Neues Projekt" aria-label="Neues Projekt">＋</button>
+            <button className={view === 'project-management' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('project-management')} title="Projektverwaltung" aria-label="Projektverwaltung">▦</button>
+            <button className={view === 'settings' || view === 'data' || view === 'ai-settings' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('settings')} title="Einstellungen" aria-label="Einstellungen">⚙</button>
+            <span className="top-release" title={`Release ${__APP_VERSION__}, Commit ${__COMMIT_HASH__}, gebaut am ${BUILD_DATE}`} aria-label={`Release ${__APP_VERSION__}, Commit ${__COMMIT_HASH__}`}>
+              <strong>v{__APP_VERSION__}</strong>
+              <small>{__COMMIT_HASH__ === 'local' ? 'lokal' : __COMMIT_HASH__}</small>
+            </span>
+          </div>
+        </>
+      )}
     </nav>
   );
 }
