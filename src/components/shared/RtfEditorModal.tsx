@@ -1,5 +1,6 @@
-import { useEffect, useRef, type ClipboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { normalizeRichTextTypography } from '../../lib/richText';
+import InkPad from './InkPad';
 
 interface Props {
   title: string;
@@ -10,6 +11,13 @@ interface Props {
 
 export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }: Props) {
   const editableRef = useRef<HTMLDivElement>(null);
+  const savedRange = useRef<Range | null>(null);
+  const [inkOpen, setInkOpen] = useState(false);
+  // Referenziell stabil halten: der Editor bleibt beim Umschalten in den Zeichenmodus gemountet
+  // (nur per CSS ausgeblendet), damit Tipp- und Zeichen-Einfügungen erhalten bleiben. Ein neues
+  // { __html } -Objekt bei jedem Render würde React sonst veranlassen, den vom Nutzer bereits
+  // bearbeiteten Inhalt des contentEditable-Felds wieder auf initialHtml zurückzusetzen.
+  const initialHtmlProp = useMemo(() => ({ __html: initialHtml || '' }), [initialHtml]);
 
   useEffect(() => {
     editableRef.current?.focus();
@@ -19,6 +27,43 @@ export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }:
   function exec(cmd: string, val?: string) {
     document.execCommand(cmd, false, val);
     editableRef.current?.focus();
+  }
+
+  function openInk() {
+    const selection = window.getSelection();
+    savedRange.current = selection && selection.rangeCount > 0 && editableRef.current?.contains(selection.anchorNode)
+      ? selection.getRangeAt(0).cloneRange()
+      : null;
+    setInkOpen(true);
+  }
+
+  function insertInk(dataUrl: string, width: number) {
+    const editable = editableRef.current;
+    setInkOpen(false);
+    if (!editable) return;
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.alt = 'Handschrift';
+    img.className = 'ink-insert';
+    img.style.width = `${width}px`;
+    img.style.height = 'auto';
+    img.style.maxWidth = '100%';
+    img.style.display = 'block';
+    img.style.margin = '6px 0';
+
+    // Direkt per DOM-Range eingefügt statt über execCommand/Fokus, weil das Editor-Feld
+    // während der Zeichenansicht unsichtbar (aber weiterhin gemountet) ist und ein verstecktes
+    // Element nicht zuverlässig fokussiert werden kann.
+    const range = savedRange.current;
+    if (range && editable.contains(range.startContainer)) {
+      range.deleteContents();
+      range.insertNode(img);
+      range.setStartAfter(img);
+      range.collapse(true);
+    } else {
+      editable.appendChild(img);
+    }
+    editable.focus();
   }
 
   function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
@@ -88,14 +133,28 @@ export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }:
           >
             • Liste
           </button>
+          <span className="rtf-sep" />
+          <button
+            type="button"
+            className={`rtf-btn${inkOpen ? ' active' : ''}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              if (inkOpen) setInkOpen(false);
+              else openInk();
+            }}
+          >
+            ✎ Handschrift
+          </button>
         </div>
+        {inkOpen && <InkPad onInsert={insertInk} onCancel={() => setInkOpen(false)} />}
         <div
           className="rtf-editor rtf-content"
+          style={inkOpen ? { display: 'none' } : undefined}
           contentEditable
           suppressContentEditableWarning
           ref={editableRef}
           onPaste={handlePaste}
-          dangerouslySetInnerHTML={{ __html: initialHtml || '' }}
+          dangerouslySetInnerHTML={initialHtmlProp}
         />
         <div className="modal-actions">
           <button className="btn secondary" onClick={onCancel}>
