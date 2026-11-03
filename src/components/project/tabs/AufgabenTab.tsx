@@ -11,7 +11,7 @@ import AiSummaryCard from '../AiSummaryCard';
 import type { Project, ProjectCache, Task, TaskStatus } from '../../../types/entities';
 import { compareTaskColors, compareWaitingPerson } from '../../../lib/taskColors';
 import { writeTaskDrag } from '../../../lib/taskDrag';
-import { todayStr } from '../../../lib/format';
+import { todayStr, uid } from '../../../lib/format';
 import { linkedContactIds } from '../../../lib/contacts';
 
 type BoardColumn = 'offen' | 'wartet' | 'erledigt';
@@ -35,17 +35,21 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
   const taskColorOrder = useDataStore((state) => state.taskColorOrder);
   const waitingOptions = useDataStore((state) => state.waitingOptions);
   const syncCommLinksForTask = useDataStore((state) => state.syncCommLinksForTask);
+  const saveSubproject = useDataStore((state) => state.saveSubproject);
   const confirm = useModalStore((state) => state.confirm);
   const choice = useModalStore((state) => state.choice);
   const alert = useModalStore((state) => state.alert);
+  const prompt = useModalStore((state) => state.prompt);
   const { showNewTaskForm, setShowNewTaskForm, showTaskFilters, toggleShowTaskFilters, showCompletedKanban, toggleShowCompletedKanban, projectTaskFilter, editingTaskId } = useProjectUiStore();
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<BoardColumn | null>(null);
   const [dragOverPerson, setDragOverPerson] = useState<string | null>(null);
   const [teilprojektFilter, setTeilprojektFilter] = useState('');
 
-  const teilprojekte = Array.from(new Set(data.tasks.map((task) => task.teilprojekt?.trim()).filter((value): value is string => !!value)))
-    .sort((a, b) => a.localeCompare(b, 'de'));
+  const teilprojekte = Array.from(new Set([
+    ...data.subprojects.map((subproject) => subproject.name),
+    ...data.tasks.map((task) => task.teilprojekt?.trim()).filter((value): value is string => !!value),
+  ])).sort((a, b) => a.localeCompare(b, 'de'));
 
   useEffect(() => { setTeilprojektFilter(''); }, [project.id]);
   useEffect(() => {
@@ -73,6 +77,29 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
     else groups.push({ key, label, person, tasks: [task] });
     return groups;
   }, []);
+
+  async function handleAddSubproject() {
+    const name = await prompt({
+      title: 'Teilprojekt anlegen',
+      message: 'Name des neuen Teilprojekts',
+      label: 'Name',
+      placeholder: 'z. B. Schlachtabrechnung',
+      confirmLabel: 'Anlegen',
+    });
+    const trimmed = name?.trim();
+    if (!trimmed) return;
+    if (teilprojekte.some((item) => item.toLocaleLowerCase('de') === trimmed.toLocaleLowerCase('de'))) {
+      await alert('Ein Teilprojekt mit diesem Namen existiert bereits.');
+      return;
+    }
+    await saveSubproject(project.id, {
+      id: uid(),
+      name: trimmed,
+      sortIndex: data.subprojects.length,
+      createdAt: new Date().toISOString(),
+    });
+    setTeilprojektFilter(trimmed);
+  }
 
   async function handleDelete(taskId: string) {
     if (!(await confirm('Diese Aufgabe löschen?'))) return;
@@ -150,16 +177,19 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
       </div>
       {showNewTaskForm && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Neue Aufgabe"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Aufgabe anlegen</span><strong>Neue Aufgabe · {project.name}</strong></div></div><ProjectNewTaskForm projectId={project.id} data={data} /></div></div>}
       {showTaskFilters && <ProjectTaskFilterBar contacts={data.contacts} />}
-      {teilprojekte.length > 0 && (
-        <div className="task-subproject-filters" aria-label="Quickfilter nach Teilprojekt">
-          <span>Teilprojekte</span>
-          <button className={`btn secondary small${teilprojektFilter === '' ? ' active' : ''}`} onClick={() => setTeilprojektFilter('')}>Alle</button>
-          <button className={`btn secondary small${teilprojektFilter === WITHOUT_SUBPROJECT_FILTER ? ' active' : ''}`} onClick={() => setTeilprojektFilter(WITHOUT_SUBPROJECT_FILTER)}>Ohne Teilprojekt</button>
-          {teilprojekte.map((name) => (
-            <button key={name} className={`btn secondary small${teilprojektFilter === name ? ' active' : ''}`} onClick={() => setTeilprojektFilter(name)}>{name}</button>
-          ))}
-        </div>
-      )}
+      <div className="task-subproject-filters" aria-label="Quickfilter nach Teilprojekt">
+        <span>Teilprojekte</span>
+        {teilprojekte.length > 0 && (
+          <>
+            <button className={`btn secondary small${teilprojektFilter === '' ? ' active' : ''}`} onClick={() => setTeilprojektFilter('')}>Alle</button>
+            <button className={`btn secondary small${teilprojektFilter === WITHOUT_SUBPROJECT_FILTER ? ' active' : ''}`} onClick={() => setTeilprojektFilter(WITHOUT_SUBPROJECT_FILTER)}>Ohne Teilprojekt</button>
+            {teilprojekte.map((name) => (
+              <button key={name} className={`btn secondary small${teilprojektFilter === name ? ' active' : ''}`} onClick={() => setTeilprojektFilter(name)}>{name}</button>
+            ))}
+          </>
+        )}
+        <button className="btn secondary small" onClick={handleAddSubproject}>＋ Teilprojekt</button>
+      </div>
       {editingTask && (
         <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten">
           <div className="task-edit-dialog">
