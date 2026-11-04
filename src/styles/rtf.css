@@ -43,6 +43,8 @@
   border-radius:var(--radius);background:var(--field-bg);color:var(--ink);font-size:13.5px;line-height:1.55;
 }
 .rtf-editor:focus{outline:none;border-color:var(--focus);}
+/* Bild per Drag & Drop (z. B. aus Dateien/Fotos) ablegen: Hervorhebung während des Darüberziehens. */
+.rtf-editor.drag-over{border-color:var(--focus);border-style:dashed;}
 /* Force theme text color everywhere inside RTF areas — browsers sometimes apply their
    own inline color (e.g. via execCommand) which would otherwise stay black regardless
    of the dark theme, killing contrast. */
