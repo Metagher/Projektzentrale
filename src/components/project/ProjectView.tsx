@@ -16,6 +16,7 @@ import { ProjectUiScopeProvider, type ProjectUiScope } from '../../store/project
 import RtfField from '../shared/RtfField';
 import TimeTrackingButton from '../shared/TimeTrackingButton';
 import { formatDuration } from '../../lib/timeTracking';
+import { exportFullProjectToPdf } from '../../lib/fullProjectExport';
 
 const STATUS_LABELS: Record<string, string> = { aktiv: 'Aktiv', pausiert: 'Pausiert', abgeschlossen: 'Abgeschlossen' };
 
@@ -38,8 +39,14 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
   const project = projects?.find((p) => p.id === selectedId);
   const data = selectedId ? cache[selectedId] : undefined;
   const aiAvailable = useAiStore((s) => s.keyPresent);
-  const projectMinutes = useDataStore((s) => s.timeEntries).filter((entry) => entry.projectId === selectedId).reduce((sum, entry) => sum + entry.durationMinutes, 0);
+  const timeEntries = useDataStore((s) => s.timeEntries);
+  const projectTimeEntries = timeEntries.filter((entry) => entry.projectId === selectedId);
+  const projectMinutes = projectTimeEntries.reduce((sum, entry) => sum + entry.durationMinutes, 0);
   const projectTimeTypes = useDataStore((s) => s.projectTimeTypes);
+  const docDefs = useDataStore((s) => s.docDefs) || [];
+  const abrechnungen = useDataStore((s) => s.abrechnungen);
+  const modules = useDataStore((s) => s.modules);
+  const customerModules = useDataStore((s) => s.customerModules);
 
   useEffect(() => {
     if (selectedId) ensureProjectData(selectedId);
@@ -83,7 +90,15 @@ export default function ProjectView({ projectId, paneTab, onPaneTabChange, scope
         <div className="project-header-main">
           <div className="code">{projectCode(project)}</div>
           <h2>{project.name}</h2>
-          <div className="sub"><span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span></div>
+          <div className="sub">
+            <span className={`stamp ${project.status}`}>{STATUS_LABELS[project.status]}</span>
+            <button
+              className="icon-btn"
+              onClick={() => exportFullProjectToPdf({ project, data, docDefs, timeEntries: projectTimeEntries, abrechnungen: abrechnungen.filter((item) => item.projectId === project.id), modules, customerModules, projectTimeTypes })}
+            >
+              ⇩ Projektakte exportieren (PDF)
+            </button>
+          </div>
           <div className="project-time-control"><div className="project-time-type-buttons">{projectTimeTypes.map((type) => <TimeTrackingButton key={type.id} projectId={project.id} timeTypeId={type.id} label={type.name} />)}</div><button className="project-time-total" onClick={() => setActiveTab('auswertung')}>{formatDuration(projectMinutes)} erfasst</button></div>
           <div className="project-info-head">
             <strong>Projektinfo</strong>
