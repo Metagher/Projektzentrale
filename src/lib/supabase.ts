@@ -67,3 +67,41 @@ export async function sDelete(client: SupabaseClient, key: string): Promise<void
     // swallow, matches legacy no-op-on-failure behavior
   }
 }
+
+const INBOX_TABLE = 'projektzentrale_inbox';
+
+export interface InboxItem {
+  id: string;
+  content: string;
+  source: string | null;
+  created_at: string;
+}
+
+/** Externe Einreichungen (z.B. per Apple Kurzbefehl aus Apple Notizen), älteste zuerst. */
+export async function listInboxItems(client: SupabaseClient): Promise<InboxItem[]> {
+  const userId = currentUserId();
+  if (!userId) return [];
+  try {
+    const { data, error } = await client
+      .from(INBOX_TABLE)
+      .select('id, content, source, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+    if (error || !data) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
+/** Entfernt bereits übernommene Posteingang-Einträge, damit sie nicht erneut importiert werden. */
+export async function deleteInboxItems(client: SupabaseClient, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const userId = currentUserId();
+  if (!userId) return;
+  try {
+    await client.from(INBOX_TABLE).delete().eq('user_id', userId).in('id', ids);
+  } catch {
+    // swallow, matches sDelete's no-op-on-failure behavior
+  }
+}

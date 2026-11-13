@@ -11,11 +11,17 @@ function preview(note: QuickNote): string {
 }
 
 export default function QuickNotesView() {
-  const { notes, selectedId, justCreatedId, ensureLoaded, select, create, clearJustCreated } = useQuickNoteStore();
+  const { notes, selectedId, justCreatedId, ensureLoaded, importFromInbox, select, create, clearJustCreated } = useQuickNoteStore();
 
   useEffect(() => {
-    ensureLoaded();
-  }, [ensureLoaded]);
+    // Reihenfolge wichtig: erst laden, dann den Posteingang einsortieren — sonst würde der
+    // Import auf einer noch leeren (nicht geladenen) Liste aufsetzen und bestehende Notizen
+    // beim Speichern überschreiben.
+    (async () => {
+      await ensureLoaded();
+      await importFromInbox();
+    })();
+  }, [ensureLoaded, importFromInbox]);
 
   // Nur frisch über "+ Neue Notiz" angelegte Notizen starten automatisch im Handschrift-Modus
   // (justCreatedId). Einmal an den Editor weitergegeben (per autoInk unten), wird die Markierung
