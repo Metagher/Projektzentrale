@@ -7,6 +7,7 @@ interface Props {
 }
 
 export type PaperStyle = 'blank' | 'lines' | 'dots' | 'grid';
+type Tool = 'pen' | 'eraser';
 
 const PAPER_STYLES: { id: PaperStyle; label: string }[] = [
   { id: 'blank', label: 'Blanko' },
@@ -17,6 +18,15 @@ const PAPER_STYLES: { id: PaperStyle; label: string }[] = [
 
 const PAPER_STYLE_KEY = 'pz-ink-paper-style';
 const GRID_SPACING = 26;
+const PEN_COLOR = '#1c1c1c';
+const PEN_WIDTH = 2.4;
+const ERASER_WIDTH = 22;
+/** Fenster für einen Doppel-Tipp mit dem Stift direkt auf die Fläche (Zeit und Abstand). */
+const DOUBLE_TAP_MS = 350;
+const DOUBLE_TAP_PX = 24;
+/** Wie lange nach einer Stift-Berührung Touch-Punkte auf der Fläche ignoriert werden
+ * (Handflächen-Schutz während und kurz nach dem Schreiben). */
+const PALM_REJECTION_MS = 1200;
 
 function readStoredPaperStyle(): PaperStyle {
   try {
@@ -28,7 +38,7 @@ function readStoredPaperStyle(): PaperStyle {
 
 /** Zeichnet den Papier-Hintergrund (wie in OneNote: Blanko/Linien/Punkte/Kariert) direkt auf die
  * Zeichenfläche, damit er — anders als ein CSS-Hintergrund — auch im exportierten PNG erhalten
- * bleibt. Setzt anschließend den Zeichenstift für die Handschrift selbst zurück. */
+ * bleibt. */
 function paintPaper(ctx: CanvasRenderingContext2D, width: number, height: number, style: PaperStyle) {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, width, height);
@@ -62,8 +72,14 @@ function paintPaper(ctx: CanvasRenderingContext2D, width: number, height: number
       }
     }
   }
-  ctx.strokeStyle = '#1c1c1c';
-  ctx.lineWidth = 2.4;
+}
+
+/** Setzt Strich-/Radierbreite und -farbe passend zum aktiven Werkzeug. Der "Radierer" trägt
+ * technisch weiß nach statt die Fläche tatsächlich transparent zu löschen — das bleibt auch bei
+ * liniertem/kariertem Papier konsistent weiß statt ein unpassendes Loch zu hinterlassen. */
+function applyToolStyle(ctx: CanvasRenderingContext2D, tool: Tool) {
+  ctx.strokeStyle = tool === 'eraser' ? '#fff' : PEN_COLOR;
+  ctx.lineWidth = tool === 'eraser' ? ERASER_WIDTH : PEN_WIDTH;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 }
@@ -71,13 +87,21 @@ function paintPaper(ctx: CanvasRenderingContext2D, width: number, height: number
 /** Freehand drawing surface for Apple-Pencil / Touch / Maus. Anders als ein contentEditable-Feld
  * wird ein <canvas> von iPadOS Scribble nicht angefasst — das Geschriebene bleibt exakt die
  * gezeichnete Linie, statt in Buchstaben erkannt zu werden. Der Papierstil (wie in OneNote) wird
- * geräteweit gemerkt, nicht pro Notiz. */
+ * geräteweit gemerkt, nicht pro Notiz. Werkzeugleiste und Aktionen liegen bewusst komplett über
+ * der Fläche, nicht darunter, damit die beim Schreiben aufliegende Hand sie nicht versehentlich
+ * trifft. Ein Doppel-Tipp mit dem Stift direkt auf die Fläche schaltet zwischen Stift und Radierer
+ * um — der native "zweimal auf den Apple Pencil tippen"-Shortcut ist Web-Seiten nicht zugänglich
+ * (eine iPadOS-Funktion nur für native Apps), das hier ist das nächstmögliche Äquivalent. */
 export default function InkPad({ onInsert, onCancel }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const hasDrawn = useRef(false);
+  const strokeMoved = useRef(false);
+  const lastPenTap = useRef<{ time: number; x: number; y: number } | null>(null);
+  const lastPenActivity = useRef(0);
   const [paperStyle, setPaperStyleState] = useState<PaperStyle>(readStoredPaperStyle);
+  const [tool, setTool] = useState<Tool>('pen');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -100,9 +124,27 @@ export default function InkPad({ onInsert, onCancel }: Props) {
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (event.pointerType === 'touch' && Date.now() - lastPenActivity.current < PALM_REJECTION_MS) return;
+
+    const point = pointFromEvent(event);
+
+    if (event.pointerType === 'pen' && lastPenTap.current) {
+      const elapsed = Date.now() - lastPenTap.current.time;
+      const distance = Math.hypot(point.x - lastPenTap.current.x, point.y - lastPenTap.current.y);
+      if (elapsed < DOUBLE_TAP_MS && distance < DOUBLE_TAP_PX) {
+        setTool((t) => (t === 'pen' ? 'eraser' : 'pen'));
+        lastPenTap.current = null;
+        return;
+      }
+    }
+
     drawing.current = true;
-    lastPoint.current = pointFromEvent(event);
+    strokeMoved.current = false;
+    lastPoint.current = point;
+    if (event.pointerType === 'pen') lastPenActivity.current = Date.now();
+    // Scheitert z.B. bei synthetischen Events ohne aktiven Pointer — das Zeichnen selbst
+    // braucht die Capture nicht zwingend, nur ein zuverlässigeres Tracking außerhalb der Fläche.
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* kein aktiver Pointer */ }
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
@@ -110,16 +152,24 @@ export default function InkPad({ onInsert, onCancel }: Props) {
     const ctx = canvasRef.current?.getContext('2d');
     const point = pointFromEvent(event);
     if (ctx) {
+      applyToolStyle(ctx, tool);
       ctx.beginPath();
       ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
       ctx.lineTo(point.x, point.y);
       ctx.stroke();
       hasDrawn.current = true;
+      strokeMoved.current = true;
     }
     lastPoint.current = point;
+    if (event.pointerType === 'pen') lastPenActivity.current = Date.now();
   }
 
   function stopDrawing(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (!drawing.current) return;
+    if (event.pointerType === 'pen') {
+      lastPenTap.current = !strokeMoved.current && lastPoint.current ? { time: Date.now(), ...lastPoint.current } : null;
+      lastPenActivity.current = Date.now();
+    }
     drawing.current = false;
     lastPoint.current = null;
     try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* bereits freigegeben */ }
@@ -156,36 +206,42 @@ export default function InkPad({ onInsert, onCancel }: Props) {
 
   return (
     <div className="ink-pad">
-      <div className="ink-paper-picker" role="radiogroup" aria-label="Papierstil">
-        {PAPER_STYLES.map((option) => (
-          <button
-            type="button"
-            key={option.id}
-            role="radio"
-            aria-checked={paperStyle === option.id}
-            className={`ink-paper-option${paperStyle === option.id ? ' active' : ''}`}
-            onClick={() => void choosePaperStyle(option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div className="ink-toolbar">
+        <div className="ink-tool-group" role="radiogroup" aria-label="Werkzeug">
+          <button type="button" role="radio" aria-checked={tool === 'pen'} className={`ink-tool-btn${tool === 'pen' ? ' active' : ''}`} onClick={() => setTool('pen')}>✎ Stift</button>
+          <button type="button" role="radio" aria-checked={tool === 'eraser'} className={`ink-tool-btn${tool === 'eraser' ? ' active' : ''}`} onClick={() => setTool('eraser')}>⌫ Radierer</button>
+        </div>
+        <div className="ink-paper-picker" role="radiogroup" aria-label="Papierstil">
+          {PAPER_STYLES.map((option) => (
+            <button
+              type="button"
+              key={option.id}
+              role="radio"
+              aria-checked={paperStyle === option.id}
+              className={`ink-paper-option${paperStyle === option.id ? ' active' : ''}`}
+              onClick={() => void choosePaperStyle(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="ink-pad-actions">
+        <button type="button" className="btn secondary small" onClick={clear}>Alles löschen</button>
+        <div className="ink-pad-actions-end">
+          <button type="button" className="btn secondary small" onClick={onCancel}>Abbrechen</button>
+          <button type="button" className="btn small" onClick={insert}>Übernehmen</button>
+        </div>
       </div>
       <canvas
         ref={canvasRef}
-        className="ink-canvas"
+        className={`ink-canvas${tool === 'eraser' ? ' eraser' : ''}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={stopDrawing}
         onPointerCancel={stopDrawing}
         onPointerLeave={stopDrawing}
       />
-      <div className="ink-pad-actions">
-        <button type="button" className="btn secondary small" onClick={clear}>Löschen</button>
-        <div className="ink-pad-actions-end">
-          <button type="button" className="btn secondary small" onClick={onCancel}>Abbrechen</button>
-          <button type="button" className="btn small" onClick={insert}>Übernehmen</button>
-        </div>
-      </div>
     </div>
   );
 }
