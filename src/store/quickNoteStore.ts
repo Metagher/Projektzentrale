@@ -17,10 +17,15 @@ async function persist(notes: QuickNote[]) {
 interface QuickNoteStoreState {
   notes: QuickNote[] | undefined; // undefined = noch nicht geladen
   selectedId: string | null;
+  /** Id der zuletzt über create() angelegten Notiz, damit deren Editor direkt im
+   * Handschrift-Modus startet — in derselben State-Änderung wie selectedId gesetzt, damit
+   * keine Race zwischen dem Promise-Abschluss von create() und dem Re-Render entsteht. */
+  justCreatedId: string | null;
 
   ensureLoaded: () => Promise<void>;
   select: (id: string | null) => void;
   create: () => Promise<string>;
+  clearJustCreated: () => void;
   save: (id: string, inhalt: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
 }
@@ -28,6 +33,7 @@ interface QuickNoteStoreState {
 export const useQuickNoteStore = create<QuickNoteStoreState>((set, get) => ({
   notes: undefined,
   selectedId: null,
+  justCreatedId: null,
 
   ensureLoaded: async () => {
     if (get().notes !== undefined) return;
@@ -41,10 +47,12 @@ export const useQuickNoteStore = create<QuickNoteStoreState>((set, get) => ({
     const now = new Date().toISOString();
     const note: QuickNote = { id: uid(), inhalt: '', createdAt: now, updatedAt: now };
     const notes = [note, ...(get().notes || [])];
-    set({ notes, selectedId: note.id });
+    set({ notes, selectedId: note.id, justCreatedId: note.id });
     await persist(notes);
     return note.id;
   },
+
+  clearJustCreated: () => set({ justCreatedId: null }),
 
   save: async (id, inhalt) => {
     const notes = (get().notes || []).map((note) => (note.id === id ? { ...note, inhalt, updatedAt: new Date().toISOString() } : note));

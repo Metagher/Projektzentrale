@@ -1,28 +1,39 @@
 /* Schnellnotizen: globale, projektunabhängige Schnellerfassung (Text + Handschrift),
    die später per "Verschieben" in eine Aufgabe/Kommunikation/Projektnotiz übergeht. */
 .quick-notes-wrap{max-width:1180px;}
-.quick-notes-page{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start;}
-.quick-notes-list-pane{display:flex;flex-direction:column;gap:12px;min-width:0;}
-.quick-notes-list{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 280px);overflow-y:auto;}
+.quick-notes-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
 .quick-note-list-item{
-  display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;padding:10px 12px;text-align:left;
+  display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:84px;padding:12px 14px;text-align:left;
   background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius);cursor:pointer;
 }
 .quick-note-list-item:hover{border-color:var(--ink-soft);}
-.quick-note-list-item.active{border-color:var(--focus);box-shadow:inset 0 0 0 1px var(--focus);}
 .quick-note-list-preview{font-size:12.5px;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;}
 .quick-note-list-item small{font-size:10.5px;color:var(--ink-soft);}
 
-.quick-notes-editor-pane{min-width:0;min-height:62vh;display:flex;flex-direction:column;}
-.quick-notes-back{
-  display:none;align-self:flex-start;margin-bottom:10px;padding:6px 10px;border:1px solid var(--line);
-  border-radius:var(--radius);background:var(--field-bg);color:var(--ink);cursor:pointer;font-size:12px;
+/* Das Erfassungsfenster öffnet als Pop-up über den ganzen Bildschirm — maximaler Platz zum
+   Schreiben, ganz gleich ob Tastatur oder Stift, wie bei OneNote. */
+.quick-note-overlay{
+  position:fixed;inset:0;z-index:900;background:var(--paper);display:flex;flex-direction:column;
+  padding:14px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
 }
-.quick-note-editor{display:flex;flex-direction:column;flex:1;min-height:0;}
-.quick-note-toolbar-spacer{flex:1;}
-.quick-note-canvas{flex:1;min-height:420px;max-height:none;}
-.quick-note-editor.ink-fullscreen .ink-pad{flex:1;min-height:0;margin-bottom:0;}
-.quick-note-editor.ink-fullscreen .ink-canvas{flex:1;min-height:0;height:auto;}
+.quick-note-overlay-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;flex:0 0 auto;}
+.quick-note-close{
+  flex:0 0 auto;padding:7px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);
+  color:var(--ink);cursor:pointer;font-size:13px;font-weight:600;
+}
+.quick-note-toolbar{flex:1 1 auto;margin-bottom:0;}
+.quick-note-overlay-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+.quick-note-canvas{flex:1;min-height:0;max-height:none;}
+.quick-note-overlay > .ink-pad{flex:1;min-height:0;margin-bottom:0;}
+.quick-note-overlay .ink-canvas{flex:1;min-height:0;height:auto;}
+
+/* Papierstil-Auswahl (wie in OneNote: Blanko/Linien/Punkte/Kariert), geräteweit gemerkt. */
+.ink-paper-picker{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.ink-paper-option{
+  padding:6px 11px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);
+  color:var(--ink);cursor:pointer;font-size:12px;
+}
+.ink-paper-option.active{background:#111;color:#fff;border-color:#111;}
 
 .quick-note-move-box{max-width:420px;}
 .quick-note-move-target{display:flex;gap:6px;}
@@ -33,8 +44,7 @@
 .quick-note-move-target button.active{background:#111;color:#fff;border-color:#111;}
 .quick-note-move-hint{font-size:11.5px;color:var(--ink-soft);margin:4px 0 0;}
 
-@media(max-width:860px){
-  .quick-notes-page{grid-template-columns:1fr;}
-  .quick-notes-page.has-selection .quick-notes-list-pane{display:none;}
-  .quick-notes-back{display:inline-block;}
+@media(max-width:700px){
+  .quick-note-overlay-head{gap:8px;}
+  .quick-note-overlay-actions{width:100%;justify-content:flex-end;}
 }
