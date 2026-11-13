@@ -75,6 +75,7 @@ export default function ProjectQuickBar() {
         <>
           <div className="top-primary-nav" aria-label="Hauptbereiche">
             <button draggable className={view === 'dashboard' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'dashboard', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('dashboard')} title="Dashboard – ziehen oder öffnen" aria-label="Dashboard">⌂</button>
+            <button className={view === 'quick-notes' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('quick-notes')} title="Schnellnotizen" aria-label="Schnellnotizen">✎</button>
             <button draggable className={view === 'calendar' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'calendar', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('calendar')} title="Kalender – ziehen oder öffnen" aria-label="Kalender">▤</button>
             <button draggable className={view === 'knowledge' ? 'active' : ''} onDragStart={(event) => dragPane(event, { view: 'knowledge', selectedId: null, activeTab: 'aufgaben' })} onClick={() => useUiStore.getState().goTo('knowledge')} title="Wissensdatenbank – ziehen oder öffnen" aria-label="Wissensdatenbank">◇</button>
             <button className={view === 'analytics' ? 'active' : ''} onClick={() => useUiStore.getState().goTo('analytics')} title="Auswertung" aria-label="Auswertung">↗</button>
