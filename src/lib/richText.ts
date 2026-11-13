@@ -15,3 +15,10 @@ export function normalizeRichTextTypography(html: string): string {
 
   return root.innerHTML;
 }
+
+/** Wandelt einfachen Text (z.B. aus einem externen Posteingang) in das Mindestmaß an HTML um,
+ * das die Rich-Text-Felder der App erwarten — ein Absatz je Zeilenumbruch-Block. */
+export function plainTextToHtml(text: string): string {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return '<p>' + escaped.replace(/\n+/g, '</p><p>') + '</p>';
+}

@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { sGet, sSet } from '../lib/supabase';
+import { deleteInboxItems, listInboxItems, sGet, sSet } from '../lib/supabase';
 import { useConnectionStore } from './connectionStore';
 import { uid } from '../lib/format';
+import { plainTextToHtml } from '../lib/richText';
 import type { QuickNote } from '../types/entities';
 
 function client() {
@@ -23,6 +24,9 @@ interface QuickNoteStoreState {
   justCreatedId: string | null;
 
   ensureLoaded: () => Promise<void>;
+  /** Übernimmt extern eingereichte Notizen (Posteingang, z.B. per Apple Kurzbefehl aus Apple
+   * Notizen) in die normale Liste und räumt den Posteingang danach leer. */
+  importFromInbox: () => Promise<void>;
   select: (id: string | null) => void;
   create: () => Promise<string>;
   clearJustCreated: () => void;
@@ -39,6 +43,21 @@ export const useQuickNoteStore = create<QuickNoteStoreState>((set, get) => ({
     if (get().notes !== undefined) return;
     const notes = (await sGet<QuickNote[]>(client(), 'quick-notes')) || [];
     set({ notes });
+  },
+
+  importFromInbox: async () => {
+    const items = await listInboxItems(client());
+    if (items.length === 0) return;
+    const imported: QuickNote[] = items.map((item) => ({
+      id: uid(),
+      inhalt: plainTextToHtml(item.content),
+      createdAt: item.created_at,
+      updatedAt: item.created_at,
+    }));
+    const notes = [...imported, ...(get().notes || [])];
+    set({ notes });
+    await persist(notes);
+    await deleteInboxItems(client(), items.map((item) => item.id));
   },
 
   select: (id) => set({ selectedId: id }),

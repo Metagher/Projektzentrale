@@ -29,3 +29,25 @@ create policy "Allow all for authenticated" on projektzentrale_kv
   to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+-- Posteingang für extern eingereichte Schnellnotizen (z.B. per Apple Kurzbefehl aus Apple
+-- Notizen). Jede eingereichte Notiz landet hier als eigene Zeile; die App übernimmt sie beim
+-- nächsten Öffnen der Schnellnotizen automatisch in die normale Notizliste und löscht die Zeile
+-- hier wieder — dieselbe Row-Level-Security wie oben, ein Kurzbefehl muss sich also genauso mit
+-- E-Mail/Passwort anmelden wie die App selbst, der anon key allein reicht nicht.
+create table if not exists projektzentrale_inbox (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  content text not null,
+  source text,
+  created_at timestamptz not null default now()
+);
+
+alter table projektzentrale_inbox enable row level security;
+
+drop policy if exists "Allow all for authenticated" on projektzentrale_inbox;
+create policy "Allow all for authenticated" on projektzentrale_inbox
+  for all
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
