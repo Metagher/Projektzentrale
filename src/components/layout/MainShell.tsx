@@ -10,6 +10,7 @@ const DashboardView = lazy(() => import('../dashboard/Dashboard'));
 const ProjectView = lazy(() => import('../project/ProjectView'));
 const VIEW_COMPONENTS = {
   dashboard: DashboardView,
+  'quick-notes': lazy(() => import('../quicknotes/QuickNotesView')),
   calendar: CalendarView,
   'project-management': lazy(() => import('../projects/ProjectManagementView')),
   project: ProjectView,
