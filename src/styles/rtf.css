@@ -27,25 +27,33 @@
 .rtf-btn.rtf-heading{font-family:'Fraunces',serif;font-weight:600;}
 .rtf-btn.active{color:#fff;background:#111;border-color:#111;}
 
-/* Freihand-Zeichenfläche für Apple Pencil/Touch/Maus. Ersetzt die Vorschau des rtf-editor
-   während der Aufnahme, damit die Handschrift als Bild exakt so übernommen wird wie gezeichnet
-   (kein Scribble, keine Texterkennung — dafür ist das Feld ein <canvas>, kein Textfeld).
-   Werkzeugleiste, Papierwahl und Aktionen (Löschen/Abbrechen/Übernehmen) liegen bewusst
-   komplett ÜBER der Fläche statt darunter, damit die beim Schreiben aufliegende Hand sie nicht
-   versehentlich trifft. Die Fläche selbst wächst beim Schreiben bei Bedarf über die sichtbare
-   Höhe hinaus (wie eine Seite in OneNote) — der Wrapper macht sie dafür scrollbar. */
+/* Freihand-Zeichenfläche für Apple Pencil/Maus. Ersetzt die Vorschau des rtf-editor während der
+   Aufnahme, damit die Handschrift als Bild exakt so übernommen wird wie gezeichnet (kein Scribble,
+   keine Texterkennung — dafür ist das Feld ein <canvas>, kein Textfeld). Finger (Touch) zeichnet
+   bewusst nicht mit, sondern scrollt über touch-action die Fläche ganz normal. Zwei übereinander
+   liegende Ebenen (Papier unten, Tinte oben) sorgen dafür, dass der Radierer nur Tinte entfernt,
+   nie Linien/Punkte/Karos. Werkzeugleiste, Papier-/Textmarkerwahl und Aktionen (Löschen/Abbrechen/
+   Übernehmen) liegen bewusst komplett ÜBER der Fläche statt darunter, damit die beim Schreiben
+   aufliegende Hand sie nicht versehentlich trifft. Die Fläche selbst wächst beim Schreiben bei
+   Bedarf über die sichtbare Höhe hinaus (wie eine Seite in OneNote) — der Wrapper macht sie dafür
+   scrollbar. */
 .ink-pad{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
 .ink-canvas-wrap{
-  width:100%;height:260px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--line);
+  position:relative;width:100%;height:260px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--line);
   border-radius:var(--radius);background:#fff;
 }
-.ink-canvas{display:block;touch-action:none;cursor:crosshair;}
+.ink-canvas-paper{position:absolute;top:0;left:0;display:block;pointer-events:none;}
+.ink-canvas{position:absolute;top:0;left:0;display:block;touch-action:pan-y;cursor:crosshair;}
 .ink-canvas.eraser{cursor:cell;}
 .ink-pad-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .ink-pad-actions-end{display:flex;gap:8px;}
 
 .ink-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:14px;}
-.ink-tool-group, .ink-paper-picker{display:flex;gap:6px;flex-wrap:wrap;}
+.ink-tool-group, .ink-paper-picker, .ink-highlighter-picker{display:flex;gap:6px;flex-wrap:wrap;}
+.ink-highlighter-swatch{
+  width:28px;height:28px;padding:0;border:2px solid var(--line);border-radius:999px;cursor:pointer;
+}
+.ink-highlighter-swatch.active{border-color:#111;box-shadow:0 0 0 2px #fff inset;}
 .ink-tool-btn, .ink-paper-option{
   padding:6px 11px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);
   color:var(--ink);cursor:pointer;font-size:12px;
