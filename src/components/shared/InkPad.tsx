@@ -168,10 +168,15 @@ export default function InkPad({ onInsert, onCancel }: Props) {
       el.height = height * ratio;
     }
     const paperCtx = paper.getContext('2d');
-    if (!paperCtx) return;
-    paperCtx.scale(ratio, ratio);
-    paintPaper(paperCtx, width, height, paperStyle);
-    // Tinten-Ebene startet transparent — nichts zu zeichnen.
+    if (paperCtx) {
+      paperCtx.scale(ratio, ratio);
+      paintPaper(paperCtx, width, height, paperStyle);
+    }
+    // Tinten-Ebene startet transparent — nichts zu zeichnen, aber genauso skalieren wie das
+    // Papier, sonst zeichnet sie (v.a. auf Retina-Displays) auf halbem Weg zur Stiftspitze statt
+    // exakt darunter — sichtbar als "versetzte" Handschrift.
+    const inkCtx = canvas.getContext('2d');
+    if (inkCtx) inkCtx.scale(ratio, ratio);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -344,6 +349,8 @@ export default function InkPad({ onInsert, onCancel }: Props) {
       paperCtx.scale(ratio, ratio);
       paintPaper(paperCtx, widthCss, heightCss, paperStyle);
     }
+    const inkCtx = canvas.getContext('2d');
+    if (inkCtx) inkCtx.scale(ratio, ratio);
     hasDrawn.current = false;
   }
 
