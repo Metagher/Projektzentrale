@@ -6,21 +6,21 @@ import InkPad from '../shared/InkPad';
 import QuickNoteMoveForm from './QuickNoteMoveForm';
 import type { QuickNote } from '../../types/entities';
 
-/** Die eigentliche Schreibfläche einer Schnellnotiz: Text + Handschrift wie im RTF-Editor,
- * aber als eigene Seite statt als Modal und mit Autosave statt Speichern-Knopf — damit sich
- * das Mitschreiben auf dem iPad so nah wie möglich wie in OneNote anfühlt. Pro Notiz neu
- * gemountet (key={note.id} im Elternteil), damit kein Sync-Aufwand zwischen Notizwechseln nötig ist. */
-export default function QuickNoteEditor({ note }: { note: QuickNote }) {
+/** Die eigentliche Schreibfläche einer Schnellnotiz: Text + Handschrift wie im RTF-Editor, aber als
+ * bildschirmfüllendes Pop-up statt als Seitenspalte und mit Autosave statt Speichern-Knopf — damit
+ * sich das Mitschreiben auf dem iPad so nah wie möglich wie in OneNote anfühlt. Neu angelegte Notizen
+ * starten direkt im Handschrift-Modus (autoInk). Pro Notiz neu gemountet (key={note.id} im
+ * Elternteil), damit kein Sync-Aufwand zwischen Notizwechseln nötig ist. */
+export default function QuickNoteEditor({ note, autoInk, onClose }: { note: QuickNote; autoInk?: boolean; onClose: () => void }) {
   const save = useQuickNoteStore((s) => s.save);
   const remove = useQuickNoteStore((s) => s.remove);
-  const select = useQuickNoteStore((s) => s.select);
 
   const editableRef = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
   const latestHtml = useRef(note.inhalt);
   const saveTimer = useRef<number | null>(null);
   const skipCleanup = useRef(false);
-  const [inkOpen, setInkOpen] = useState(false);
+  const [inkOpen, setInkOpen] = useState(!!autoInk);
   const [dragOver, setDragOver] = useState(false);
   const [moving, setMoving] = useState(false);
   // Referenziell stabil halten: sonst würde jeder Re-Render (z.B. beim Umschalten in den
@@ -29,7 +29,7 @@ export default function QuickNoteEditor({ note }: { note: QuickNote }) {
   const initialHtmlProp = useMemo(() => ({ __html: note.inhalt }), [note.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    editableRef.current?.focus();
+    if (!autoInk) editableRef.current?.focus();
     return () => {
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
       if (skipCleanup.current) return;
@@ -148,29 +148,33 @@ export default function QuickNoteEditor({ note }: { note: QuickNote }) {
 
   async function handleDelete() {
     skipCleanup.current = true;
-    select(null);
+    onClose();
     await remove(note.id);
   }
 
   function handleMoved() {
     skipCleanup.current = true;
-    select(null);
+    onClose();
   }
 
   return (
-    <div className={`quick-note-editor${inkOpen ? ' ink-fullscreen' : ''}`}>
-      <div className="rtf-toolbar quick-note-toolbar">
-        <button type="button" className="rtf-btn rtf-heading" onMouseDown={(e) => { e.preventDefault(); exec('formatBlock', 'H4'); }}>Überschrift</button>
-        <button type="button" className="rtf-btn" onMouseDown={(e) => { e.preventDefault(); exec('formatBlock', 'P'); }}>Text</button>
-        <span className="rtf-sep" />
-        <button type="button" className="rtf-btn" onMouseDown={(e) => { e.preventDefault(); exec('bold'); }}><b>F</b></button>
-        <button type="button" className="rtf-btn" onMouseDown={(e) => { e.preventDefault(); exec('italic'); }}><i>K</i></button>
-        <button type="button" className="rtf-btn" onMouseDown={(e) => { e.preventDefault(); exec('insertUnorderedList'); }}>• Liste</button>
-        <span className="rtf-sep" />
-        <button type="button" className={`rtf-btn${inkOpen ? ' active' : ''}`} onMouseDown={(e) => { e.preventDefault(); if (inkOpen) setInkOpen(false); else openInk(); }}>✎ Handschrift</button>
-        <span className="quick-note-toolbar-spacer" />
-        <button type="button" className="btn secondary small" onClick={() => setMoving(true)}>→ Verschieben</button>
-        <button type="button" className="icon-btn" onClick={() => void handleDelete()}>Löschen</button>
+    <div className="quick-note-overlay" role="dialog" aria-modal="true" aria-label="Schnellnotiz">
+      <div className="quick-note-overlay-head">
+        <button type="button" className="quick-note-close" onClick={onClose}>← Fertig</button>
+        <div className="rtf-toolbar quick-note-toolbar">
+          <button type="button" className="rtf-btn rtf-heading" onMouseDown={(e) => { e.preventDefault(); exec('formatBlock', 'H4'); }}>Überschrift</button>
+          <button type="button" className="rtf-btn" onMouseDown={(e) => { e.preventDefault(); exec('formatBlock', 'P'); }}>Text</button>
+          <span className="rtf-sep" />
+          <button type="button" className="rtf-btn" onMouseDown={(e) => { e.preventDefault(); exec('bold'); }}><b>F</b></button>
+          <button type="button" className="rtf-btn" onMouseDown={(e) => { e.preventDefault(); exec('italic'); }}><i>K</i></button>
+          <button type="button" className="rtf-btn" onMouseDown={(e) => { e.preventDefault(); exec('insertUnorderedList'); }}>• Liste</button>
+          <span className="rtf-sep" />
+          <button type="button" className={`rtf-btn${inkOpen ? ' active' : ''}`} onMouseDown={(e) => { e.preventDefault(); if (inkOpen) setInkOpen(false); else openInk(); }}>✎ Handschrift</button>
+        </div>
+        <div className="quick-note-overlay-actions">
+          <button type="button" className="btn secondary small" onClick={() => setMoving(true)}>→ Verschieben</button>
+          <button type="button" className="icon-btn" onClick={() => void handleDelete()}>Löschen</button>
+        </div>
       </div>
       {inkOpen && <InkPad onInsert={insertInk} onCancel={() => setInkOpen(false)} />}
       <div
