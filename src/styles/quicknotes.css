@@ -27,14 +27,6 @@
 .quick-note-overlay > .ink-pad{flex:1;min-height:0;margin-bottom:0;}
 .quick-note-overlay .ink-canvas{flex:1;min-height:0;height:auto;}
 
-/* Papierstil-Auswahl (wie in OneNote: Blanko/Linien/Punkte/Kariert), geräteweit gemerkt. */
-.ink-paper-picker{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
-.ink-paper-option{
-  padding:6px 11px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);
-  color:var(--ink);cursor:pointer;font-size:12px;
-}
-.ink-paper-option.active{background:#111;color:#fff;border-color:#111;}
-
 .quick-note-move-box{max-width:420px;}
 .quick-note-move-target{display:flex;gap:6px;}
 .quick-note-move-target button{

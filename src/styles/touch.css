@@ -122,6 +122,6 @@ html.touch-mode .link-select { min-width: 160px; }
 /* --- Schnellnotizen: großzügigere Tipp-/Antippflächen für Liste, Zurück-Knopf und Zielwahl --- */
 html.touch-mode .quick-note-list-item { padding: 14px 14px; }
 html.touch-mode .quick-note-close { min-height: 44px; padding: 10px 16px; font-size: 14px; }
-html.touch-mode .ink-paper-option { min-height: 40px; padding: 9px 15px; font-size: 13px; }
+html.touch-mode .ink-tool-btn, html.touch-mode .ink-paper-option { min-height: 40px; padding: 9px 15px; font-size: 13px; }
 html.touch-mode .quick-note-move-target button { min-height: 44px; font-size: 14px; }
 html.touch-mode .quick-note-canvas { min-height: 480px; }
