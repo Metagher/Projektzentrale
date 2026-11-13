@@ -27,6 +27,11 @@ const DOUBLE_TAP_PX = 24;
 /** Wie lange nach einer Stift-Berührung Touch-Punkte auf der Fläche ignoriert werden
  * (Handflächen-Schutz während und kurz nach dem Schreiben). */
 const PALM_REJECTION_MS = 1200;
+/** Seite wächst in diesen Schritten nach unten, sobald beim Schreiben dieser Abstand zum
+ * aktuellen unteren Rand unterschritten wird — wie das automatische Mitwachsen einer Seite
+ * in OneNote, nur dass hier zusätzlich die sichtbare Fläche mitscrollt. */
+const GROW_STEP = 500;
+const GROW_MARGIN = 140;
 
 function readStoredPaperStyle(): PaperStyle {
   try {
@@ -91,8 +96,11 @@ function applyToolStyle(ctx: CanvasRenderingContext2D, tool: Tool) {
  * der Fläche, nicht darunter, damit die beim Schreiben aufliegende Hand sie nicht versehentlich
  * trifft. Ein Doppel-Tipp mit dem Stift direkt auf die Fläche schaltet zwischen Stift und Radierer
  * um — der native "zweimal auf den Apple Pencil tippen"-Shortcut ist Web-Seiten nicht zugänglich
- * (eine iPadOS-Funktion nur für native Apps), das hier ist das nächstmögliche Äquivalent. */
+ * (eine iPadOS-Funktion nur für native Apps), das hier ist das nächstmögliche Äquivalent. Die Seite
+ * ist nicht auf die sichtbare Höhe begrenzt: beim Schreiben nahe dem unteren Rand wächst sie
+ * automatisch nach unten weiter (wie in OneNote) und die Ansicht scrollt mit. */
 export default function InkPad({ onInsert, onCancel }: Props) {
+  const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
@@ -100,26 +108,73 @@ export default function InkPad({ onInsert, onCancel }: Props) {
   const strokeMoved = useRef(false);
   const lastPenTap = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastPenActivity = useRef(0);
+  const ratioRef = useRef(1);
+  const canvasHeightRef = useRef(0);
   const [paperStyle, setPaperStyleState] = useState<PaperStyle>(readStoredPaperStyle);
   const [tool, setTool] = useState<Tool>('pen');
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * ratio;
-    canvas.height = rect.height * ratio;
+    ratioRef.current = ratio;
+    const width = wrap.clientWidth;
+    const height = wrap.clientHeight;
+    canvasHeightRef.current = height;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.scale(ratio, ratio);
-    paintPaper(ctx, rect.width, rect.height, paperStyle);
+    paintPaper(ctx, width, height, paperStyle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function pointFromEvent(event: ReactPointerEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+
+  /** Hängt bei Bedarf einen weiteren Streifen Papier unten an, ohne die bisherige Zeichnung zu
+   * verlieren (ein Resize des <canvas> selbst würde sie sonst löschen — deshalb vorher auf ein
+   * Hilfscanvas sichern und danach wieder einzeichnen). */
+  function growIfNeeded(pointerYCss: number) {
+    if (pointerYCss < canvasHeightRef.current - GROW_MARGIN) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = ratioRef.current;
+    const widthCss = canvas.width / ratio;
+    const oldHeightCss = canvasHeightRef.current;
+    const newHeightCss = oldHeightCss + GROW_STEP;
+
+    const snapshot = document.createElement('canvas');
+    snapshot.width = canvas.width;
+    snapshot.height = canvas.height;
+    snapshot.getContext('2d')?.drawImage(canvas, 0, 0);
+
+    canvas.width = widthCss * ratio;
+    canvas.height = newHeightCss * ratio;
+    canvas.style.height = `${newHeightCss}px`;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.scale(ratio, ratio);
+      paintPaper(ctx, widthCss, newHeightCss, paperStyle);
+      ctx.drawImage(snapshot, 0, 0, widthCss, oldHeightCss);
+    }
+    canvasHeightRef.current = newHeightCss;
+  }
+
+  /** Lässt die Ansicht der Stiftspitze folgen, sobald sie sich dem unteren Rand des sichtbaren
+   * Ausschnitts nähert — ohne das muss man zum Weiterschreiben jedes Mal den Stift absetzen und
+   * manuell scrollen. */
+  function followPointer(pointerYCss: number) {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const viewportBottom = wrap.scrollTop + wrap.clientHeight;
+    if (pointerYCss > viewportBottom - GROW_MARGIN) wrap.scrollTop = pointerYCss - wrap.clientHeight + GROW_MARGIN;
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
@@ -149,8 +204,9 @@ export default function InkPad({ onInsert, onCancel }: Props) {
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
     if (!drawing.current || !lastPoint.current) return;
-    const ctx = canvasRef.current?.getContext('2d');
     const point = pointFromEvent(event);
+    growIfNeeded(point.y);
+    const ctx = canvasRef.current?.getContext('2d');
     if (ctx) {
       applyToolStyle(ctx, tool);
       ctx.beginPath();
@@ -162,6 +218,7 @@ export default function InkPad({ onInsert, onCancel }: Props) {
     }
     lastPoint.current = point;
     if (event.pointerType === 'pen') lastPenActivity.current = Date.now();
+    followPointer(point.y);
   }
 
   function stopDrawing(event: ReactPointerEvent<HTMLCanvasElement>) {
@@ -179,12 +236,32 @@ export default function InkPad({ onInsert, onCancel }: Props) {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-    paintPaper(ctx, canvas.clientWidth, canvas.clientHeight, style);
+    const ratio = ratioRef.current;
+    paintPaper(ctx, canvas.width / ratio, canvas.height / ratio, style);
     hasDrawn.current = false;
   }
 
+  /** Setzt die Fläche auf die ursprüngliche, sichtbare Höhe zurück (statt nur die bisher
+   * gewachsene Fläche leer zu zeichnen) und scrollt nach oben — eine frische Seite soll wieder
+   * wie zu Beginn aussehen. */
   function clear() {
-    redraw(paperStyle);
+    const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+    const ratio = ratioRef.current;
+    const widthCss = canvas.width / ratio;
+    const heightCss = wrap.clientHeight;
+    canvas.width = widthCss * ratio;
+    canvas.height = heightCss * ratio;
+    canvas.style.height = `${heightCss}px`;
+    canvasHeightRef.current = heightCss;
+    wrap.scrollTop = 0;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.scale(ratio, ratio);
+      paintPaper(ctx, widthCss, heightCss, paperStyle);
+    }
+    hasDrawn.current = false;
   }
 
   async function choosePaperStyle(style: PaperStyle) {
@@ -233,15 +310,17 @@ export default function InkPad({ onInsert, onCancel }: Props) {
           <button type="button" className="btn small" onClick={insert}>Übernehmen</button>
         </div>
       </div>
-      <canvas
-        ref={canvasRef}
-        className={`ink-canvas${tool === 'eraser' ? ' eraser' : ''}`}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={stopDrawing}
-        onPointerCancel={stopDrawing}
-        onPointerLeave={stopDrawing}
-      />
+      <div ref={wrapRef} className="ink-canvas-wrap">
+        <canvas
+          ref={canvasRef}
+          className={`ink-canvas${tool === 'eraser' ? ' eraser' : ''}`}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={stopDrawing}
+          onPointerCancel={stopDrawing}
+          onPointerLeave={stopDrawing}
+        />
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@
    doppelt. Sie kommen zurück, sobald wieder der Text-Editor sichtbar ist. */
 .modal-box.rtf-modal.ink-fullscreen .modal-actions{display:none;}
 .modal-box.rtf-modal.ink-fullscreen .ink-pad{flex:1;min-height:0;margin-bottom:0;}
-.modal-box.rtf-modal.ink-fullscreen .ink-canvas{flex:1;min-height:0;height:auto;}
+.modal-box.rtf-modal.ink-fullscreen .ink-canvas-wrap{flex:1;min-height:0;height:auto;}
 .rtf-toolbar{display:flex;gap:4px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
 .rtf-btn{
   padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--field-bg);color:var(--ink);
@@ -32,12 +32,14 @@
    (kein Scribble, keine Texterkennung — dafür ist das Feld ein <canvas>, kein Textfeld).
    Werkzeugleiste, Papierwahl und Aktionen (Löschen/Abbrechen/Übernehmen) liegen bewusst
    komplett ÜBER der Fläche statt darunter, damit die beim Schreiben aufliegende Hand sie nicht
-   versehentlich trifft. */
+   versehentlich trifft. Die Fläche selbst wächst beim Schreiben bei Bedarf über die sichtbare
+   Höhe hinaus (wie eine Seite in OneNote) — der Wrapper macht sie dafür scrollbar. */
 .ink-pad{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
-.ink-canvas{
-  width:100%;height:260px;touch-action:none;border:1px solid var(--line);border-radius:var(--radius);
-  background:#fff;cursor:crosshair;
+.ink-canvas-wrap{
+  width:100%;height:260px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--line);
+  border-radius:var(--radius);background:#fff;
 }
+.ink-canvas{display:block;touch-action:none;cursor:crosshair;}
 .ink-canvas.eraser{cursor:cell;}
 .ink-pad-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .ink-pad-actions-end{display:flex;gap:8px;}

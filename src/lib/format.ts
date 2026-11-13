@@ -97,6 +97,14 @@ export function isEmptyHtml(html: string | null | undefined): boolean {
   return htmlToPlainText(html).length === 0;
 }
 
+/** Jüngster Verlaufseintrag einer Aufgabe — dieselbe Reihenfolge wie in TaskProgressHistoryField
+ * ("Aktuell"), damit z.B. eine per Schnellnotiz angehängte Handschrift auch außerhalb des
+ * Verlauf-Editors als Vorschau auffindbar ist. */
+export function latestProgressEntry<T extends { datum: string; updatedAt: string }>(entries: T[] | undefined): T | null {
+  if (!entries || entries.length === 0) return null;
+  return entries.slice().sort((a, b) => b.datum.localeCompare(a.datum) || b.updatedAt.localeCompare(a.updatedAt))[0];
+}
+
 export function taskLinkLabel(t: { nr: number; titel: string }): string {
   return `ID ${t.nr || '?'} ${t.titel}`;
 }

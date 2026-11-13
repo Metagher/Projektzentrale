@@ -25,7 +25,7 @@
 .quick-note-overlay-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
 .quick-note-canvas{flex:1;min-height:0;max-height:none;}
 .quick-note-overlay > .ink-pad{flex:1;min-height:0;margin-bottom:0;}
-.quick-note-overlay .ink-canvas{flex:1;min-height:0;height:auto;}
+.quick-note-overlay .ink-canvas-wrap{flex:1;min-height:0;height:auto;}
 
 .quick-note-move-box{max-width:420px;}
 .quick-note-move-target{display:flex;gap:6px;}

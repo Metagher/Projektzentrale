@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useDataStore } from '../../store/dataStore';
-import { fmtDate, slug, todayStr, waitingDurationLabel } from '../../lib/format';
+import { fmtDate, isEmptyHtml, latestProgressEntry, slug, todayStr, waitingDurationLabel } from '../../lib/format';
 import { localDateKey, nextWorkday } from '../../lib/workdays';
 import { commLinkLabel } from '../../lib/format';
 import LinkChipsView from '../shared/LinkChipsView';
@@ -54,9 +54,12 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
     window.setTimeout(() => setCopiedPath((current) => current === kind ? null : current), 1600);
   }
 
+  const latestVerlauf = latestProgressEntry(task.verlauf);
+
   const hasExtras = !!(
     task.teilprojekt?.trim() || taskDocumentationLabel(task) || taskUpdateLabel(task) || task.naechsteBesprechung || task.afns?.length
     || task.termine?.length || contacts.length > 0 || externalHref || ticketHref || task.commIds?.length || explorerBasePath
+    || (latestVerlauf && !isEmptyHtml(latestVerlauf.content))
   );
 
   return (
@@ -94,6 +97,13 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
             {task.naechsteBesprechung && <span className="badge meeting">Nächste Besprechung</span>}
             {task.afns && task.afns.length > 0 && <AfnChipsView afns={task.afns} />}
           </div>
+
+          {latestVerlauf && !isEmptyHtml(latestVerlauf.content) && (
+            <div className="task-card-verlauf-preview">
+              <span className="task-card-verlauf-label">Verlauf · {fmtDate(latestVerlauf.datum)} · {latestVerlauf.titel}</span>
+              <div className="rtf-content rtf-field-preview-compact" dangerouslySetInnerHTML={{ __html: latestVerlauf.content }} />
+            </div>
+          )}
 
           <div className="task-card-meta">
             {!!task.termine?.length && <span><b>Termine</b>{task.termine.map(fmtDate).join(', ')}</span>}
