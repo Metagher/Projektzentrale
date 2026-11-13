@@ -7,7 +7,7 @@ interface Props {
 }
 
 export type PaperStyle = 'blank' | 'lines' | 'dots' | 'grid';
-type Tool = 'pen' | 'eraser';
+type Tool = 'pen' | 'highlighter' | 'eraser';
 
 const PAPER_STYLES: { id: PaperStyle; label: string }[] = [
   { id: 'blank', label: 'Blanko' },
@@ -16,17 +16,24 @@ const PAPER_STYLES: { id: PaperStyle; label: string }[] = [
   { id: 'grid', label: 'Kariert' },
 ];
 
+const HIGHLIGHTER_COLORS = [
+  { id: 'yellow', color: '#ffe066', label: 'Gelb' },
+  { id: 'green', color: '#69db7c', label: 'Grün' },
+  { id: 'pink', color: '#f783ac', label: 'Pink' },
+  { id: 'blue', color: '#66b2ff', label: 'Blau' },
+];
+
 const PAPER_STYLE_KEY = 'pz-ink-paper-style';
+const HIGHLIGHTER_COLOR_KEY = 'pz-ink-highlighter-color';
 const GRID_SPACING = 26;
 const PEN_COLOR = '#1c1c1c';
 const PEN_WIDTH = 2.4;
+const HIGHLIGHTER_WIDTH = 14;
+const HIGHLIGHTER_ALPHA = 0.35;
 const ERASER_WIDTH = 22;
 /** Fenster für einen Doppel-Tipp mit dem Stift direkt auf die Fläche (Zeit und Abstand). */
 const DOUBLE_TAP_MS = 350;
 const DOUBLE_TAP_PX = 24;
-/** Wie lange nach einer Stift-Berührung Touch-Punkte auf der Fläche ignoriert werden
- * (Handflächen-Schutz während und kurz nach dem Schreiben). */
-const PALM_REJECTION_MS = 1200;
 /** Seite wächst in diesen Schritten nach unten, sobald beim Schreiben dieser Abstand zum
  * aktuellen unteren Rand unterschritten wird — wie das automatische Mitwachsen einer Seite
  * in OneNote, nur dass hier zusätzlich die sichtbare Fläche mitscrollt. */
@@ -41,9 +48,17 @@ function readStoredPaperStyle(): PaperStyle {
   return 'blank';
 }
 
-/** Zeichnet den Papier-Hintergrund (wie in OneNote: Blanko/Linien/Punkte/Kariert) direkt auf die
- * Zeichenfläche, damit er — anders als ein CSS-Hintergrund — auch im exportierten PNG erhalten
- * bleibt. */
+function readStoredHighlighterColor(): string {
+  try {
+    const value = localStorage.getItem(HIGHLIGHTER_COLOR_KEY);
+    if (value && HIGHLIGHTER_COLORS.some((c) => c.color === value)) return value;
+  } catch { /* localStorage unavailable */ }
+  return HIGHLIGHTER_COLORS[0].color;
+}
+
+/** Zeichnet den Papier-Hintergrund (wie in OneNote: Blanko/Linien/Punkte/Kariert) auf die eigene
+ * Papier-Ebene (siehe unten), damit er — anders als ein CSS-Hintergrund — auch im exportierten
+ * PNG erhalten bleibt. */
 function paintPaper(ctx: CanvasRenderingContext2D, width: number, height: number, style: PaperStyle) {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, width, height);
@@ -79,57 +94,83 @@ function paintPaper(ctx: CanvasRenderingContext2D, width: number, height: number
   }
 }
 
-/** Setzt Strich-/Radierbreite und -farbe passend zum aktiven Werkzeug. Der "Radierer" trägt
- * technisch weiß nach statt die Fläche tatsächlich transparent zu löschen — das bleibt auch bei
- * liniertem/kariertem Papier konsistent weiß statt ein unpassendes Loch zu hinterlassen. */
-function applyToolStyle(ctx: CanvasRenderingContext2D, tool: Tool) {
-  ctx.strokeStyle = tool === 'eraser' ? '#fff' : PEN_COLOR;
-  ctx.lineWidth = tool === 'eraser' ? ERASER_WIDTH : PEN_WIDTH;
+/** Setzt Strich-/Radierbreite, -farbe und -deckkraft passend zum aktiven Werkzeug. Tinte und
+ * Papier liegen auf getrennten Ebenen (siehe Komponente) — der Radierer trägt deshalb nicht mehr
+ * weiß über das Papier nach, sondern löscht per "destination-out" wirklich nur die Tinte, Linien/
+ * Punkte/Karos bleiben erhalten. */
+function applyToolStyle(ctx: CanvasRenderingContext2D, tool: Tool, highlighterColor: string) {
+  if (tool === 'eraser') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = ERASER_WIDTH;
+  } else if (tool === 'highlighter') {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = highlighterColor;
+    ctx.globalAlpha = HIGHLIGHTER_ALPHA;
+    ctx.lineWidth = HIGHLIGHTER_WIDTH;
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = PEN_COLOR;
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = PEN_WIDTH;
+  }
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 }
 
-/** Freehand drawing surface for Apple-Pencil / Touch / Maus. Anders als ein contentEditable-Feld
- * wird ein <canvas> von iPadOS Scribble nicht angefasst — das Geschriebene bleibt exakt die
- * gezeichnete Linie, statt in Buchstaben erkannt zu werden. Der Papierstil (wie in OneNote) wird
- * geräteweit gemerkt, nicht pro Notiz. Werkzeugleiste und Aktionen liegen bewusst komplett über
- * der Fläche, nicht darunter, damit die beim Schreiben aufliegende Hand sie nicht versehentlich
- * trifft. Ein Doppel-Tipp mit dem Stift direkt auf die Fläche schaltet zwischen Stift und Radierer
- * um — der native "zweimal auf den Apple Pencil tippen"-Shortcut ist Web-Seiten nicht zugänglich
- * (eine iPadOS-Funktion nur für native Apps), das hier ist das nächstmögliche Äquivalent. Die Seite
- * ist nicht auf die sichtbare Höhe begrenzt: beim Schreiben nahe dem unteren Rand wächst sie
- * automatisch nach unten weiter (wie in OneNote) und die Ansicht scrollt mit. */
+/** Freehand drawing surface for Apple-Pencil / Maus. Anders als ein contentEditable-Feld wird ein
+ * <canvas> von iPadOS Scribble nicht angefasst — das Geschriebene bleibt exakt die gezeichnete
+ * Linie, statt in Buchstaben erkannt zu werden. Finger (Touch) zeichnet bewusst nicht mit, sondern
+ * scrollt ganz normal die Fläche — wie bei Apple Notizen/OneNote ist Zeichnen dem Stift (und der
+ * Maus) vorbehalten, sonst lässt sich mit dem Finger nicht mehr blätterbar scrollen, ohne aus
+ * Versehen einen Strich zu hinterlassen. Papier und Tinte liegen auf zwei übereinanderliegenden
+ * Ebenen, damit der Radierer wirklich nur Tinte entfernt und Linien/Punkte/Karos erhalten bleiben.
+ * Der Papierstil (wie in OneNote) und die Textmarker-Farbe werden geräteweit gemerkt, nicht pro
+ * Notiz. Werkzeugleiste und Aktionen liegen bewusst komplett über der Fläche, nicht darunter,
+ * damit die beim Schreiben aufliegende Hand sie nicht versehentlich trifft. Ein Doppel-Tipp mit
+ * dem Stift direkt auf die Fläche schaltet zum Radierer und zurück — der native "zweimal auf den
+ * Apple Pencil tippen"-Shortcut ist Web-Seiten nicht zugänglich (eine iPadOS-Funktion nur für
+ * native Apps), das hier ist das nächstmögliche Äquivalent. Die Seite ist nicht auf die sichtbare
+ * Höhe begrenzt: beim Schreiben nahe dem unteren Rand wächst sie automatisch nach unten weiter
+ * (wie in OneNote) und die Ansicht scrollt mit. */
 export default function InkPad({ onInsert, onCancel }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const paperCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const hasDrawn = useRef(false);
   const strokeMoved = useRef(false);
   const lastPenTap = useRef<{ time: number; x: number; y: number } | null>(null);
-  const lastPenActivity = useRef(0);
+  const lastToolRef = useRef<Tool>('pen');
   const ratioRef = useRef(1);
   const canvasHeightRef = useRef(0);
   const [paperStyle, setPaperStyleState] = useState<PaperStyle>(readStoredPaperStyle);
+  const [highlighterColor, setHighlighterColorState] = useState<string>(readStoredHighlighterColor);
   const [tool, setTool] = useState<Tool>('pen');
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    const paper = paperCanvasRef.current;
     const wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
+    if (!canvas || !paper || !wrap) return;
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
     ratioRef.current = ratio;
     const width = wrap.clientWidth;
     const height = wrap.clientHeight;
     canvasHeightRef.current = height;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(ratio, ratio);
-    paintPaper(ctx, width, height, paperStyle);
+    for (const el of [canvas, paper]) {
+      el.style.width = `${width}px`;
+      el.style.height = `${height}px`;
+      el.width = width * ratio;
+      el.height = height * ratio;
+    }
+    const paperCtx = paper.getContext('2d');
+    if (!paperCtx) return;
+    paperCtx.scale(ratio, ratio);
+    paintPaper(paperCtx, width, height, paperStyle);
+    // Tinten-Ebene startet transparent — nichts zu zeichnen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -139,12 +180,14 @@ export default function InkPad({ onInsert, onCancel }: Props) {
   }
 
   /** Hängt bei Bedarf einen weiteren Streifen Papier unten an, ohne die bisherige Zeichnung zu
-   * verlieren (ein Resize des <canvas> selbst würde sie sonst löschen — deshalb vorher auf ein
-   * Hilfscanvas sichern und danach wieder einzeichnen). */
+   * verlieren (ein Resize des <canvas> selbst würde sie sonst löschen — deshalb die Tinte vorher
+   * auf ein Hilfscanvas sichern und danach wieder einzeichnen; die Papier-Ebene lässt sich dagegen
+   * einfach komplett neu zeichnen). */
   function growIfNeeded(pointerYCss: number) {
     if (pointerYCss < canvasHeightRef.current - GROW_MARGIN) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const paper = paperCanvasRef.current;
+    if (!canvas || !paper) return;
     const ratio = ratioRef.current;
     const widthCss = canvas.width / ratio;
     const oldHeightCss = canvasHeightRef.current;
@@ -155,14 +198,21 @@ export default function InkPad({ onInsert, onCancel }: Props) {
     snapshot.height = canvas.height;
     snapshot.getContext('2d')?.drawImage(canvas, 0, 0);
 
-    canvas.width = widthCss * ratio;
-    canvas.height = newHeightCss * ratio;
-    canvas.style.height = `${newHeightCss}px`;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.scale(ratio, ratio);
-      paintPaper(ctx, widthCss, newHeightCss, paperStyle);
-      ctx.drawImage(snapshot, 0, 0, widthCss, oldHeightCss);
+    for (const el of [canvas, paper]) {
+      el.width = widthCss * ratio;
+      el.height = newHeightCss * ratio;
+      el.style.height = `${newHeightCss}px`;
+    }
+
+    const paperCtx = paper.getContext('2d');
+    if (paperCtx) {
+      paperCtx.scale(ratio, ratio);
+      paintPaper(paperCtx, widthCss, newHeightCss, paperStyle);
+    }
+    const inkCtx = canvas.getContext('2d');
+    if (inkCtx) {
+      inkCtx.scale(ratio, ratio);
+      inkCtx.drawImage(snapshot, 0, 0, widthCss, oldHeightCss);
     }
     canvasHeightRef.current = newHeightCss;
   }
@@ -177,9 +227,17 @@ export default function InkPad({ onInsert, onCancel }: Props) {
     if (pointerYCss > viewportBottom - GROW_MARGIN) wrap.scrollTop = pointerYCss - wrap.clientHeight + GROW_MARGIN;
   }
 
+  function selectTool(next: Tool) {
+    setTool(next);
+    lastToolRef.current = next;
+  }
+
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
+    // Finger soll die Fläche nur scrollen (touch-action: pan-y auf dem Canvas erlaubt das nativ),
+    // nie zeichnen — sonst lässt sich nicht mehr blätternd scrollen, ohne versehentlich einen
+    // Strich zu hinterlassen.
+    if (event.pointerType === 'touch') return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-    if (event.pointerType === 'touch' && Date.now() - lastPenActivity.current < PALM_REJECTION_MS) return;
 
     const point = pointFromEvent(event);
 
@@ -187,7 +245,7 @@ export default function InkPad({ onInsert, onCancel }: Props) {
       const elapsed = Date.now() - lastPenTap.current.time;
       const distance = Math.hypot(point.x - lastPenTap.current.x, point.y - lastPenTap.current.y);
       if (elapsed < DOUBLE_TAP_MS && distance < DOUBLE_TAP_PX) {
-        setTool((t) => (t === 'pen' ? 'eraser' : 'pen'));
+        setTool((t) => (t === 'eraser' ? lastToolRef.current : 'eraser'));
         lastPenTap.current = null;
         return;
       }
@@ -196,7 +254,6 @@ export default function InkPad({ onInsert, onCancel }: Props) {
     drawing.current = true;
     strokeMoved.current = false;
     lastPoint.current = point;
-    if (event.pointerType === 'pen') lastPenActivity.current = Date.now();
     // Scheitert z.B. bei synthetischen Events ohne aktiven Pointer — das Zeichnen selbst
     // braucht die Capture nicht zwingend, nur ein zuverlässigeres Tracking außerhalb der Fläche.
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* kein aktiver Pointer */ }
@@ -208,7 +265,7 @@ export default function InkPad({ onInsert, onCancel }: Props) {
     growIfNeeded(point.y);
     const ctx = canvasRef.current?.getContext('2d');
     if (ctx) {
-      applyToolStyle(ctx, tool);
+      applyToolStyle(ctx, tool, highlighterColor);
       ctx.beginPath();
       ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
       ctx.lineTo(point.x, point.y);
@@ -217,7 +274,6 @@ export default function InkPad({ onInsert, onCancel }: Props) {
       strokeMoved.current = true;
     }
     lastPoint.current = point;
-    if (event.pointerType === 'pen') lastPenActivity.current = Date.now();
     followPointer(point.y);
   }
 
@@ -225,7 +281,6 @@ export default function InkPad({ onInsert, onCancel }: Props) {
     if (!drawing.current) return;
     if (event.pointerType === 'pen') {
       lastPenTap.current = !strokeMoved.current && lastPoint.current ? { time: Date.now(), ...lastPoint.current } : null;
-      lastPenActivity.current = Date.now();
     }
     drawing.current = false;
     lastPoint.current = null;
@@ -233,11 +288,14 @@ export default function InkPad({ onInsert, onCancel }: Props) {
   }
 
   function redraw(style: PaperStyle) {
+    const paper = paperCanvasRef.current;
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
+    if (!paper || !canvas) return;
     const ratio = ratioRef.current;
-    paintPaper(ctx, canvas.width / ratio, canvas.height / ratio, style);
+    const paperCtx = paper.getContext('2d');
+    if (paperCtx) paintPaper(paperCtx, paper.width / ratio, paper.height / ratio, style);
+    const inkCtx = canvas.getContext('2d');
+    if (inkCtx) inkCtx.clearRect(0, 0, canvas.width / ratio, canvas.height / ratio);
     hasDrawn.current = false;
   }
 
@@ -246,20 +304,23 @@ export default function InkPad({ onInsert, onCancel }: Props) {
    * wie zu Beginn aussehen. */
   function clear() {
     const canvas = canvasRef.current;
+    const paper = paperCanvasRef.current;
     const wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
+    if (!canvas || !paper || !wrap) return;
     const ratio = ratioRef.current;
     const widthCss = canvas.width / ratio;
     const heightCss = wrap.clientHeight;
-    canvas.width = widthCss * ratio;
-    canvas.height = heightCss * ratio;
-    canvas.style.height = `${heightCss}px`;
+    for (const el of [canvas, paper]) {
+      el.width = widthCss * ratio;
+      el.height = heightCss * ratio;
+      el.style.height = `${heightCss}px`;
+    }
     canvasHeightRef.current = heightCss;
     wrap.scrollTop = 0;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.scale(ratio, ratio);
-      paintPaper(ctx, widthCss, heightCss, paperStyle);
+    const paperCtx = paper.getContext('2d');
+    if (paperCtx) {
+      paperCtx.scale(ratio, ratio);
+      paintPaper(paperCtx, widthCss, heightCss, paperStyle);
     }
     hasDrawn.current = false;
   }
@@ -275,19 +336,50 @@ export default function InkPad({ onInsert, onCancel }: Props) {
     redraw(style);
   }
 
+  function chooseHighlighterColor(color: string) {
+    setHighlighterColorState(color);
+    try { localStorage.setItem(HIGHLIGHTER_COLOR_KEY, color); } catch { /* localStorage unavailable */ }
+  }
+
   function insert() {
     const canvas = canvasRef.current;
-    if (!canvas || !hasDrawn.current) { onCancel(); return; }
-    onInsert(canvas.toDataURL('image/png'), canvas.clientWidth);
+    const paper = paperCanvasRef.current;
+    if (!canvas || !paper || !hasDrawn.current) { onCancel(); return; }
+    const composite = document.createElement('canvas');
+    composite.width = canvas.width;
+    composite.height = canvas.height;
+    const ctx = composite.getContext('2d');
+    if (!ctx) { onCancel(); return; }
+    ctx.drawImage(paper, 0, 0);
+    ctx.drawImage(canvas, 0, 0);
+    onInsert(composite.toDataURL('image/png'), canvas.clientWidth);
   }
 
   return (
     <div className="ink-pad">
       <div className="ink-toolbar">
         <div className="ink-tool-group" role="radiogroup" aria-label="Werkzeug">
-          <button type="button" role="radio" aria-checked={tool === 'pen'} className={`ink-tool-btn${tool === 'pen' ? ' active' : ''}`} onClick={() => setTool('pen')}>✎ Stift</button>
+          <button type="button" role="radio" aria-checked={tool === 'pen'} className={`ink-tool-btn${tool === 'pen' ? ' active' : ''}`} onClick={() => selectTool('pen')}>✎ Stift</button>
+          <button type="button" role="radio" aria-checked={tool === 'highlighter'} className={`ink-tool-btn${tool === 'highlighter' ? ' active' : ''}`} onClick={() => selectTool('highlighter')}>🖍 Textmarker</button>
           <button type="button" role="radio" aria-checked={tool === 'eraser'} className={`ink-tool-btn${tool === 'eraser' ? ' active' : ''}`} onClick={() => setTool('eraser')}>⌫ Radierer</button>
         </div>
+        {tool === 'highlighter' && (
+          <div className="ink-highlighter-picker" role="radiogroup" aria-label="Textmarker-Farbe">
+            {HIGHLIGHTER_COLORS.map((option) => (
+              <button
+                type="button"
+                key={option.id}
+                role="radio"
+                aria-checked={highlighterColor === option.color}
+                aria-label={option.label}
+                title={option.label}
+                className={`ink-highlighter-swatch${highlighterColor === option.color ? ' active' : ''}`}
+                style={{ backgroundColor: option.color }}
+                onClick={() => chooseHighlighterColor(option.color)}
+              />
+            ))}
+          </div>
+        )}
         <div className="ink-paper-picker" role="radiogroup" aria-label="Papierstil">
           {PAPER_STYLES.map((option) => (
             <button
@@ -311,6 +403,7 @@ export default function InkPad({ onInsert, onCancel }: Props) {
         </div>
       </div>
       <div ref={wrapRef} className="ink-canvas-wrap">
+        <canvas ref={paperCanvasRef} className="ink-canvas-paper" />
         <canvas
           ref={canvasRef}
           className={`ink-canvas${tool === 'eraser' ? ' eraser' : ''}`}
