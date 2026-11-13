@@ -144,6 +144,7 @@ export default function InkPad({ onInsert, onCancel }: Props) {
   const strokeMoved = useRef(false);
   const lastPenTap = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastToolRef = useRef<Tool>('pen');
+  const panPoint = useRef<{ x: number; y: number } | null>(null);
   const ratioRef = useRef(1);
   const canvasHeightRef = useRef(0);
   const [paperStyle, setPaperStyleState] = useState<PaperStyle>(readStoredPaperStyle);
@@ -233,13 +234,19 @@ export default function InkPad({ onInsert, onCancel }: Props) {
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
-    // Finger soll die Fläche nur scrollen (touch-action: pan-y auf dem Canvas erlaubt das nativ),
-    // nie zeichnen — sonst lässt sich nicht mehr blätternd scrollen, ohne versehentlich einen
-    // Strich zu hinterlassen.
-    if (event.pointerType === 'touch') return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-
     const point = pointFromEvent(event);
+
+    // Finger soll die Fläche nur scrollen, nie zeichnen — dafür eigenes, rein in JS gebautes
+    // Scrollen per Differenz zum letzten Punkt (siehe handlePointerMove). touch-action bleibt
+    // bewusst "none": Erlaubt man dem Browser selbst eine native Wisch-Geste auf dieser Fläche
+    // (z.B. touch-action: pan-y), entscheidet iPadOS/Safari das für die GESAMTE Fläche inkl.
+    // Stift — der Apple Pencil wurde dadurch spürbar träge bis gar nicht mehr reagierend.
+    if (event.pointerType === 'touch') {
+      panPoint.current = point;
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* kein aktiver Pointer */ }
+      return;
+    }
 
     if (event.pointerType === 'pen' && lastPenTap.current) {
       const elapsed = Date.now() - lastPenTap.current.time;
@@ -260,6 +267,15 @@ export default function InkPad({ onInsert, onCancel }: Props) {
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType === 'touch') {
+      if (!panPoint.current) return;
+      const point = pointFromEvent(event);
+      const wrap = wrapRef.current;
+      if (wrap) wrap.scrollTop -= point.y - panPoint.current.y;
+      panPoint.current = point;
+      return;
+    }
+
     if (!drawing.current || !lastPoint.current) return;
     const point = pointFromEvent(event);
     growIfNeeded(point.y);
@@ -278,6 +294,12 @@ export default function InkPad({ onInsert, onCancel }: Props) {
   }
 
   function stopDrawing(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType === 'touch') {
+      panPoint.current = null;
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* bereits freigegeben */ }
+      return;
+    }
+
     if (!drawing.current) return;
     if (event.pointerType === 'pen') {
       lastPenTap.current = !strokeMoved.current && lastPoint.current ? { time: Date.now(), ...lastPoint.current } : null;
