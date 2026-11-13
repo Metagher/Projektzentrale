@@ -186,6 +186,16 @@ export interface Comm {
   teilprojekt?: string;
 }
 
+/** Freie, projektunabhängige Schnellnotiz (Text und/oder Handschrift) zur schnellen Erfassung
+ * unterwegs — wird später per "Verschieben" in eine Aufgabe, Kommunikation oder Projektnotiz
+ * übernommen und dabei aus dieser Liste entfernt. */
+export interface QuickNote {
+  id: string;
+  inhalt: string; // RTF html, kann auch Handschrift-Bilder (Ink) enthalten
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type DocLevel = 1 | 2 | 3;
 
 export interface DocSectionDef {

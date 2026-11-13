@@ -20,6 +20,7 @@ export function openTaskInDashboard(taskId: string): void {
 
 export const PRIMARY_NAVIGATION: NavigationItem[] = [
   { view: 'dashboard', label: 'Dashboard', icon: '⌂' },
+  { view: 'quick-notes', label: 'Schnellnotizen', icon: '✎' },
   { view: 'calendar', label: 'Kalender', icon: '▤' },
   { view: 'project-management', label: 'Projektverwaltung', icon: '▦' },
   { view: 'knowledge', label: 'Wissensdatenbank', icon: '◇' },
