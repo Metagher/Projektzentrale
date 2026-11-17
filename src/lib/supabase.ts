@@ -82,11 +82,19 @@ export interface InboxResultContact {
   name: string;
 }
 
+export interface InboxResultTask {
+  id: string;
+  titel: string;
+}
+
 export interface InboxResult {
   entityTyp: 'aufgabe' | 'kommunikation' | 'kontakt' | 'notiz';
   entityId: string;
   /** Leer bei einer Schnellnotiz ohne Projektbezug. */
   projectId: string;
+  /** Nur bei kommunikation mit "aufgaben": die dabei neu angelegten, bereits verknüpften Aufgaben
+   * mit ihrer id — damit ein Tool-Aufruf von außen sie anschließend referenzieren kann. */
+  angelegteAufgaben?: InboxResultTask[];
   kontakte: InboxResultContact[];
 }
 
