@@ -37,3 +37,27 @@ select.contact-select{max-width:260px;}
   float:right;background:none;border:1px solid rgba(255,255,255,0.3);color:#fff;
   border-radius:2px;padding:2px 8px;cursor:pointer;font-size:11px;margin-left:12px;
 }
+
+/* Fehler-Zähler an Navigations-Einträgen (z.B. Schnellnotizen, bei fehlgeschlagenen
+   Posteingang-Einträgen) — folgt der bestehenden Fehlerfarbe var(--rust) statt einer neuen Farbe. */
+.nav-error-badge{
+  display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;
+  margin-left:5px;background:var(--rust);color:#fff;border-radius:999px;font-size:9.5px;font-weight:700;
+  font-family:'IBM Plex Mono',monospace;line-height:1;flex-shrink:0;
+}
+
+/* Toasts: minimale Bestätigung nach automatischem Anlegen aus dem Posteingang */
+.toast-host{
+  position:fixed;right:18px;bottom:18px;z-index:2100;display:flex;flex-direction:column;gap:8px;
+  max-width:340px;
+}
+.toast{
+  display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:#111;color:#fff;
+  border-radius:var(--radius);font-size:12.5px;box-shadow:0 6px 18px rgba(0,0,0,0.18);
+}
+.toast-message{flex:1;}
+.toast-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.toast-action{background:none;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:7px;padding:3px 8px;cursor:pointer;font-size:11.5px;font-weight:600;}
+.toast-action:hover{background:rgba(255,255,255,0.12);}
+.toast-dismiss{background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;}
+.toast-dismiss:hover{color:#fff;}

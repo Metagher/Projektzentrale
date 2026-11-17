@@ -1,8 +1,7 @@
 import { create } from 'zustand';
-import { deleteInboxItems, listInboxItems, sGet, sSet } from '../lib/supabase';
+import { sGet, sSet } from '../lib/supabase';
 import { useConnectionStore } from './connectionStore';
 import { uid } from '../lib/format';
-import { plainTextToHtml } from '../lib/richText';
 import type { QuickNote } from '../types/entities';
 
 function client() {
@@ -24,11 +23,11 @@ interface QuickNoteStoreState {
   justCreatedId: string | null;
 
   ensureLoaded: () => Promise<void>;
-  /** Übernimmt extern eingereichte Notizen (Posteingang, z.B. per Apple Kurzbefehl aus Apple
-   * Notizen) in die normale Liste und räumt den Posteingang danach leer. */
-  importFromInbox: () => Promise<void>;
   select: (id: string | null) => void;
   create: () => Promise<string>;
+  /** Legt eine Notiz direkt mit vorgegebenem Inhalt an, z.B. aus dem Posteingang übernommen —
+   * sonst identisch zu create()+save(), nur ohne den Zwischenschritt über eine leere Notiz. */
+  addWithContent: (inhalt: string) => Promise<string>;
   clearJustCreated: () => void;
   save: (id: string, inhalt: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -45,21 +44,6 @@ export const useQuickNoteStore = create<QuickNoteStoreState>((set, get) => ({
     set({ notes });
   },
 
-  importFromInbox: async () => {
-    const items = await listInboxItems(client());
-    if (items.length === 0) return;
-    const imported: QuickNote[] = items.map((item) => ({
-      id: uid(),
-      inhalt: plainTextToHtml(item.content),
-      createdAt: item.created_at,
-      updatedAt: item.created_at,
-    }));
-    const notes = [...imported, ...(get().notes || [])];
-    set({ notes });
-    await persist(notes);
-    await deleteInboxItems(client(), items.map((item) => item.id));
-  },
-
   select: (id) => set({ selectedId: id }),
 
   create: async () => {
@@ -67,6 +51,15 @@ export const useQuickNoteStore = create<QuickNoteStoreState>((set, get) => ({
     const note: QuickNote = { id: uid(), inhalt: '', createdAt: now, updatedAt: now };
     const notes = [note, ...(get().notes || [])];
     set({ notes, selectedId: note.id, justCreatedId: note.id });
+    await persist(notes);
+    return note.id;
+  },
+
+  addWithContent: async (inhalt) => {
+    const now = new Date().toISOString();
+    const note: QuickNote = { id: uid(), inhalt, createdAt: now, updatedAt: now };
+    const notes = [note, ...(get().notes || [])];
+    set({ notes });
     await persist(notes);
     return note.id;
   },
