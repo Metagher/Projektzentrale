@@ -68,6 +68,10 @@ export const useInboxStore = create<InboxStoreState>((set, get) => ({
 
   refresh: async () => {
     if (get().processing) return; // keine zwei Durchläufe gleichzeitig (auch nicht aus Realtime + Polling zusammen)
+    // Projekte sind noch nicht geladen (Race mit dataStore.loadAll() direkt nach dem Login) — ohne
+    // diese Bremse würde jede Projekt-Auflösung fälschlich "nicht gefunden" melden. Einfach beim
+    // nächsten Polling-Intervall bzw. Realtime-Event erneut versuchen, keine Fehlzeile erzeugen.
+    if (useDataStore.getState().projects === null) return;
     set({ processing: true });
     try {
       const sb = client();
