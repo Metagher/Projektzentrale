@@ -262,6 +262,8 @@ export interface AenderungAufgabeFields {
   afns?: string[];
   kontaktNamen?: string[];
   kontaktNamenHinzufuegen?: string[];
+  kommunikationIdsHinzufuegen?: string[];
+  kommunikationIdsEntfernen?: string[];
   beschreibung?: string;
   doku?: boolean;
 }
@@ -312,6 +314,14 @@ export function validateAenderungAufgabe(raw: Record<string, unknown>): Validati
     if (!isStringArray(raw.kontaktNamenHinzufuegen)) return { ok: false, error: '"kontaktNamenHinzufuegen" muss eine Liste von Texten sein.' };
     out.kontaktNamenHinzufuegen = raw.kontaktNamenHinzufuegen;
   }
+  if ('kommunikationIdsHinzufuegen' in raw) {
+    if (!isStringArray(raw.kommunikationIdsHinzufuegen)) return { ok: false, error: '"kommunikationIdsHinzufuegen" muss eine Liste von Texten sein.' };
+    out.kommunikationIdsHinzufuegen = raw.kommunikationIdsHinzufuegen;
+  }
+  if ('kommunikationIdsEntfernen' in raw) {
+    if (!isStringArray(raw.kommunikationIdsEntfernen)) return { ok: false, error: '"kommunikationIdsEntfernen" muss eine Liste von Texten sein.' };
+    out.kommunikationIdsEntfernen = raw.kommunikationIdsEntfernen;
+  }
   if ('beschreibung' in raw) {
     if (typeof raw.beschreibung !== 'string') return { ok: false, error: '"beschreibung" muss ein Text sein.' };
     out.beschreibung = raw.beschreibung;
@@ -332,6 +342,8 @@ export interface AenderungKommunikationFields {
   inhaltAnhaengen?: string;
   kontaktNamen?: string[];
   kontaktNamenHinzufuegen?: string[];
+  aufgabenIdsHinzufuegen?: string[];
+  aufgabenIdsEntfernen?: string[];
 }
 
 export function validateAenderungKommunikation(raw: Record<string, unknown>): ValidationResult<AenderungKommunikationFields> {
@@ -369,6 +381,14 @@ export function validateAenderungKommunikation(raw: Record<string, unknown>): Va
   if ('kontaktNamenHinzufuegen' in raw) {
     if (!isStringArray(raw.kontaktNamenHinzufuegen)) return { ok: false, error: '"kontaktNamenHinzufuegen" muss eine Liste von Texten sein.' };
     out.kontaktNamenHinzufuegen = raw.kontaktNamenHinzufuegen;
+  }
+  if ('aufgabenIdsHinzufuegen' in raw) {
+    if (!isStringArray(raw.aufgabenIdsHinzufuegen)) return { ok: false, error: '"aufgabenIdsHinzufuegen" muss eine Liste von Texten sein.' };
+    out.aufgabenIdsHinzufuegen = raw.aufgabenIdsHinzufuegen;
+  }
+  if ('aufgabenIdsEntfernen' in raw) {
+    if (!isStringArray(raw.aufgabenIdsEntfernen)) return { ok: false, error: '"aufgabenIdsEntfernen" muss eine Liste von Texten sein.' };
+    out.aufgabenIdsEntfernen = raw.aufgabenIdsEntfernen;
   }
   return { ok: true, value: out };
 }
