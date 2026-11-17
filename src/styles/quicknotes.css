@@ -40,3 +40,20 @@
   .quick-note-overlay-head{gap:8px;}
   .quick-note-overlay-actions{width:100%;justify-content:flex-end;}
 }
+
+/* Posteingang: Einträge, die automatisch nicht angelegt werden konnten (siehe inboxStore) */
+.inbox-errors-panel{margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--line-soft);}
+.inbox-error-list{display:grid;gap:10px;}
+.inbox-error-item{
+  padding:12px 14px;background:var(--paper-raised);border:1px solid var(--rust);border-radius:var(--radius);
+}
+.inbox-error-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.inbox-error-head small{color:var(--ink-soft);margin-left:auto;font-size:10.5px;}
+.inbox-badge-typ{background:#111;color:#fff;}
+.inbox-badge-source{background:none;color:var(--ink-soft);border:1px solid var(--line);}
+.inbox-error-message{color:var(--rust);font-size:12.5px;font-weight:600;margin:0 0 8px;}
+.inbox-error-content{
+  margin:0 0 8px;padding:8px 10px;background:var(--field-bg);border:1px solid var(--line-soft);border-radius:7px;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow-y:auto;
+}
+.inbox-error-editor{width:100%;margin-bottom:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:8px 10px;}

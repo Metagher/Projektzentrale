@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQuickNoteStore } from '../../store/quickNoteStore';
 import { fmtDateTime, htmlToPlainText, truncateText } from '../../lib/format';
 import QuickNoteEditor from './QuickNoteEditor';
+import InboxErrorsPanel from './InboxErrorsPanel';
 import type { QuickNote } from '../../types/entities';
 
 function preview(note: QuickNote): string {
@@ -11,17 +12,11 @@ function preview(note: QuickNote): string {
 }
 
 export default function QuickNotesView() {
-  const { notes, selectedId, justCreatedId, ensureLoaded, importFromInbox, select, create, clearJustCreated } = useQuickNoteStore();
+  const { notes, selectedId, justCreatedId, ensureLoaded, select, create, clearJustCreated } = useQuickNoteStore();
 
   useEffect(() => {
-    // Reihenfolge wichtig: erst laden, dann den Posteingang einsortieren — sonst würde der
-    // Import auf einer noch leeren (nicht geladenen) Liste aufsetzen und bestehende Notizen
-    // beim Speichern überschreiben.
-    (async () => {
-      await ensureLoaded();
-      await importFromInbox();
-    })();
-  }, [ensureLoaded, importFromInbox]);
+    ensureLoaded();
+  }, [ensureLoaded]);
 
   // Nur frisch über "+ Neue Notiz" angelegte Notizen starten automatisch im Handschrift-Modus
   // (justCreatedId). Einmal an den Editor weitergegeben (per autoInk unten), wird die Markierung
@@ -44,6 +39,7 @@ export default function QuickNotesView() {
         </div>
         <button type="button" className="btn small" onClick={() => void create()}>+ Neue Notiz</button>
       </header>
+      <InboxErrorsPanel />
       {notes === undefined && <div className="loading-note">Notizen werden geladen…</div>}
       {notes !== undefined && sorted.length === 0 && (
         <div className="empty-state"><h3>Noch keine Schnellnotizen</h3><div>Lege oben eine neue Notiz an und schreib direkt mit Tastatur oder Stift los.</div></div>

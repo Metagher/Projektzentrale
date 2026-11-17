@@ -4,6 +4,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { useDragReorder } from '../../hooks/useDragReorder';
 import { useAiStore } from '../../store/aiStore';
+import { useInboxStore } from '../../store/inboxStore';
 import { PRIMARY_NAVIGATION, SECONDARY_NAVIGATION, type NavigationItem } from '../../lib/navigation';
 import ProjectTicket from './ProjectTicket';
 import type { Project, ProjectStatus } from '../../types/entities';
@@ -27,6 +28,7 @@ export default function Sidebar() {
   const createProject = useDataStore((s) => s.createProject);
   const newProjectForm = useModalStore((s) => s.newProjectForm);
   const aiAvailable = useAiStore((s) => s.keyPresent);
+  const inboxErrorCount = useInboxStore((s) => s.errorItems.length);
 
   useEffect(() => {
     if (!aiAvailable && view === 'ai') goTo('dashboard');
@@ -56,6 +58,7 @@ export default function Sidebar() {
     return (
       <button key={item.view} className={`dashboard-link${view === item.view ? ' active' : ''}`} onClick={() => goTo(item.view)}>
         <span className="nav-icon" aria-hidden="true">{item.icon}</span><span>{item.label}</span>
+        {item.view === 'quick-notes' && inboxErrorCount > 0 && <span className="nav-error-badge">{inboxErrorCount}</span>}
       </button>
     );
   };

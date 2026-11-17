@@ -51,3 +51,37 @@ create policy "Allow all for authenticated" on projektzentrale_inbox
   to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+-- ===========================================================================================
+-- NEU (bitte vor dem Ausführen prüfen): automatische Verarbeitung von projektzentrale_inbox.
+--
+-- Die App claimt jede Zeile per bedingtem UPDATE (status 'neu' -> 'wird_verarbeitet'), statt sie
+-- sofort zu löschen. Das UPDATE ist dank Postgres' Zeilensperren atomar — laufen zwei Tabs
+-- gleichzeitig los, gewinnt nur einer, der zweite Claim betrifft 0 Zeilen (kein doppeltes
+-- Anlegen). Eine fehlgeschlagene Zeile bleibt dadurch inklusive Fehlermeldung erhalten, statt
+-- durch ein vorzeitiges DELETE verloren zu gehen — sie ist über "status = 'fehler'" in der
+-- Inbox-Ansicht sichtbar und kann dort korrigiert, erneut versucht oder manuell gelöscht werden.
+-- "claimed_at" erlaubt zusätzlich, einen hängengebliebenen Claim (Tab vor Abschluss geschlossen)
+-- nach 2 Minuten wieder freizugeben, statt die Zeile für immer zu blockieren.
+-- ===========================================================================================
+
+alter table projektzentrale_inbox
+  add column if not exists status text not null default 'neu',
+  add column if not exists error_message text,
+  add column if not exists claimed_at timestamptz;
+
+alter table projektzentrale_inbox drop constraint if exists projektzentrale_inbox_status_check;
+alter table projektzentrale_inbox add constraint projektzentrale_inbox_status_check
+  check (status in ('neu', 'wird_verarbeitet', 'fehler'));
+
+-- Realtime für diese Tabelle aktivieren, damit neue Zeilen ohne Warten auf das 30s-Polling
+-- verarbeitet werden. Ist die Tabelle schon registriert, passiert hier nichts (kein Fehler).
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'projektzentrale_inbox'
+  ) then
+    alter publication supabase_realtime add table projektzentrale_inbox;
+  end if;
+end $$;
