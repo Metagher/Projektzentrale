@@ -416,6 +416,22 @@ async function applyAenderungAufgabe(project: Project, id: string, raw: Record<s
     warnings = warnings.concat(r.warnings);
   }
 
+  // Verknüpfung zu Kommunikationseinträgen (additiv, symmetrisch zu kontaktNamenHinzufuegen) —
+  // unbekannte ids brechen VOR jeder Änderung ab (nichts wird geändert), siehe Validierung unten.
+  const oldCommIds = task.commIds || [];
+  let newCommIds: string[] | undefined;
+  if (fields.kommunikationIdsHinzufuegen !== undefined || fields.kommunikationIdsEntfernen !== undefined) {
+    const toAdd = fields.kommunikationIdsHinzufuegen || [];
+    const toRemove = fields.kommunikationIdsEntfernen || [];
+    const unknown = [...toAdd, ...toRemove].filter((cid) => !data.comms.some((c) => c.id === cid));
+    if (unknown.length > 0) {
+      return { ok: false, error: `Kommunikationseintrag(e) mit id ${unknown.map((i) => `"${i}"`).join(', ')} in Projekt "${project.name}" nicht gefunden.` };
+    }
+    const removeSet = new Set(toRemove);
+    newCommIds = Array.from(new Set([...oldCommIds.filter((cid) => !removeSet.has(cid)), ...toAdd]));
+    updated.commIds = newCommIds;
+  }
+
   const verlauf = [...(task.verlauf || [])];
   if (fields.beschreibung !== undefined && fields.beschreibung.trim()) {
     verlauf.push({ id: uid(), datum: now.slice(0, 10), titel: 'Beschreibung', content: inboxTextToHtml(fields.beschreibung), createdAt: now, updatedAt: now });
@@ -424,6 +440,9 @@ async function applyAenderungAufgabe(project: Project, id: string, raw: Record<s
   updated.verlauf = verlauf;
 
   await useDataStore.getState().saveTask(project.id, updated);
+  if (newCommIds !== undefined) {
+    await useDataStore.getState().syncCommLinksForTask(project.id, task.id, oldCommIds, newCommIds);
+  }
 
   return {
     ok: true,
@@ -477,9 +496,27 @@ async function applyAenderungKommunikation(project: Project, id: string, raw: Re
     warnings = warnings.concat(r.warnings);
   }
 
+  // Verknüpfung zu Aufgaben (additiv) — unbekannte ids brechen VOR jeder Änderung ab.
+  const oldTaskIds = comm.taskIds || [];
+  let newTaskIds: string[] | undefined;
+  if (fields.aufgabenIdsHinzufuegen !== undefined || fields.aufgabenIdsEntfernen !== undefined) {
+    const toAdd = fields.aufgabenIdsHinzufuegen || [];
+    const toRemove = fields.aufgabenIdsEntfernen || [];
+    const unknown = [...toAdd, ...toRemove].filter((tid) => !data.tasks.some((t) => t.id === tid));
+    if (unknown.length > 0) {
+      return { ok: false, error: `Aufgabe(n) mit id ${unknown.map((i) => `"${i}"`).join(', ')} in Projekt "${project.name}" nicht gefunden.` };
+    }
+    const removeSet = new Set(toRemove);
+    newTaskIds = Array.from(new Set([...oldTaskIds.filter((tid) => !removeSet.has(tid)), ...toAdd]));
+    updated.taskIds = newTaskIds;
+  }
+
   updated.notiz = (updated.notiz || '') + changedByClaudeMarker();
 
   await useDataStore.getState().saveComm(project.id, updated);
+  if (newTaskIds !== undefined) {
+    await useDataStore.getState().syncTaskLinksForComm(project.id, comm.id, oldTaskIds, newTaskIds);
+  }
 
   return {
     ok: true,
