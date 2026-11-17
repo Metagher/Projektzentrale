@@ -20,8 +20,9 @@ export default function App() {
 
   useEffect(() => {
     if (status === 'ready') {
-      loadAll();
-      ensureInboxStarted();
+      // Erst Projekte laden, dann den Posteingang starten — sonst läuft dessen erster Durchlauf
+      // gegen eine noch leere Projektliste und markiert jede Zeile fälschlich als "nicht gefunden".
+      loadAll().then(ensureInboxStarted);
     }
   }, [status, loadAll, ensureInboxStarted]);
 
