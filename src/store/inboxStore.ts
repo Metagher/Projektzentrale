@@ -1,13 +1,16 @@
 import { create } from 'zustand';
 import {
-  claimInboxItem, deleteInboxItems, INBOX_TABLE, listInboxItems, markInboxError, retryInboxItem,
-  type InboxItem,
+  claimInboxItem, deleteInboxItems, INBOX_TABLE, listInboxItems, markInboxError, markInboxResult,
+  purgeStaleProcessedItems, retryInboxItem, type InboxItem, type InboxResult,
 } from '../lib/supabase';
 import {
-  parseInboxPayload, peekInboxTyp, validateAufgabe, validateKommunikation, validateNotiz,
-  type InboxAufgabePayload, type InboxKommunikationPayload, type InboxNotizPayload,
+  parseInboxPayload, peekInboxTyp, validateAenderungAufgabe, validateAenderungBase,
+  validateAenderungKommunikation, validateAenderungKontakt, validateAufgabe, validateKommunikation,
+  validateKontakt, validateNotiz,
+  type InboxAenderungPayload, type InboxAufgabePayload, type InboxKommunikationPayload,
+  type InboxKontaktPayload, type InboxNotizPayload,
 } from '../lib/inboxFormat';
-import { resolveContactIds, resolveProject } from '../lib/inboxResolve';
+import { resolveContacts, resolveProject, resolveSubprojectName, type ContactMatch } from '../lib/inboxResolve';
 import { useConnectionStore } from './connectionStore';
 import { useDataStore } from './dataStore';
 import { useQuickNoteStore } from './quickNoteStore';
@@ -15,10 +18,10 @@ import { useUiStore } from './uiStore';
 import { useToastStore } from './toastStore';
 import { getProjectUiStore } from './projectUiStore';
 import { openTaskInDashboard } from '../lib/navigation';
-import { fmtDate, todayStr, uid } from '../lib/format';
+import { fmtDate, fmtDateTime, todayStr, uid } from '../lib/format';
 import { normalizeAfn } from '../lib/afn';
 import { inboxTextToHtml, plainTextToHtml } from '../lib/richText';
-import type { Project } from '../types/entities';
+import type { Comm, Contact, Project, Task } from '../types/entities';
 
 function client() {
   const c = useConnectionStore.getState().client;
@@ -29,8 +32,9 @@ function client() {
 const POLL_MS = 30000;
 
 interface InboxStoreState {
-  /** Nur die fehlerhaften Zeilen — allein die braucht die Inbox-Ansicht und der Zähler in der
-   * Navigation anzuzeigen; erfolgreich verarbeitete Zeilen werden sofort gelöscht. */
+  /** Fehlerhafte UND erfolgreich verarbeitete-mit-Warnung Zeilen — beides braucht die
+   * Inbox-Ansicht und der Zähler in der Navigation. Sauber verarbeitete Zeilen (ohne Warnung)
+   * werden kurz nach der Verarbeitung automatisch aufgeräumt, siehe purgeStaleProcessedItems. */
   errorItems: InboxItem[];
   processing: boolean;
   started: boolean;
@@ -79,14 +83,15 @@ export const useInboxStore = create<InboxStoreState>((set, get) => ({
       // Bewusst nacheinander statt parallel: mehrere Zeilen für dasselbe Projekt dürfen sich beim
       // Schreiben auf denselben Speicher-Key (z.B. tasks:<projektId>) nicht überholen.
       for (const item of items) {
-        if (item.status === 'fehler') continue; // nur über "Erneut versuchen" erneut angehen
+        if (item.status === 'fehler' || item.status === 'warnung') continue; // nur über "Erneut versuchen"/manuell
         const claimed = await claimInboxItem(sb, item.id);
         if (!claimed) continue; // von einem anderen Tab schon beansprucht, oder Claim noch frisch
         await processItem(item);
       }
+      await purgeStaleProcessedItems(sb);
     } finally {
       const items = await listInboxItems(client());
-      set({ errorItems: items.filter((item) => item.status === 'fehler'), processing: false });
+      set({ errorItems: items.filter((item) => item.status === 'fehler' || item.status === 'warnung'), processing: false });
     }
   },
 
@@ -116,19 +121,49 @@ async function processItem(item: InboxItem): Promise<void> {
   }
 
   const projects = useDataStore.getState().projects || [];
-  const result = payload.typ === 'aufgabe' ? await processAufgabe(payload, projects)
+  const result =
+    payload.typ === 'aufgabe' ? await processAufgabe(payload, projects)
     : payload.typ === 'kommunikation' ? await processKommunikation(payload, projects)
-    : await processNotiz(payload, projects);
+    : payload.typ === 'notiz' ? await processNotiz(payload, projects)
+    : payload.typ === 'kontakt' ? await processKontakt(payload, projects)
+    : await processAenderung(payload, projects);
 
-  if (result.ok) {
-    await deleteInboxItems(client(), [item.id]);
-    useToastStore.getState().push({ message: result.message, actionLabel: 'Öffnen', onAction: result.onOpen });
-  } else {
+  if (!result.ok) {
     await markInboxError(client(), item.id, result.error);
+    return;
+  }
+
+  useToastStore.getState().push({ message: result.message, actionLabel: 'Öffnen', onAction: result.onOpen });
+
+  const inboxResult: InboxResult = {
+    entityTyp: result.entityTyp,
+    entityId: result.entityId,
+    projectId: result.projectId,
+    kontakte: result.contacts,
+  };
+  if (result.warnings.length > 0) {
+    await markInboxResult(client(), item.id, 'warnung', result.warnings.join(' '), inboxResult);
+  } else {
+    await markInboxResult(client(), item.id, 'verarbeitet', null, inboxResult);
   }
 }
 
-type ProcessResult = { ok: true; message: string; onOpen: () => void } | { ok: false; error: string };
+type ProcessResult =
+  | {
+      ok: true;
+      entityTyp: InboxResult['entityTyp'];
+      entityId: string;
+      projectId: string;
+      contacts: ContactMatch[];
+      warnings: string[];
+      message: string;
+      onOpen: () => void;
+    }
+  | { ok: false; error: string };
+
+function changedByClaudeMarker(): string {
+  return `<p><em>Geändert durch Claude am ${fmtDateTime(new Date().toISOString())}.</em></p>`;
+}
 
 async function processAufgabe(payload: InboxAufgabePayload, projects: Project[]): Promise<ProcessResult> {
   const validated = validateAufgabe(payload);
@@ -140,7 +175,8 @@ async function processAufgabe(payload: InboxAufgabePayload, projects: Project[])
 
   const { createTask } = useDataStore.getState();
   const data = await useDataStore.getState().ensureProjectData(project.id);
-  const kontaktIds = v.kontaktNamen.length ? resolveContactIds(data.contacts, v.kontaktNamen) : [];
+  const { matched, warnings } = resolveContacts(data.contacts, v.kontaktNamen);
+  const kontaktIds = matched.map((m) => m.id);
   const now = new Date().toISOString();
 
   const taskId = await createTask(project.id, {
@@ -165,6 +201,11 @@ async function processAufgabe(payload: InboxAufgabePayload, projects: Project[])
 
   return {
     ok: true,
+    entityTyp: 'aufgabe',
+    entityId: taskId,
+    projectId: project.id,
+    contacts: matched,
+    warnings,
     message: `Aufgabe „${v.titel}“ in ${project.name} angelegt.`,
     onOpen: () => openTaskInDashboard(taskId),
   };
@@ -180,11 +221,10 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
 
   const { createTask, saveComm } = useDataStore.getState();
   const data = await useDataStore.getState().ensureProjectData(project.id);
-  const kontaktIds = v.kontaktName ? resolveContactIds(data.contacts, [v.kontaktName]) : [];
+  const { matched, warnings } = resolveContacts(data.contacts, v.kontaktNamen);
+  const kontaktIds = matched.map((m) => m.id);
   const datum = v.datum || new Date().toISOString().slice(0, 10);
-  const teilprojekt = v.teilprojekt
-    ? data.subprojects.find((sp) => sp.name.trim().toLocaleLowerCase('de') === v.teilprojekt.toLocaleLowerCase('de'))?.name || ''
-    : '';
+  const teilprojekt = v.teilprojekt ? resolveSubprojectName(data.subprojects, v.teilprojekt) : '';
 
   const commId = uid();
   const newTaskIds: string[] = [];
@@ -220,11 +260,13 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
 
   return {
     ok: true,
+    entityTyp: 'kommunikation',
+    entityId: commId,
+    projectId: project.id,
+    contacts: matched,
+    warnings,
     message: `Kommunikationseintrag in ${project.name} angelegt.`,
-    onOpen: () => {
-      useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'kommunikation', sidebarOpen: false });
-      getProjectUiStore('primary').getState().jumpToComm(commId);
-    },
+    onOpen: () => openCommInProject(project.id, commId),
   };
 }
 
@@ -237,6 +279,11 @@ async function processNotiz(payload: InboxNotizPayload, projects: Project[]): Pr
     const noteId = await useQuickNoteStore.getState().addWithContent(inboxTextToHtml(v.inhalt));
     return {
       ok: true,
+      entityTyp: 'notiz',
+      entityId: noteId,
+      projectId: '',
+      contacts: [],
+      warnings: [],
       message: 'Schnellnotiz angelegt.',
       onOpen: () => {
         useUiStore.setState({ view: 'quick-notes' });
@@ -249,8 +296,9 @@ async function processNotiz(payload: InboxNotizPayload, projects: Project[]): Pr
   if (!resolved.ok) return { ok: false, error: resolved.error };
   const project = resolved.value;
   const now = new Date().toISOString();
+  const noteId = uid();
   await useDataStore.getState().saveProjectNote(project.id, {
-    id: uid(),
+    id: noteId,
     titel: v.titel || `Notiz vom ${fmtDate(todayStr())}`,
     inhalt: inboxTextToHtml(v.inhalt),
     folderId: null,
@@ -263,9 +311,239 @@ async function processNotiz(payload: InboxNotizPayload, projects: Project[]): Pr
 
   return {
     ok: true,
+    entityTyp: 'notiz',
+    entityId: noteId,
+    projectId: project.id,
+    contacts: [],
+    warnings: [],
     message: `Notiz in ${project.name} angelegt.`,
     onOpen: () => useUiStore.setState({ view: 'project', selectedId: project.id, activeTab: 'notizen', sidebarOpen: false }),
   };
+}
+
+async function processKontakt(payload: InboxKontaktPayload, projects: Project[]): Promise<ProcessResult> {
+  const validated = validateKontakt(payload);
+  if (!validated.ok) return { ok: false, error: validated.error };
+  const v = validated.value;
+  const resolved = resolveProject(projects, v.projekt);
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  const project = resolved.value;
+
+  const { saveContact } = useDataStore.getState();
+  const data = await useDataStore.getState().ensureProjectData(project.id);
+  const lower = v.name.toLocaleLowerCase('de');
+  const existing = data.contacts.find((c) => c.name.trim().toLocaleLowerCase('de') === lower);
+
+  if (existing) {
+    return {
+      ok: true,
+      entityTyp: 'kontakt',
+      entityId: existing.id,
+      projectId: project.id,
+      contacts: [],
+      warnings: [],
+      message: `Ansprechpartner „${v.name}“ existierte in ${project.name} bereits.`,
+      onOpen: () => openContactInProject(project.id),
+    };
+  }
+
+  const contact: Contact = { id: uid(), name: v.name, rolle: v.rolle, telefon: v.telefon, email: v.email, notiz: '' };
+  await saveContact(project.id, contact);
+
+  return {
+    ok: true,
+    entityTyp: 'kontakt',
+    entityId: contact.id,
+    projectId: project.id,
+    contacts: [],
+    warnings: [],
+    message: `Ansprechpartner „${v.name}“ in ${project.name} angelegt.`,
+    onOpen: () => openContactInProject(project.id),
+  };
+}
+
+async function processAenderung(payload: InboxAenderungPayload, projects: Project[]): Promise<ProcessResult> {
+  const base = validateAenderungBase(payload);
+  if (!base.ok) return { ok: false, error: base.error };
+  const { ziel, projekt, id } = base.value;
+  const resolved = resolveProject(projects, projekt);
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  const project = resolved.value;
+  const raw = payload.aenderungen || {};
+
+  if (ziel === 'aufgabe') return applyAenderungAufgabe(project, id, raw);
+  if (ziel === 'kommunikation') return applyAenderungKommunikation(project, id, raw);
+  return applyAenderungKontakt(project, id, raw);
+}
+
+async function applyAenderungAufgabe(project: Project, id: string, raw: Record<string, unknown>): Promise<ProcessResult> {
+  const validated = validateAenderungAufgabe(raw);
+  if (!validated.ok) return { ok: false, error: validated.error };
+  const fields = validated.value;
+  const data = await useDataStore.getState().ensureProjectData(project.id);
+  const task = data.tasks.find((t) => t.id === id);
+  if (!task) return { ok: false, error: `Aufgabe mit id "${id}" in Projekt "${project.name}" nicht gefunden.` };
+
+  const now = new Date().toISOString();
+  const updated: Task = { ...task };
+  let contacts: ContactMatch[] = [];
+  let warnings: string[] = [];
+
+  if (fields.titel !== undefined) updated.titel = fields.titel;
+  if (fields.status !== undefined) updated.status = fields.status;
+  if (fields.prioritaet !== undefined) updated.prioritaet = fields.prioritaet;
+  if (fields.faelligAm !== undefined) updated.faelligAm = fields.faelligAm;
+  if (fields.kategorie !== undefined) updated.kategorie = fields.kategorie;
+  if (fields.farbe !== undefined) updated.farbe = fields.farbe;
+  if (fields.wartetAuf !== undefined) updated.wartetAuf = fields.wartetAuf;
+  if (fields.afns !== undefined) updated.afns = fields.afns.map(normalizeAfn);
+  if (fields.doku !== undefined) updated.doku = fields.doku;
+
+  if (fields.kontaktNamen !== undefined) {
+    const r = resolveContacts(data.contacts, fields.kontaktNamen);
+    updated.kontaktIds = r.matched.map((m) => m.id);
+    updated.kontaktId = updated.kontaktIds[0] || '';
+    contacts = r.matched;
+    warnings = warnings.concat(r.warnings);
+  }
+  if (fields.kontaktNamenHinzufuegen !== undefined) {
+    const r = resolveContacts(data.contacts, fields.kontaktNamenHinzufuegen);
+    const existingIds = new Set(updated.kontaktIds || []);
+    const added = r.matched.filter((m) => !existingIds.has(m.id));
+    updated.kontaktIds = [...(updated.kontaktIds || []), ...added.map((m) => m.id)];
+    if (!updated.kontaktId) updated.kontaktId = updated.kontaktIds[0] || '';
+    contacts = [...contacts, ...added];
+    warnings = warnings.concat(r.warnings);
+  }
+
+  const verlauf = [...(task.verlauf || [])];
+  if (fields.beschreibung !== undefined && fields.beschreibung.trim()) {
+    verlauf.push({ id: uid(), datum: now.slice(0, 10), titel: 'Beschreibung', content: inboxTextToHtml(fields.beschreibung), createdAt: now, updatedAt: now });
+  }
+  verlauf.push({ id: uid(), datum: now.slice(0, 10), titel: 'Geändert durch Claude', content: changedByClaudeMarker(), createdAt: now, updatedAt: now });
+  updated.verlauf = verlauf;
+
+  await useDataStore.getState().saveTask(project.id, updated);
+
+  return {
+    ok: true,
+    entityTyp: 'aufgabe',
+    entityId: task.id,
+    projectId: project.id,
+    contacts,
+    warnings,
+    message: `Aufgabe „${updated.titel}“ in ${project.name} geändert.`,
+    onOpen: () => openTaskInDashboard(task.id),
+  };
+}
+
+async function applyAenderungKommunikation(project: Project, id: string, raw: Record<string, unknown>): Promise<ProcessResult> {
+  const validated = validateAenderungKommunikation(raw);
+  if (!validated.ok) return { ok: false, error: validated.error };
+  const fields = validated.value;
+  const data = await useDataStore.getState().ensureProjectData(project.id);
+  const comm = data.comms.find((c) => c.id === id);
+  if (!comm) return { ok: false, error: `Kommunikationseintrag mit id "${id}" in Projekt "${project.name}" nicht gefunden.` };
+
+  const updated: Comm = { ...comm };
+  let contacts: ContactMatch[] = [];
+  let warnings: string[] = [];
+
+  if (fields.betreff !== undefined) updated.betreff = fields.betreff;
+  if (fields.kanal !== undefined) updated.kanal = fields.kanal;
+  if (fields.datum !== undefined) updated.datum = fields.datum;
+  if (fields.teilprojekt !== undefined) {
+    const resolvedSp = resolveSubprojectName(data.subprojects, fields.teilprojekt);
+    if (resolvedSp) updated.teilprojekt = resolvedSp;
+    else warnings.push(`Teilprojekt "${fields.teilprojekt}" wurde nicht gefunden — unverändert gelassen.`);
+  }
+  if (fields.inhalt !== undefined) updated.notiz = inboxTextToHtml(fields.inhalt);
+  if (fields.inhaltAnhaengen !== undefined) updated.notiz = (updated.notiz || '') + inboxTextToHtml(fields.inhaltAnhaengen);
+
+  if (fields.kontaktNamen !== undefined) {
+    const r = resolveContacts(data.contacts, fields.kontaktNamen);
+    updated.kontaktIds = r.matched.map((m) => m.id);
+    updated.kontaktId = updated.kontaktIds[0] || '';
+    contacts = r.matched;
+    warnings = warnings.concat(r.warnings);
+  }
+  if (fields.kontaktNamenHinzufuegen !== undefined) {
+    const r = resolveContacts(data.contacts, fields.kontaktNamenHinzufuegen);
+    const existingIds = new Set(updated.kontaktIds || []);
+    const added = r.matched.filter((m) => !existingIds.has(m.id));
+    updated.kontaktIds = [...(updated.kontaktIds || []), ...added.map((m) => m.id)];
+    if (!updated.kontaktId) updated.kontaktId = updated.kontaktIds[0] || '';
+    contacts = [...contacts, ...added];
+    warnings = warnings.concat(r.warnings);
+  }
+
+  updated.notiz = (updated.notiz || '') + changedByClaudeMarker();
+
+  await useDataStore.getState().saveComm(project.id, updated);
+
+  return {
+    ok: true,
+    entityTyp: 'kommunikation',
+    entityId: comm.id,
+    projectId: project.id,
+    contacts,
+    warnings,
+    message: `Kommunikationseintrag in ${project.name} geändert.`,
+    onOpen: () => openCommInProject(project.id, comm.id),
+  };
+}
+
+async function applyAenderungKontakt(project: Project, id: string, raw: Record<string, unknown>): Promise<ProcessResult> {
+  const validated = validateAenderungKontakt(raw);
+  if (!validated.ok) return { ok: false, error: validated.error };
+  const fields = validated.value;
+  const data = await useDataStore.getState().ensureProjectData(project.id);
+  const contact = data.contacts.find((c) => c.id === id);
+  if (!contact) return { ok: false, error: `Kontakt mit id "${id}" in Projekt "${project.name}" nicht gefunden.` };
+
+  const updated: Contact = { ...contact };
+  if (fields.name !== undefined) updated.name = fields.name;
+  if (fields.rolle !== undefined) updated.rolle = fields.rolle;
+  if (fields.telefon !== undefined) updated.telefon = fields.telefon;
+  if (fields.email !== undefined) updated.email = fields.email;
+  updated.notiz = (updated.notiz || '') + changedByClaudeMarker();
+
+  await useDataStore.getState().saveContact(project.id, updated);
+
+  return {
+    ok: true,
+    entityTyp: 'kontakt',
+    entityId: contact.id,
+    projectId: project.id,
+    contacts: [],
+    warnings: [],
+    message: `Ansprechpartner „${updated.name}“ in ${project.name} geändert.`,
+    onOpen: () => openContactInProject(project.id),
+  };
+}
+
+function openCommInProject(projectId: string, commId: string) {
+  useUiStore.setState({ view: 'project', selectedId: projectId, activeTab: 'kommunikation', sidebarOpen: false });
+  getProjectUiStore('primary').getState().jumpToComm(commId);
+}
+
+function openContactInProject(projectId: string) {
+  useUiStore.setState({ view: 'project-management', selectedId: projectId, sidebarOpen: false });
+}
+
+/** Öffnet den Eintrag, auf den eine verarbeitete Inbox-Zeile verweist — für den "Öffnen"-Button
+ * in der Fehler-/Warnungs-Ansicht, wo kein frischer onOpen-Closure mehr vorhanden ist (die Zeile
+ * wurde ggf. in einer früheren Session bzw. einem früheren Tab verarbeitet). */
+export function openInboxResult(result: InboxResult): void {
+  if (result.entityTyp === 'aufgabe') { openTaskInDashboard(result.entityId); return; }
+  if (result.entityTyp === 'kommunikation') { openCommInProject(result.projectId, result.entityId); return; }
+  if (result.entityTyp === 'kontakt') { openContactInProject(result.projectId); return; }
+  if (result.projectId) {
+    useUiStore.setState({ view: 'project', selectedId: result.projectId, activeTab: 'notizen', sidebarOpen: false });
+  } else {
+    useUiStore.setState({ view: 'quick-notes' });
+    useQuickNoteStore.getState().select(result.entityId);
+  }
 }
 
 export { peekInboxTyp };

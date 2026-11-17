@@ -1,4 +1,4 @@
-import type { Contact, Project } from '../types/entities';
+import type { Contact, Project, Subproject } from '../types/entities';
 import type { ValidationResult } from './inboxFormat';
 
 /** Projektauflösung: zuerst exakte Id, dann Name oder Kunde (ohne Groß-/Kleinschreibung).
@@ -14,16 +14,80 @@ export function resolveProject(projects: Project[], query: string): ValidationRe
   return { ok: false, error: `Projekt "${query}" ist nicht eindeutig (${matches.length} Treffer).` };
 }
 
-/** Namen auf Ansprechpartner-Ids des Projekts abbilden. Nicht gefundene Namen werden stillschweigend
- * übersprungen, statt die ganze Zeile scheitern zu lassen — ein Tippfehler im Namen soll nicht
- * verhindern, dass Aufgabe/Kommunikation sonst wie vorgesehen angelegt wird. */
-export function resolveContactIds(contacts: Contact[], names: string[]): string[] {
-  const ids: string[] = [];
-  for (const name of names) {
-    const lower = name.trim().toLocaleLowerCase('de');
-    if (!lower) continue;
-    const match = contacts.find((c) => c.name.trim().toLocaleLowerCase('de') === lower);
-    if (match) ids.push(match.id);
+export interface ContactMatch {
+  id: string;
+  name: string;
+}
+
+export interface ContactResolution {
+  /** Aufgelöste Kontakte, dedupliziert, in Reihenfolge der ersten Nennung. */
+  matched: ContactMatch[];
+  /** Eine Meldung pro Name, der nicht oder mehrdeutig aufgelöst werden konnte — wird NIE
+   * stillschweigend verworfen, sondern dem Aufrufer als Warnung gemeldet (siehe inboxStore). */
+  warnings: string[];
+}
+
+function nameTokens(fullName: string): { first: string; last: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  return { first: parts[0] || '', last: parts[parts.length - 1] || '' };
+}
+
+/** Namen auf Ansprechpartner des Projekts abbilden: zuerst exakter Name (ohne Groß-/Kleinschreibung,
+ * getrimmt); besteht der gesuchte Name nur aus einem Wort und es gibt dafür genau einen Treffer über
+ * Vor- oder Nachname der Kontakte, zählt das auch. Kein oder mehr als ein Treffer wird NICHT
+ * stillschweigend übersprungen, sondern als Warnung zurückgegeben — der Aufrufer legt den Eintrag
+ * trotzdem an, zeigt die Warnung aber sichtbar an. */
+export function resolveContacts(contacts: Contact[], names: string[]): ContactResolution {
+  const matched: ContactMatch[] = [];
+  const warnings: string[] = [];
+  const seenIds = new Set<string>();
+
+  for (const raw of names) {
+    const name = raw.trim();
+    if (!name) continue;
+    const lower = name.toLocaleLowerCase('de');
+
+    const exact = contacts.filter((c) => c.name.trim().toLocaleLowerCase('de') === lower);
+    if (exact.length === 1) {
+      addMatch(exact[0]);
+      continue;
+    }
+    if (exact.length > 1) {
+      warnings.push(`Kontakt "${name}" ist nicht eindeutig (${exact.length} Treffer mit exaktem Namen).`);
+      continue;
+    }
+
+    if (!/\s/.test(name)) {
+      const partial = contacts.filter((c) => {
+        const { first, last } = nameTokens(c.name);
+        return first.toLocaleLowerCase('de') === lower || last.toLocaleLowerCase('de') === lower;
+      });
+      if (partial.length === 1) {
+        addMatch(partial[0]);
+        continue;
+      }
+      if (partial.length > 1) {
+        warnings.push(`Kontakt "${name}" ist nicht eindeutig (${partial.length} Treffer über Vor-/Nachname).`);
+        continue;
+      }
+    }
+
+    warnings.push(`Kontakt "${name}" wurde nicht gefunden.`);
   }
-  return ids;
+
+  function addMatch(contact: Contact) {
+    if (seenIds.has(contact.id)) return;
+    seenIds.add(contact.id);
+    matched.push({ id: contact.id, name: contact.name });
+  }
+
+  return { matched, warnings };
+}
+
+/** Teilprojekt-Name case-insensitive im Projekt auflösen — kein Treffer liefert den echten,
+ * im Projekt hinterlegten Namen leer zurück (kein Fehler, siehe Aufrufer). */
+export function resolveSubprojectName(subprojects: Subproject[], query: string): string {
+  const lower = query.trim().toLocaleLowerCase('de');
+  if (!lower) return '';
+  return subprojects.find((sp) => sp.name.trim().toLocaleLowerCase('de') === lower)?.name || '';
 }

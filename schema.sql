@@ -85,3 +85,27 @@ begin
     alter publication supabase_realtime add table projektzentrale_inbox;
   end if;
 end $$;
+
+-- ===========================================================================================
+-- NEU (bitte vor dem Ausführen prüfen): Ansprechpartner anlegen/zuordnen, bestehende Einträge
+-- ändern (typ "kontakt" / "aenderung"), Status "warnung"/"verarbeitet".
+--
+-- "result" speichert nach erfolgreicher Verarbeitung als JSON-Text, welcher Eintrag angelegt/
+-- geändert wurde und welche Kontakte zugeordnet werden konnten — ein Tool-Aufruf von außen (der
+-- Connector) kann das kurz danach abfragen und das Ergebnis zurückmelden.
+--
+-- Neue Status-Werte:
+--   "warnung"     — angelegt/geändert, aber z.B. ein Kontaktname war nicht eindeutig zuzuordnen.
+--                   Bleibt wie "fehler" in der Inbox-Ansicht sichtbar, bis der Nutzer sie verwirft.
+--   "verarbeitet" — sauber angelegt/geändert, keine Warnung. Dient nur kurz dazu, dass ein
+--                   Tool-Aufruf das Ergebnis abfragen kann, und wird automatisch wieder gelöscht
+--                   (App-seitig, siehe purgeStaleProcessedItems in inboxStore.ts) — keine
+--                   zusätzliche SQL-Aufräumlogik hier nötig.
+-- ===========================================================================================
+
+alter table projektzentrale_inbox
+  add column if not exists result text;
+
+alter table projektzentrale_inbox drop constraint if exists projektzentrale_inbox_status_check;
+alter table projektzentrale_inbox add constraint projektzentrale_inbox_status_check
+  check (status in ('neu', 'wird_verarbeitet', 'fehler', 'warnung', 'verarbeitet'));
