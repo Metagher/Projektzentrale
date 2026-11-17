@@ -90,6 +90,7 @@ interface DataStoreState {
   docDefs: DocSectionDef[] | null;
   cache: Record<string, ProjectCache | undefined>;
   taskNrCounter: number | undefined;
+  commNrCounter: number | undefined;
   dashboardData: DashboardData | null;
   taskColorOrder: TaskColor[];
   taskColorLabels: TaskColorLabels;
@@ -134,6 +135,7 @@ interface DataStoreState {
   reorderCustomerGroups: (sourceKey: string, targetKey: string, placeAfter: boolean) => Promise<void>;
 
   nextTaskNr: () => Promise<number>;
+  nextCommNr: () => Promise<number>;
   saveTask: (projectId: string, task: Task) => Promise<void>;
   createTask: (projectId: string, partial: Omit<Task, 'id' | 'nr' | 'erstelltAm' | 'abgeschlossenAm'>) => Promise<string>;
   deleteTask: (projectId: string, taskId: string) => Promise<void>;
@@ -248,6 +250,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   docDefs: null,
   cache: {},
   taskNrCounter: undefined,
+  commNrCounter: undefined,
   dashboardData: null,
   taskColorOrder: DEFAULT_TASK_COLOR_ORDER,
   taskColorLabels: DEFAULT_TASK_COLOR_LABELS,
@@ -328,6 +331,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     });
     await get().loadDocDefs();
     await ensureTaskNumbers(get, set);
+    await ensureCommNumbers(get, set);
     await get().loadDashboardData();
     if (!storedWaitingOptions) {
       const inferred = Array.from(new Set((get().dashboardData?.waitingTasks || []).map((task) => task.wartetAuf.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'de'));
@@ -639,6 +643,17 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     return counter;
   },
 
+  nextCommNr: async () => {
+    let counter = get().commNrCounter;
+    if (counter === undefined) {
+      counter = (await sGet<number>(client(), 'commNrCounter')) || 0;
+    }
+    counter += 1;
+    set({ commNrCounter: counter });
+    await sSet(client(), 'commNrCounter', counter);
+    return counter;
+  },
+
   saveTask: async (projectId, task) => {
     const projects = get().projects || [];
     await Promise.all(projects.map((project) => get().ensureProjectData(project.id)));
@@ -752,8 +767,9 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
 
   saveComm: async (projectId, comm) => {
     const data = await get().ensureProjectData(projectId);
-    const normalizedComm = normalizeContactLinks(comm, linkedContactIds(comm));
     const idx = data.comms.findIndex((c) => c.id === comm.id);
+    const nr = idx < 0 && !comm.nr ? await get().nextCommNr() : comm.nr;
+    const normalizedComm = normalizeContactLinks({ ...comm, nr }, linkedContactIds(comm));
     const comms = idx >= 0 ? data.comms.map((c, i) => (i === idx ? normalizedComm : c)) : [...data.comms, normalizedComm];
     const cache = { ...get().cache, [projectId]: { ...data, comms } };
     set({ cache });
@@ -1249,6 +1265,7 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
 
     set({ projects, docDefs, cache: {}, timeEntries, activeTimer: null });
     await ensureTaskNumbers(get, set);
+    await ensureCommNumbers(get, set);
     await get().loadDashboardData();
   },
 }));
@@ -1453,4 +1470,47 @@ async function ensureTaskNumbers(get: () => DataStoreState, set: (p: Partial<Dat
   }
   set({ cache, taskNrCounter: counter });
   await sSet(sb, 'taskNrCounter', counter);
+}
+
+/**
+ * One-time-at-boot backfill: legacy Kommunikationseinträge ohne eine globale, fortlaufende `nr`
+ * bekommen eine — eigener Zähler, unabhängig von Task.nr, chronologisch nach datum sortiert.
+ * Idempotent — no-op, sobald jeder Eintrag eine Nummer hat.
+ */
+async function ensureCommNumbers(get: () => DataStoreState, set: (p: Partial<DataStoreState>) => void) {
+  const projects = get().projects || [];
+  const dataByProject: Record<string, ProjectCache> = {};
+  let anyMissing = false;
+  for (const p of projects) {
+    const data = await get().ensureProjectData(p.id);
+    dataByProject[p.id] = data;
+    if (data.comms.some((c) => !c.nr)) anyMissing = true;
+  }
+  if (!anyMissing) return;
+  const allMissing: Comm[] = [];
+  projects.forEach((p) => {
+    dataByProject[p.id].comms.forEach((c) => {
+      if (!c.nr) allMissing.push(c);
+    });
+  });
+  allMissing.sort((a, b) => (a.datum || '').localeCompare(b.datum || '') || a.id.localeCompare(b.id));
+  let maxExisting = 0;
+  projects.forEach((p) => {
+    dataByProject[p.id].comms.forEach((c) => {
+      if (c.nr && c.nr > maxExisting) maxExisting = c.nr;
+    });
+  });
+  let counter = maxExisting;
+  allMissing.forEach((c) => {
+    counter += 1;
+    c.nr = counter;
+  });
+  const sb = client();
+  const cache = { ...get().cache };
+  for (const p of projects) {
+    cache[p.id] = dataByProject[p.id];
+    await sSet(sb, 'comms:' + p.id, dataByProject[p.id].comms);
+  }
+  set({ cache, commNrCounter: counter });
+  await sSet(sb, 'commNrCounter', counter);
 }

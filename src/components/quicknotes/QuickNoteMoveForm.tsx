@@ -112,6 +112,7 @@ export default function QuickNoteMoveForm({ note, onClose, onMoved }: { note: Qu
         } else {
           await saveComm(projectId, {
             id: uid(),
+            nr: 0,
             datum: todayStr(),
             kanal,
             kontaktId,

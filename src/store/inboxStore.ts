@@ -252,6 +252,7 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
 
   await saveComm(project.id, {
     id: commId,
+    nr: 0,
     datum,
     kanal: v.kanal,
     kontaktId: kontaktIds[0] || '',
