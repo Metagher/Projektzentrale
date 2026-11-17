@@ -15,9 +15,9 @@ import { useUiStore } from './uiStore';
 import { useToastStore } from './toastStore';
 import { getProjectUiStore } from './projectUiStore';
 import { openTaskInDashboard } from '../lib/navigation';
-import { firstLineTitle, uid } from '../lib/format';
+import { fmtDate, todayStr, uid } from '../lib/format';
 import { normalizeAfn } from '../lib/afn';
-import { plainTextToHtml } from '../lib/richText';
+import { inboxTextToHtml, plainTextToHtml } from '../lib/richText';
 import type { Project } from '../types/entities';
 
 function client() {
@@ -152,7 +152,7 @@ async function processAufgabe(payload: InboxAufgabePayload, projects: Project[])
     kontaktId: kontaktIds[0] || '',
     kontaktIds,
     verlauf: v.beschreibung.trim()
-      ? [{ id: uid(), datum: now.slice(0, 10), titel: 'Beschreibung', content: plainTextToHtml(v.beschreibung), createdAt: now, updatedAt: now }]
+      ? [{ id: uid(), datum: now.slice(0, 10), titel: 'Beschreibung', content: inboxTextToHtml(v.beschreibung), createdAt: now, updatedAt: now }]
       : [],
     afns: v.afns.map(normalizeAfn),
     commIds: [],
@@ -181,6 +181,10 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
   const { createTask, saveComm } = useDataStore.getState();
   const data = await useDataStore.getState().ensureProjectData(project.id);
   const kontaktIds = v.kontaktName ? resolveContactIds(data.contacts, [v.kontaktName]) : [];
+  const datum = v.datum || new Date().toISOString().slice(0, 10);
+  const teilprojekt = v.teilprojekt
+    ? data.subprojects.find((sp) => sp.name.trim().toLocaleLowerCase('de') === v.teilprojekt.toLocaleLowerCase('de'))?.name || ''
+    : '';
 
   const commId = uid();
   const newTaskIds: string[] = [];
@@ -203,14 +207,15 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
 
   await saveComm(project.id, {
     id: commId,
-    datum: v.datum || new Date().toISOString().slice(0, 10),
+    datum,
     kanal: v.kanal,
     kontaktId: kontaktIds[0] || '',
     kontaktIds,
-    betreff: firstLineTitle(v.inhalt, `Eingang vom ${new Date().toLocaleDateString('de-DE')}`),
-    notiz: plainTextToHtml(v.inhalt),
+    betreff: v.betreff || `${v.kanal} ${fmtDate(datum)}`,
+    notiz: inboxTextToHtml(v.inhalt),
     afns: [],
     taskIds: newTaskIds,
+    teilprojekt,
   });
 
   return {
@@ -229,7 +234,7 @@ async function processNotiz(payload: InboxNotizPayload, projects: Project[]): Pr
   const v = validated.value;
 
   if (!v.projekt) {
-    const noteId = await useQuickNoteStore.getState().addWithContent(plainTextToHtml(v.inhalt));
+    const noteId = await useQuickNoteStore.getState().addWithContent(inboxTextToHtml(v.inhalt));
     return {
       ok: true,
       message: 'Schnellnotiz angelegt.',
@@ -246,8 +251,8 @@ async function processNotiz(payload: InboxNotizPayload, projects: Project[]): Pr
   const now = new Date().toISOString();
   await useDataStore.getState().saveProjectNote(project.id, {
     id: uid(),
-    titel: v.titel || firstLineTitle(v.inhalt, `Notiz vom ${new Date().toLocaleDateString('de-DE')}`),
-    inhalt: v.inhalt,
+    titel: v.titel || `Notiz vom ${fmtDate(todayStr())}`,
+    inhalt: inboxTextToHtml(v.inhalt),
     folderId: null,
     sortIndex: 999,
     global: false,

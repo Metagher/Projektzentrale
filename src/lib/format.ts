@@ -97,13 +97,6 @@ export function isEmptyHtml(html: string | null | undefined): boolean {
   return htmlToPlainText(html).length === 0;
 }
 
-/** Erste nicht-leere Zeile eines Klartexts als Titel-Ersatz, z.B. wenn eine extern eingereichte
- * Notiz keinen eigenen Titel mitbringt. */
-export function firstLineTitle(text: string, fallback: string, max = 120): string {
-  const firstLine = text.split('\n').map((line) => line.trim()).find((line) => line.length > 0);
-  return firstLine ? firstLine.slice(0, max) : fallback;
-}
-
 /** Jüngster Verlaufseintrag einer Aufgabe — dieselbe Reihenfolge wie in TaskProgressHistoryField
  * ("Aktuell"), damit z.B. eine per Schnellnotiz angehängte Handschrift auch außerhalb des
  * Verlauf-Editors als Vorschau auffindbar ist. */
