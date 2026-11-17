@@ -26,6 +26,8 @@ export interface InboxKommunikationPayload {
   datum?: string;
   kontaktName?: string;
   aufgaben?: string[];
+  betreff?: string;
+  teilprojekt?: string;
 }
 
 export interface InboxNotizPayload {
@@ -133,6 +135,8 @@ export interface ValidatedKommunikation {
   datum: string;
   kontaktName: string;
   aufgaben: string[];
+  betreff: string;
+  teilprojekt: string;
 }
 
 export function validateKommunikation(payload: InboxKommunikationPayload): ValidationResult<ValidatedKommunikation> {
@@ -151,6 +155,8 @@ export function validateKommunikation(payload: InboxKommunikationPayload): Valid
       datum: payload.datum || '',
       kontaktName: payload.kontaktName || '',
       aufgaben: (payload.aufgaben || []).filter(isNonEmptyString),
+      betreff: payload.betreff?.trim() || '',
+      teilprojekt: payload.teilprojekt?.trim() || '',
     },
   };
 }
