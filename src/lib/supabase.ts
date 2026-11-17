@@ -70,7 +70,25 @@ export async function sDelete(client: SupabaseClient, key: string): Promise<void
 
 export const INBOX_TABLE = 'projektzentrale_inbox';
 
-export type InboxStatus = 'neu' | 'wird_verarbeitet' | 'fehler';
+/** "verarbeitet" = sauber angelegt/geändert, keine Warnung — wird kurz danach automatisch
+ * aufgeräumt (siehe purgeStaleProcessedItems), diente nur dazu, dass ein Tool-Aufruf von außen das
+ * Ergebnis kurz danach abfragen kann. "warnung" = angelegt/geändert, aber z.B. ein Kontaktname
+ * konnte nicht eindeutig zugeordnet werden — bleibt wie "fehler" sichtbar stehen, bis der Nutzer
+ * es verwirft. */
+export type InboxStatus = 'neu' | 'wird_verarbeitet' | 'fehler' | 'warnung' | 'verarbeitet';
+
+export interface InboxResultContact {
+  id: string;
+  name: string;
+}
+
+export interface InboxResult {
+  entityTyp: 'aufgabe' | 'kommunikation' | 'kontakt' | 'notiz';
+  entityId: string;
+  /** Leer bei einer Schnellnotiz ohne Projektbezug. */
+  projectId: string;
+  kontakte: InboxResultContact[];
+}
 
 export interface InboxItem {
   id: string;
@@ -80,6 +98,7 @@ export interface InboxItem {
   error_message: string | null;
   claimed_at: string | null;
   created_at: string;
+  result: InboxResult | null;
 }
 
 /** Ein hängengebliebener Claim (Tab geschlossen, bevor fertig verarbeitet wurde) gilt nach dieser
@@ -95,11 +114,14 @@ export async function listInboxItems(client: SupabaseClient): Promise<InboxItem[
   try {
     const { data, error } = await client
       .from(INBOX_TABLE)
-      .select('id, content, source, status, error_message, claimed_at, created_at')
+      .select('id, content, source, status, error_message, claimed_at, created_at, result')
       .eq('user_id', userId)
       .order('created_at', { ascending: true });
     if (error || !data) return [];
-    return data;
+    return (data as Array<Record<string, unknown>>).map((row) => ({
+      ...row,
+      result: typeof row.result === 'string' ? (JSON.parse(row.result) as InboxResult) : null,
+    })) as InboxItem[];
   } catch {
     return [];
   }
@@ -151,12 +173,53 @@ export async function markInboxError(client: SupabaseClient, id: string, message
 export async function retryInboxItem(client: SupabaseClient, id: string, content?: string): Promise<void> {
   const userId = currentUserId();
   if (!userId) return;
-  const patch: Record<string, unknown> = { status: 'neu', error_message: null, claimed_at: null };
+  const patch: Record<string, unknown> = { status: 'neu', error_message: null, claimed_at: null, result: null };
   if (content !== undefined) patch.content = content;
   try {
     await client.from(INBOX_TABLE).update(patch).eq('id', id).eq('user_id', userId);
   } catch {
     // swallow, matches sDelete's no-op-on-failure behavior
+  }
+}
+
+/** Markiert eine beanspruchte Zeile nach erfolgreicher Verarbeitung — "verarbeitet" bei sauberem
+ * Erfolg (wird kurz danach automatisch gelöscht, siehe purgeStaleProcessedItems), "warnung" wenn
+ * z.B. ein Kontaktname nicht eindeutig zugeordnet werden konnte (bleibt wie "fehler" stehen, bis
+ * der Nutzer sie verwirft). Das Ergebnis (angelegter/geänderter Eintrag, zugeordnete Kontakte)
+ * wird mitgespeichert, damit ein Tool-Aufruf von außen es kurz danach abfragen kann. */
+export async function markInboxResult(
+  client: SupabaseClient,
+  id: string,
+  status: 'verarbeitet' | 'warnung',
+  message: string | null,
+  result: InboxResult,
+): Promise<void> {
+  const userId = currentUserId();
+  if (!userId) return;
+  try {
+    await client.from(INBOX_TABLE).update({ status, error_message: message, result: JSON.stringify(result) }).eq('id', id).eq('user_id', userId);
+  } catch {
+    // swallow — die Zeile bleibt dann auf "wird_verarbeitet" stehen und gilt nach STALE_CLAIM_MS
+    // wieder als beanspruchbar; der eigentliche Eintrag (Aufgabe/Kommunikation/Kontakt) wurde zu
+    // diesem Zeitpunkt aber bereits erfolgreich angelegt bzw. geändert.
+  }
+}
+
+/** Räumt "verarbeitet"-Zeilen auf, die alt genug sind, dass ein Tool-Aufruf ihr Ergebnis sicher
+ * schon abgefragt haben kann — sie dienten nur kurz diesem Zweck und sollen die Inbox-Tabelle
+ * nicht dauerhaft füllen. "warnung"/"fehler" bleiben davon unberührt (müssen vom Nutzer gesehen
+ * und verworfen werden). claimed_at (gesetzt beim Beanspruchen, kurz vor der Verarbeitung) dient
+ * hier als Näherung für den Verarbeitungszeitpunkt — eine eigene Spalte dafür ist nicht nötig. */
+const PROCESSED_RETENTION_MS = 60 * 1000;
+
+export async function purgeStaleProcessedItems(client: SupabaseClient): Promise<void> {
+  const userId = currentUserId();
+  if (!userId) return;
+  const staleBefore = new Date(Date.now() - PROCESSED_RETENTION_MS).toISOString();
+  try {
+    await client.from(INBOX_TABLE).delete().eq('user_id', userId).eq('status', 'verarbeitet').lt('claimed_at', staleBefore);
+  } catch {
+    // swallow — nicht kritisch, der nächste Durchlauf versucht es erneut
   }
 }
 
