@@ -21,7 +21,7 @@ import { openTaskInDashboard } from '../lib/navigation';
 import { fmtDate, fmtDateTime, todayStr, uid } from '../lib/format';
 import { normalizeAfn } from '../lib/afn';
 import { inboxTextToHtml, plainTextToHtml } from '../lib/richText';
-import type { Comm, Contact, Project, Task } from '../types/entities';
+import type { Comm, Contact, Project, Task, TaskHistoryEntry } from '../types/entities';
 
 function client() {
   const c = useConnectionStore.getState().client;
@@ -436,8 +436,10 @@ async function applyAenderungAufgabe(project: Project, id: string, raw: Record<s
   if (fields.beschreibung !== undefined && fields.beschreibung.trim()) {
     verlauf.push({ id: uid(), datum: now.slice(0, 10), titel: 'Beschreibung', content: inboxTextToHtml(fields.beschreibung), createdAt: now, updatedAt: now });
   }
-  verlauf.push({ id: uid(), datum: now.slice(0, 10), titel: 'Geändert durch Claude', content: changedByClaudeMarker(), createdAt: now, updatedAt: now });
   updated.verlauf = verlauf;
+
+  const claudeHistoryEntry: TaskHistoryEntry = { id: uid(), timestamp: now, text: 'Geändert durch Claude' };
+  updated.history = [claudeHistoryEntry, ...(task.history || [])];
 
   await useDataStore.getState().saveTask(project.id, updated);
   if (newCommIds !== undefined) {
