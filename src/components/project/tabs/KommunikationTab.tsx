@@ -79,6 +79,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
   async function handleSave() {
     const comm: Comm = {
       id: editObj ? editObj.id : uid(),
+      nr: editObj ? editObj.nr : 0,
       datum: datum || todayStr(),
       kanal,
       kontaktId: kontaktIds[0] || '',

@@ -174,6 +174,9 @@ export type Kanal = 'Teams' | 'Telefon' | 'E-Mail' | 'Vor Ort' | 'Sonstiges';
 
 export interface Comm {
   id: string;
+  /** Fortlaufende, global eindeutige Nummer — eigener Zähler, unabhängig von Task.nr, damit
+   * sich die Nummern von Aufgaben und Kommunikationseinträgen nicht überschneiden. */
+  nr: number;
   datum: string; // YYYY-MM-DD
   kanal: Kanal;
   kontaktId: string;

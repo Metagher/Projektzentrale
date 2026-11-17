@@ -193,7 +193,7 @@ export function parseImportCsv(text: string): { ok: true; data: ParsedImport } |
       const pid = String(r.ProjektId);
       if (!perProject[pid]) return;
       perProject[pid].comms.push({
-        id: String(r.Id), datum: String(r.Datum || ''), kanal: (r.Kanal as Comm['kanal']) || 'Sonstiges',
+        id: String(r.Id), nr: 0, datum: String(r.Datum || ''), kanal: (r.Kanal as Comm['kanal']) || 'Sonstiges',
         kontaktId: String(r.KontaktId || ''), kontaktIds: splitList(r.KontaktIds as string).length ? splitList(r.KontaktIds as string) : (r.KontaktId ? [String(r.KontaktId)] : []), betreff: String(r.Betreff || ''), notiz: String(r.Notiz || ''),
         afns: splitList(r.AFN as string), taskIds: splitList(r.VerknuepfteAufgabenIds as string), teilprojekt: String(r.Teilprojekt || ''),
       });
