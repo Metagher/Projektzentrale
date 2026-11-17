@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import {
   claimInboxItem, deleteInboxItems, INBOX_TABLE, listInboxItems, markInboxError, markInboxResult,
-  purgeStaleProcessedItems, retryInboxItem, type InboxItem, type InboxResult,
+  purgeStaleProcessedItems, retryInboxItem, type InboxItem, type InboxResult, type InboxResultTask,
 } from '../lib/supabase';
 import {
   parseInboxPayload, peekInboxTyp, validateAenderungAufgabe, validateAenderungBase,
@@ -140,6 +140,7 @@ async function processItem(item: InboxItem): Promise<void> {
     entityId: result.entityId,
     projectId: result.projectId,
     kontakte: result.contacts,
+    angelegteAufgaben: result.angelegteAufgaben,
   };
   if (result.warnings.length > 0) {
     await markInboxResult(client(), item.id, 'warnung', result.warnings.join(' '), inboxResult);
@@ -158,6 +159,8 @@ type ProcessResult =
       warnings: string[];
       message: string;
       onOpen: () => void;
+      /** Nur bei kommunikation mit "aufgaben": die dabei neu angelegten Aufgaben mit ihrer id. */
+      angelegteAufgaben?: InboxResultTask[];
     }
   | { ok: false; error: string };
 
@@ -228,6 +231,7 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
 
   const commId = uid();
   const newTaskIds: string[] = [];
+  const angelegteAufgaben: InboxResultTask[] = [];
   for (const titel of v.aufgaben) {
     const taskId = await createTask(project.id, {
       titel,
@@ -243,6 +247,7 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
       dokuZiel: '',
     });
     newTaskIds.push(taskId);
+    angelegteAufgaben.push({ id: taskId, titel });
   }
 
   await saveComm(project.id, {
@@ -267,6 +272,7 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
     warnings,
     message: `Kommunikationseintrag in ${project.name} angelegt.`,
     onOpen: () => openCommInProject(project.id, commId),
+    angelegteAufgaben: angelegteAufgaben.length > 0 ? angelegteAufgaben : undefined,
   };
 }
 
