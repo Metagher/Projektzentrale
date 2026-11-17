@@ -397,6 +397,7 @@ async function applyAenderungAufgabe(project: Project, id: string, raw: Record<s
 
   if (fields.titel !== undefined) updated.titel = fields.titel;
   if (fields.status !== undefined) updated.status = fields.status;
+  if (fields.status === 'wartet') updated.wartetSeit = now.slice(0, 10);
   if (fields.prioritaet !== undefined) updated.prioritaet = fields.prioritaet;
   if (fields.faelligAm !== undefined) updated.faelligAm = fields.faelligAm;
   if (fields.kategorie !== undefined) updated.kategorie = fields.kategorie;
