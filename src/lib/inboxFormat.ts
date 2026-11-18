@@ -17,6 +17,11 @@ export interface InboxAufgabePayload {
   kontaktNamen?: string[];
   beschreibung?: string;
   doku?: boolean;
+  teilprojekt?: string;
+  /** Bestehende Kommunikationseinträge, mit denen die neue Aufgabe sofort verknüpft wird — App-ID
+   * oder Kurzreferenz wie "K150". Nicht auflösbare Werte lösen eine Warnung aus, legen die Aufgabe
+   * aber trotzdem an (siehe resolveRefs). */
+  kommunikation?: string[];
 }
 
 export interface InboxKommunikationPayload {
@@ -29,6 +34,12 @@ export interface InboxKommunikationPayload {
   kontaktName?: string;
   kontaktNamen?: string[];
   aufgaben?: string[];
+  /** Bestehende Aufgaben, mit denen der neue Eintrag sofort verknüpft wird — App-ID oder
+   * Kurzreferenz wie "A204". Bewusst ein eigener Name statt in "aufgaben" integriert: "aufgaben"
+   * legt neue Aufgaben per Titel an, "verknuepfteAufgaben" verknüpft bestehende — beides kann im
+   * selben Aufruf kombiniert werden. Nicht auflösbare Werte lösen eine Warnung aus, legen den
+   * Eintrag aber trotzdem an (siehe resolveRefs). */
+  verknuepfteAufgaben?: string[];
   betreff?: string;
   teilprojekt?: string;
 }
@@ -166,6 +177,8 @@ export interface ValidatedAufgabe {
   kontaktNamen: string[];
   beschreibung: string;
   doku: boolean;
+  teilprojekt: string;
+  kommunikation: string[];
 }
 
 export function validateAufgabe(payload: InboxAufgabePayload): ValidationResult<ValidatedAufgabe> {
@@ -178,6 +191,8 @@ export function validateAufgabe(payload: InboxAufgabePayload): ValidationResult<
   if (!kategorie.ok) return kategorie;
   if (payload.afns !== undefined && !isStringArray(payload.afns)) return { ok: false, error: '"afns" muss eine Liste von Texten sein.' };
   if (payload.kontaktNamen !== undefined && !isStringArray(payload.kontaktNamen)) return { ok: false, error: '"kontaktNamen" muss eine Liste von Texten sein.' };
+  if (payload.teilprojekt !== undefined && typeof payload.teilprojekt !== 'string') return { ok: false, error: '"teilprojekt" muss ein Text sein.' };
+  if (payload.kommunikation !== undefined && !isStringArray(payload.kommunikation)) return { ok: false, error: '"kommunikation" muss eine Liste von Texten sein.' };
   return {
     ok: true,
     value: {
@@ -192,6 +207,8 @@ export function validateAufgabe(payload: InboxAufgabePayload): ValidationResult<
       kontaktNamen: payload.kontaktNamen || [],
       beschreibung: payload.beschreibung || '',
       doku: !!payload.doku,
+      teilprojekt: payload.teilprojekt?.trim() || '',
+      kommunikation: (payload.kommunikation || []).filter(isNonEmptyString),
     },
   };
 }
@@ -203,6 +220,7 @@ export interface ValidatedKommunikation {
   datum: string;
   kontaktNamen: string[];
   aufgaben: string[];
+  verknuepfteAufgaben: string[];
   betreff: string;
   teilprojekt: string;
 }
@@ -214,6 +232,7 @@ export function validateKommunikation(payload: InboxKommunikationPayload): Valid
   const kanal = validateEnum(payload.kanal, CHANNELS, 'kanal');
   if (!kanal.ok) return kanal;
   if (payload.aufgaben !== undefined && !isStringArray(payload.aufgaben)) return { ok: false, error: '"aufgaben" muss eine Liste von Texten sein.' };
+  if (payload.verknuepfteAufgaben !== undefined && !isStringArray(payload.verknuepfteAufgaben)) return { ok: false, error: '"verknuepfteAufgaben" muss eine Liste von Texten sein.' };
   if (payload.kontaktNamen !== undefined && !isStringArray(payload.kontaktNamen)) return { ok: false, error: '"kontaktNamen" muss eine Liste von Texten sein.' };
   // kontaktName (Einzelwert, Altformat) + kontaktNamen (Array) zusammenführen, Reihenfolge bleibt erhalten.
   const kontaktNamen = [...(payload.kontaktName ? [payload.kontaktName] : []), ...(payload.kontaktNamen || [])];
@@ -226,6 +245,7 @@ export function validateKommunikation(payload: InboxKommunikationPayload): Valid
       datum: payload.datum || '',
       kontaktNamen,
       aufgaben: (payload.aufgaben || []).filter(isNonEmptyString),
+      verknuepfteAufgaben: (payload.verknuepfteAufgaben || []).filter(isNonEmptyString),
       betreff: payload.betreff?.trim() || '',
       teilprojekt: payload.teilprojekt?.trim() || '',
     },
@@ -386,6 +406,12 @@ export interface AenderungAufgabeFields {
   kommunikationIdsEntfernen?: string[];
   beschreibung?: string;
   doku?: boolean;
+  teilprojekt?: string;
+  /** App-ID oder Kurzreferenz ("K150") — wie kommunikationIdsHinzufuegen, aber mit Nr-Auflösung
+   * und Warnung statt Abbruch bei nicht auflösbaren Werten (siehe resolveRefs). Der empfohlene Weg
+   * für Claude, da find_entries/get_entry die kurze Referenz liefern, nicht die App-ID. */
+  kommunikationHinzufuegen?: string[];
+  kommunikationEntfernen?: string[];
 }
 
 export function validateAenderungAufgabe(raw: Record<string, unknown>): ValidationResult<AenderungAufgabeFields> {
@@ -441,6 +467,18 @@ export function validateAenderungAufgabe(raw: Record<string, unknown>): Validati
     if (!isStringArray(raw.kommunikationIdsEntfernen)) return { ok: false, error: '"kommunikationIdsEntfernen" muss eine Liste von Texten sein.' };
     out.kommunikationIdsEntfernen = raw.kommunikationIdsEntfernen;
   }
+  if ('teilprojekt' in raw) {
+    if (typeof raw.teilprojekt !== 'string') return { ok: false, error: '"teilprojekt" muss ein Text sein.' };
+    out.teilprojekt = raw.teilprojekt;
+  }
+  if ('kommunikationHinzufuegen' in raw) {
+    if (!isStringArray(raw.kommunikationHinzufuegen)) return { ok: false, error: '"kommunikationHinzufuegen" muss eine Liste von Texten sein.' };
+    out.kommunikationHinzufuegen = raw.kommunikationHinzufuegen;
+  }
+  if ('kommunikationEntfernen' in raw) {
+    if (!isStringArray(raw.kommunikationEntfernen)) return { ok: false, error: '"kommunikationEntfernen" muss eine Liste von Texten sein.' };
+    out.kommunikationEntfernen = raw.kommunikationEntfernen;
+  }
   if ('beschreibung' in raw) {
     if (typeof raw.beschreibung !== 'string') return { ok: false, error: '"beschreibung" muss ein Text sein.' };
     out.beschreibung = raw.beschreibung;
@@ -463,6 +501,11 @@ export interface AenderungKommunikationFields {
   kontaktNamenHinzufuegen?: string[];
   aufgabenIdsHinzufuegen?: string[];
   aufgabenIdsEntfernen?: string[];
+  /** App-ID oder Kurzreferenz ("A204") — wie aufgabenIdsHinzufuegen, aber mit Nr-Auflösung und
+   * Warnung statt Abbruch bei nicht auflösbaren Werten (siehe resolveRefs). Der empfohlene Weg für
+   * Claude, da find_entries/get_entry die kurze Referenz liefern, nicht die App-ID. */
+  aufgabenHinzufuegen?: string[];
+  aufgabenEntfernen?: string[];
 }
 
 export function validateAenderungKommunikation(raw: Record<string, unknown>): ValidationResult<AenderungKommunikationFields> {
@@ -508,6 +551,14 @@ export function validateAenderungKommunikation(raw: Record<string, unknown>): Va
   if ('aufgabenIdsEntfernen' in raw) {
     if (!isStringArray(raw.aufgabenIdsEntfernen)) return { ok: false, error: '"aufgabenIdsEntfernen" muss eine Liste von Texten sein.' };
     out.aufgabenIdsEntfernen = raw.aufgabenIdsEntfernen;
+  }
+  if ('aufgabenHinzufuegen' in raw) {
+    if (!isStringArray(raw.aufgabenHinzufuegen)) return { ok: false, error: '"aufgabenHinzufuegen" muss eine Liste von Texten sein.' };
+    out.aufgabenHinzufuegen = raw.aufgabenHinzufuegen;
+  }
+  if ('aufgabenEntfernen' in raw) {
+    if (!isStringArray(raw.aufgabenEntfernen)) return { ok: false, error: '"aufgabenEntfernen" muss eine Liste von Texten sein.' };
+    out.aufgabenEntfernen = raw.aufgabenEntfernen;
   }
   return { ok: true, value: out };
 }
