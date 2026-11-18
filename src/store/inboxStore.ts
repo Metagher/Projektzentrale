@@ -4,10 +4,10 @@ import {
   purgeStaleProcessedItems, retryInboxItem, type InboxItem, type InboxResult, type InboxResultTask,
 } from '../lib/supabase';
 import {
-  parseInboxPayload, peekInboxTyp, validateAenderungAufgabe, validateAenderungBase,
+  parseInboxPayload, peekInboxTyp, validateAbrechnung, validateAenderungAufgabe, validateAenderungBase,
   validateAenderungKommunikation, validateAenderungKontakt, validateAufgabe, validateKommunikation,
   validateKontakt, validateNotiz,
-  type InboxAenderungPayload, type InboxAufgabePayload, type InboxKommunikationPayload,
+  type InboxAbrechnungPayload, type InboxAenderungPayload, type InboxAufgabePayload, type InboxKommunikationPayload,
   type InboxKontaktPayload, type InboxNotizPayload,
 } from '../lib/inboxFormat';
 import { resolveContacts, resolveProject, resolveSubprojectName, type ContactMatch } from '../lib/inboxResolve';
@@ -21,7 +21,7 @@ import { openTaskInDashboard } from '../lib/navigation';
 import { fmtDate, fmtDateTime, todayStr, uid } from '../lib/format';
 import { normalizeAfn } from '../lib/afn';
 import { inboxTextToHtml, plainTextToHtml } from '../lib/richText';
-import type { Comm, Contact, Project, Task, TaskHistoryEntry } from '../types/entities';
+import type { Abrechnung, Comm, Contact, Project, Task, TaskHistoryEntry } from '../types/entities';
 
 function client() {
   const c = useConnectionStore.getState().client;
@@ -126,6 +126,7 @@ async function processItem(item: InboxItem): Promise<void> {
     : payload.typ === 'kommunikation' ? await processKommunikation(payload, projects)
     : payload.typ === 'notiz' ? await processNotiz(payload, projects)
     : payload.typ === 'kontakt' ? await processKontakt(payload, projects)
+    : payload.typ === 'abrechnung' ? await processAbrechnung(payload, projects)
     : await processAenderung(payload, projects);
 
   if (!result.ok) {
@@ -369,6 +370,92 @@ async function processKontakt(payload: InboxKontaktPayload, projects: Project[])
   };
 }
 
+async function processAbrechnung(payload: InboxAbrechnungPayload, projects: Project[]): Promise<ProcessResult> {
+  const validated = validateAbrechnung(payload);
+  if (!validated.ok) return { ok: false, error: validated.error };
+  const v = validated.value;
+  const resolved = resolveProject(projects, v.projekt);
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  const project = resolved.value;
+
+  const { abrechnungsArten, abrechnungsFaktoren, abrechnungLinkedDefaultArt, saveAbrechnung } = useDataStore.getState();
+  let art = v.art;
+  if (art) {
+    if (!abrechnungsArten.includes(art)) {
+      return { ok: false, error: `Abrechnungsart "${art}" ist nicht konfiguriert (erlaubt: ${abrechnungsArten.join(', ')}).` };
+    }
+  } else {
+    art = abrechnungsArten.includes(abrechnungLinkedDefaultArt) ? abrechnungLinkedDefaultArt : abrechnungsArten[0];
+  }
+  if (!art) return { ok: false, error: 'Keine Abrechnungsart konfiguriert — zuerst in den Einstellungen anlegen.' };
+
+  const data = await useDataStore.getState().ensureProjectData(project.id);
+
+  let taskId: string | undefined;
+  if (v.taskId) {
+    const task = data.tasks.find((t) => t.id === v.taskId);
+    if (!task) return { ok: false, error: `Aufgabe mit id "${v.taskId}" in Projekt "${project.name}" nicht gefunden.` };
+    taskId = task.id;
+  }
+  let commId: string | undefined;
+  if (v.kommunikationId) {
+    const comm = data.comms.find((c) => c.id === v.kommunikationId);
+    if (!comm) return { ok: false, error: `Kommunikationseintrag mit id "${v.kommunikationId}" in Projekt "${project.name}" nicht gefunden.` };
+    commId = comm.id;
+  }
+
+  const warnings: string[] = [];
+  let teilprojekt = '';
+  if (v.teilprojekt) {
+    const resolvedSp = resolveSubprojectName(data.subprojects, v.teilprojekt);
+    if (resolvedSp) teilprojekt = resolvedSp;
+    else warnings.push(`Teilprojekt "${v.teilprojekt}" wurde nicht gefunden — leer gelassen.`);
+  }
+
+  // wert/provision in Cent — entweder direkt übergeben oder aus stundensatz bzw. dem für die Art
+  // konfigurierten Prozentsatz berechnet, exakt wie im Abrechnungsformular der App.
+  const wertCents = v.wert !== undefined ? Math.round(v.wert * 100) : Math.round((v.stundensatz as number) * v.stunden * 100);
+  const faktor = abrechnungsFaktoren[art];
+  const provisionCents = v.provision !== undefined ? Math.round(v.provision * 100) : Math.round((wertCents * (faktor ?? 0)) / 100);
+
+  const entry: Abrechnung = {
+    id: uid(),
+    projectId: project.id,
+    taskId,
+    commId,
+    kunde: v.kunde || project.kunde,
+    datum: v.datum || todayStr(),
+    art,
+    minutes: Math.round(v.stunden * 60),
+    wertCents,
+    provisionCents,
+    freigegeben: v.freigegeben,
+    rechnungsdatum: v.freigegeben ? (v.rechnungsdatum || undefined) : undefined,
+    gehaltsMonat: v.gehaltsMonat || undefined,
+    belegNr: v.belegNr || undefined,
+    bemerkung: v.bemerkung || undefined,
+    teilprojekt: teilprojekt || undefined,
+    tageVorOrt: art === 'VO' && v.tageVorOrt ? v.tageVorOrt : undefined,
+    reisekostenCents: art === 'VO' && v.reisekosten ? Math.round(v.reisekosten * 100) : undefined,
+    fahrzeitMinutes: art === 'VO' && v.fahrzeit ? Math.round(v.fahrzeit * 60) : undefined,
+    modul: art === 'MODUL' ? (v.modul || undefined) : undefined,
+    createdAt: new Date().toISOString(),
+  };
+
+  await saveAbrechnung(entry);
+
+  return {
+    ok: true,
+    entityTyp: 'abrechnung',
+    entityId: entry.id,
+    projectId: project.id,
+    contacts: [],
+    warnings,
+    message: `Abrechnung in ${project.name} erfasst (${v.stunden} Std., Art ${art}).`,
+    onOpen: () => openAuswertungInProject(project.id),
+  };
+}
+
 async function processAenderung(payload: InboxAenderungPayload, projects: Project[]): Promise<ProcessResult> {
   const base = validateAenderungBase(payload);
   if (!base.ok) return { ok: false, error: base.error };
@@ -578,6 +665,10 @@ function openContactInProject(projectId: string) {
   useUiStore.setState({ view: 'project-management', selectedId: projectId, sidebarOpen: false });
 }
 
+function openAuswertungInProject(projectId: string) {
+  useUiStore.setState({ view: 'project', selectedId: projectId, activeTab: 'auswertung', sidebarOpen: false });
+}
+
 /** Öffnet den Eintrag, auf den eine verarbeitete Inbox-Zeile verweist — für den "Öffnen"-Button
  * in der Fehler-/Warnungs-Ansicht, wo kein frischer onOpen-Closure mehr vorhanden ist (die Zeile
  * wurde ggf. in einer früheren Session bzw. einem früheren Tab verarbeitet). */
@@ -585,6 +676,7 @@ export function openInboxResult(result: InboxResult): void {
   if (result.entityTyp === 'aufgabe') { openTaskInDashboard(result.entityId); return; }
   if (result.entityTyp === 'kommunikation') { openCommInProject(result.projectId, result.entityId); return; }
   if (result.entityTyp === 'kontakt') { openContactInProject(result.projectId); return; }
+  if (result.entityTyp === 'abrechnung') { openAuswertungInProject(result.projectId); return; }
   if (result.projectId) {
     useUiStore.setState({ view: 'project', selectedId: result.projectId, activeTab: 'notizen', sidebarOpen: false });
   } else {
