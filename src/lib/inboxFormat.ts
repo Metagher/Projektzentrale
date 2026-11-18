@@ -1,7 +1,7 @@
 import { CHANNELS, TASK_COLORS, TASK_KATEGORIEN, TASK_PRIO } from './constants';
 import type { Kanal, TaskColor, TaskKategorie, TaskPrio, TaskStatus } from '../types/entities';
 
-export type InboxTyp = 'aufgabe' | 'kommunikation' | 'notiz' | 'kontakt' | 'aenderung';
+export type InboxTyp = 'aufgabe' | 'kommunikation' | 'notiz' | 'kontakt' | 'abrechnung' | 'aenderung';
 export type AenderungZiel = 'aufgabe' | 'kommunikation' | 'kontakt';
 
 export interface InboxAufgabePayload {
@@ -49,6 +49,45 @@ export interface InboxKontaktPayload {
   email?: string;
 }
 
+export interface InboxAbrechnungPayload {
+  typ: 'abrechnung';
+  projekt: string;
+  /** Abgerechnete Zeit in Stunden (Dezimal, z.B. 1.5). Pflicht. */
+  stunden: number;
+  /** Abrechnungsart aus der projektweit konfigurierten Liste. Fehlt sie, wird die konfigurierte
+   * Standard-Art verwendet. */
+  art?: string;
+  /** YYYY-MM-DD, Standard: heute. */
+  datum?: string;
+  /** Standard: Kunde des Projekts. */
+  kunde?: string;
+  /** Rechnungswert in Euro. Fehlt er, wird er aus stundensatz * stunden berechnet. */
+  wert?: number;
+  /** Stundensatz in Euro/Stunde — nur zur Berechnung von wert, wenn wert fehlt. */
+  stundensatz?: number;
+  /** Provision in Euro. Fehlt sie, wird sie aus dem für die Art konfigurierten Prozentsatz von wert berechnet. */
+  provision?: number;
+  freigegeben?: boolean;
+  rechnungsdatum?: string;
+  /** YYYY-MM. */
+  gehaltsMonat?: string;
+  belegNr?: string;
+  bemerkung?: string;
+  teilprojekt?: string;
+  /** App-ID einer bestehenden Aufgabe im selben Projekt, mit der die Abrechnung verknüpft wird. */
+  taskId?: string;
+  /** App-ID eines bestehenden Kommunikationseintrags im selben Projekt, mit dem die Abrechnung verknüpft wird. */
+  kommunikationId?: string;
+  /** Nur bei art=VO. */
+  tageVorOrt?: number;
+  /** Nur bei art=VO, in Euro. */
+  reisekosten?: number;
+  /** Nur bei art=VO, in Stunden. */
+  fahrzeit?: number;
+  /** Nur bei art=MODUL. */
+  modul?: string;
+}
+
 export interface InboxAenderungPayload {
   typ: 'aenderung';
   ziel: string;
@@ -62,6 +101,7 @@ export type InboxPayload =
   | InboxKommunikationPayload
   | InboxNotizPayload
   | InboxKontaktPayload
+  | InboxAbrechnungPayload
   | InboxAenderungPayload;
 
 const TASK_STATUS_VALUES: TaskStatus[] = ['offen', 'in Arbeit', 'wartet', 'erledigt'];
@@ -81,7 +121,7 @@ export function parseInboxPayload(content: string): InboxPayload | null {
   }
   if (!json || typeof json !== 'object' || Array.isArray(json)) return null;
   const typ = (json as Record<string, unknown>).typ;
-  if (typ !== 'aufgabe' && typ !== 'kommunikation' && typ !== 'notiz' && typ !== 'kontakt' && typ !== 'aenderung') return null;
+  if (typ !== 'aufgabe' && typ !== 'kommunikation' && typ !== 'notiz' && typ !== 'kontakt' && typ !== 'abrechnung' && typ !== 'aenderung') return null;
   return json as InboxPayload;
 }
 
@@ -227,6 +267,82 @@ export function validateKontakt(payload: InboxKontaktPayload): ValidationResult<
       rolle: payload.rolle || '',
       telefon: payload.telefon || '',
       email: payload.email || '',
+    },
+  };
+}
+
+export interface ValidatedAbrechnung {
+  projekt: string;
+  stunden: number;
+  art: string;
+  datum: string;
+  kunde: string;
+  wert?: number;
+  stundensatz?: number;
+  provision?: number;
+  freigegeben: boolean;
+  rechnungsdatum: string;
+  gehaltsMonat: string;
+  belegNr: string;
+  bemerkung: string;
+  teilprojekt: string;
+  taskId: string;
+  kommunikationId: string;
+  tageVorOrt?: number;
+  reisekosten?: number;
+  fahrzeit?: number;
+  modul: string;
+}
+
+/** Nur die Form wird hier geprüft (Zahlen, Pflichtfelder) — ob "art" zu den projektweit
+ * konfigurierten Abrechnungsarten gehört und ob taskId/kommunikationId im Projekt existieren,
+ * prüft processAbrechnung anhand der Live-Daten (dieselbe Aufteilung wie bei Projekt-/
+ * Kontaktauflösung). */
+export function validateAbrechnung(payload: InboxAbrechnungPayload): ValidationResult<ValidatedAbrechnung> {
+  if (!isNonEmptyString(payload.projekt)) return { ok: false, error: 'Pflichtfeld "projekt" fehlt.' };
+  if (typeof payload.stunden !== 'number' || !Number.isFinite(payload.stunden) || payload.stunden <= 0) {
+    return { ok: false, error: 'Pflichtfeld "stunden" muss eine Zahl größer 0 sein.' };
+  }
+  if (payload.wert !== undefined && (typeof payload.wert !== 'number' || !Number.isFinite(payload.wert) || payload.wert < 0)) {
+    return { ok: false, error: '"wert" muss eine Zahl (Euro) sein.' };
+  }
+  if (payload.stundensatz !== undefined && (typeof payload.stundensatz !== 'number' || !Number.isFinite(payload.stundensatz) || payload.stundensatz <= 0)) {
+    return { ok: false, error: '"stundensatz" muss eine Zahl (Euro/Stunde) größer 0 sein.' };
+  }
+  if (payload.wert === undefined && payload.stundensatz === undefined) {
+    return { ok: false, error: 'Entweder "wert" (Euro) oder "stundensatz" (Euro/Stunde) ist erforderlich, um den Rechnungswert zu berechnen.' };
+  }
+  if (payload.provision !== undefined && (typeof payload.provision !== 'number' || !Number.isFinite(payload.provision) || payload.provision < 0)) {
+    return { ok: false, error: '"provision" muss eine Zahl (Euro) sein.' };
+  }
+  if (payload.art !== undefined && !isNonEmptyString(payload.art)) return { ok: false, error: '"art" darf nicht leer sein.' };
+  if (payload.freigegeben !== undefined && typeof payload.freigegeben !== 'boolean') return { ok: false, error: '"freigegeben" muss true oder false sein.' };
+  if (payload.tageVorOrt !== undefined && (typeof payload.tageVorOrt !== 'number' || payload.tageVorOrt < 0)) return { ok: false, error: '"tageVorOrt" muss eine Zahl sein.' };
+  if (payload.reisekosten !== undefined && (typeof payload.reisekosten !== 'number' || payload.reisekosten < 0)) return { ok: false, error: '"reisekosten" muss eine Zahl (Euro) sein.' };
+  if (payload.fahrzeit !== undefined && (typeof payload.fahrzeit !== 'number' || payload.fahrzeit < 0)) return { ok: false, error: '"fahrzeit" muss eine Zahl (Stunden) sein.' };
+  return {
+    ok: true,
+    value: {
+      projekt: payload.projekt.trim(),
+      stunden: payload.stunden,
+      art: payload.art?.trim() || '',
+      datum: payload.datum || '',
+      kunde: payload.kunde?.trim() || '',
+      wert: payload.wert,
+      stundensatz: payload.stundensatz,
+      provision: payload.provision,
+      freigegeben: !!payload.freigegeben,
+      rechnungsdatum: payload.rechnungsdatum || '',
+      gehaltsMonat: payload.gehaltsMonat || '',
+      belegNr: payload.belegNr?.trim() || '',
+      bemerkung: payload.bemerkung?.trim() || '',
+      teilprojekt: payload.teilprojekt?.trim() || '',
+      taskId: payload.taskId?.trim() || '',
+      kommunikationId: payload.kommunikationId?.trim() || '',
+      tageVorOrt: payload.tageVorOrt,
+      reisekosten: payload.reisekosten,
+      fahrzeit: payload.fahrzeit,
+      modul: payload.modul?.trim() || '',
     },
   };
 }

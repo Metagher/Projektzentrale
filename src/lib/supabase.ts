@@ -88,7 +88,7 @@ export interface InboxResultTask {
 }
 
 export interface InboxResult {
-  entityTyp: 'aufgabe' | 'kommunikation' | 'kontakt' | 'notiz';
+  entityTyp: 'aufgabe' | 'kommunikation' | 'kontakt' | 'notiz' | 'abrechnung';
   entityId: string;
   /** Leer bei einer Schnellnotiz ohne Projektbezug. */
   projectId: string;
