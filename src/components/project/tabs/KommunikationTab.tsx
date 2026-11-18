@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { useDataStore } from '../../../store/dataStore';
 import { useProjectUiStore } from '../../../store/projectUiStore';
 import { useModalStore } from '../../../store/modalStore';
+import { useConnectionStore } from '../../../store/connectionStore';
 import { useAiStore } from '../../../store/aiStore';
 import { CHANNELS } from '../../../lib/constants';
 import { commRef, escapeHtml, fmtDate, htmlToPlainText, isEmptyHtml, taskLinkLabel, taskRef, todayStr, uid } from '../../../lib/format';
+import { handleAttachmentImageClick, useResolvedAttachmentHtml } from '../../../lib/attachments';
 import { extractTasksFromComm } from '../../../lib/ai';
 import { contactLinkLabel, linkedContactIds } from '../../../lib/contacts';
 import RtfField from '../../shared/RtfField';
@@ -19,6 +21,20 @@ import { abrechnungStatus, ABRECHNUNG_STATUS_LABELS } from '../../../lib/abrechn
 import { useCreateContact } from '../../../hooks/useCreateContact';
 import { exportCommsToPdf } from '../../../lib/commPdfExport';
 import type { Abrechnung, Comm, Kanal, ProjectCache } from '../../../types/entities';
+
+/** Eigene Komponente statt Inline-JSX in der Listen-map, da der Hook (useResolvedAttachmentHtml)
+ * pro Eintrag aufgerufen werden muss — Hooks dürfen nicht direkt innerhalb von .map() stehen. */
+function CommNoticePreview({ notiz }: { notiz: string }) {
+  const client = useConnectionStore((s) => s.client);
+  const openImageLightbox = useModalStore((s) => s.openImageLightbox);
+  const resolved = useResolvedAttachmentHtml(client, notiz);
+
+  function onClick(event: MouseEvent<HTMLDivElement>) {
+    handleAttachmentImageClick(event, openImageLightbox);
+  }
+
+  return <div className="rtf-content rtf-field-preview-compact" style={{ marginTop: 3 }} onClick={onClick} dangerouslySetInnerHTML={{ __html: resolved }} />;
+}
 
 export default function KommunikationTab({ projectId, data }: { projectId: string; data: ProjectCache }) {
   const createContact = useCreateContact(projectId);
@@ -267,13 +283,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
                   <div style={{ marginTop: 5 }}>
                     <strong>{c.betreff || '(kein Betreff)'}</strong>
                   </div>
-                  {!isEmptyHtml(c.notiz) && (
-                    <div
-                      className="rtf-content rtf-field-preview-compact"
-                      style={{ marginTop: 3 }}
-                      dangerouslySetInnerHTML={{ __html: c.notiz }}
-                    />
-                  )}
+                  {!isEmptyHtml(c.notiz) && <CommNoticePreview notiz={c.notiz} />}
                   <LinkChipsView ids={c.taskIds} items={data.tasks} labelFn={taskLinkLabel} onJump={jumpToTask} />
                   {abrechnungen.filter((item) => item.commId === c.id).map((item) => <button key={item.id} type="button" className="link-btn" style={{ display: 'block', marginTop: 4 }} onClick={() => setAbrechnungModal({ commId: c.id, entry: item })}>
                     🔗 Abrechnung {item.art} · {formatEuro(item.provisionCents)} · <span className={`badge ${abrechnungStatus(item)}`}>{ABRECHNUNG_STATUS_LABELS[abrechnungStatus(item)]}</span>

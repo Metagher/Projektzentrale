@@ -109,3 +109,47 @@ alter table projektzentrale_inbox
 alter table projektzentrale_inbox drop constraint if exists projektzentrale_inbox_status_check;
 alter table projektzentrale_inbox add constraint projektzentrale_inbox_status_check
   check (status in ('neu', 'wird_verarbeitet', 'fehler', 'warnung', 'verarbeitet'));
+
+-- ===========================================================================================
+-- NEU (bitte vor dem Ausführen prüfen): privater Storage-Bucket für Bild-Anhänge an
+-- Kommunikationseinträgen über den Connector (Tools "request_image_upload" / "attach_image").
+--
+-- Pfad-Konvention: <user_id>/<projekt_id>/<kommunikation_id>/<uuid>-<dateiname>.
+-- file_size_limit/allowed_mime_types werden vom Storage-Server selbst beim Upload erzwungen,
+-- zusätzlich zur Prüfung im Connector. RLS: wie bei projektzentrale_kv/_inbox darf jeder
+-- eingeloggte Nutzer ausschließlich im eigenen Ordner (erstes Pfadsegment = eigene user_id)
+-- lesen/schreiben/ändern/löschen — ohne Login (anon) keine Policy, also kein Zugriff.
+-- ===========================================================================================
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'projektzentrale-anhaenge',
+  'projektzentrale-anhaenge',
+  false,
+  10485760,
+  array['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Anhänge: eigene Dateien lesen" on storage.objects;
+create policy "Anhänge: eigene Dateien lesen" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'projektzentrale-anhaenge' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Anhänge: eigene Dateien schreiben" on storage.objects;
+create policy "Anhänge: eigene Dateien schreiben" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'projektzentrale-anhaenge' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Anhänge: eigene Dateien aktualisieren" on storage.objects;
+create policy "Anhänge: eigene Dateien aktualisieren" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'projektzentrale-anhaenge' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Anhänge: eigene Dateien löschen" on storage.objects;
+create policy "Anhänge: eigene Dateien löschen" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'projektzentrale-anhaenge' and (storage.foldername(name))[1] = auth.uid()::text);

@@ -23,7 +23,8 @@ type ModalSpec =
   | { kind: 'choice'; title: string; message: string; label: string; options: string[]; initialValue: string; confirmLabel: string; resolve: (v: string | null) => void }
   | { kind: 'newProject'; resolve: (v: NewProjectResult | null) => void }
   | { kind: 'taskExtractionReview'; tasks: ExtractedTask[]; resolve: (v: ExtractedTask[] | null) => void }
-  | { kind: 'timeEntryReview'; startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[]; projectId: string; resolve: (v: TimeEntryReviewResult | null) => void };
+  | { kind: 'timeEntryReview'; startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[]; projectId: string; resolve: (v: TimeEntryReviewResult | null) => void }
+  | { kind: 'imageLightbox'; url: string; alt: string };
 
 export interface ContactModalSpec {
   customer: string;
@@ -53,6 +54,7 @@ interface ModalStoreState {
   newContactForm: (options?: { customer?: string }) => Promise<NewContactResult | null>;
   taskExtractionReview: (tasks: ExtractedTask[]) => Promise<ExtractedTask[] | null>;
   timeEntryReview: (options: { startedAt: string; endedAt: string; assignmentLabel: string; timeTypes: ProjectTimeType[]; initialTimeTypeId?: string; contacts: Contact[]; tasks: Task[]; projectId: string }) => Promise<TimeEntryReviewResult | null>;
+  openImageLightbox: (url: string, alt: string) => void;
   close: () => void;
   closeContactModal: () => void;
 }
@@ -109,6 +111,7 @@ export const useModalStore = create<ModalStoreState>((set) => ({
     new Promise<TimeEntryReviewResult | null>((resolve) => {
       set({ modal: { kind: 'timeEntryReview', startedAt: options.startedAt, endedAt: options.endedAt, assignmentLabel: options.assignmentLabel, timeTypes: options.timeTypes, initialTimeTypeId: options.initialTimeTypeId, contacts: options.contacts, tasks: options.tasks, projectId: options.projectId, resolve } });
     }),
+  openImageLightbox: (url, alt) => set({ modal: { kind: 'imageLightbox', url, alt } }),
   close: () => set({ modal: { kind: 'none' } }),
   closeContactModal: () => set({ contactModal: null }),
 }));

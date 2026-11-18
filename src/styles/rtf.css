@@ -103,3 +103,11 @@
 }
 .rtf-field-preview-compact h3, .rtf-field-preview-compact h4{font-size:13px !important;margin:4px 0 3px;}
 .rtf-field-preview-compact p{margin:0 0 4px;}
+
+/* Bild-Anhänge (siehe src/lib/attachments.ts) in RTF-Inhalten: nie breiter als der Container,
+   anklickbar vergrößerbar — außer dem Platzhalter für eine fehlende Datei. */
+.rtf-content img, .rtf-editor img, .rtf-field-preview img{max-width:100%;display:block;margin:6px 0;border-radius:var(--radius);}
+.rtf-content img[data-anhang-pfad]:not([data-anhang-fehlt]), .rtf-field-preview img[data-anhang-pfad]:not([data-anhang-fehlt]){cursor:zoom-in;}
+
+.modal-overlay.image-lightbox{cursor:zoom-out;padding:24px;}
+.modal-overlay.image-lightbox img{max-width:100%;max-height:100%;border-radius:var(--radius);cursor:default;box-shadow:0 8px 32px rgba(0,0,0,.4);}

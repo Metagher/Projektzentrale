@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
 import { normalizeRichTextTypography } from '../../lib/richText';
+import { stripAttachmentImageSrc } from '../../lib/attachments';
 import InkPad from './InkPad';
 
 interface Props {
@@ -225,7 +226,7 @@ export default function RtfEditorModal({ title, initialHtml, onCancel, onSave }:
           <button className="btn secondary" onClick={onCancel}>
             Abbrechen
           </button>
-          <button className="btn" onClick={() => onSave(normalizeRichTextTypography((editableRef.current?.innerHTML || '').trim()))}>
+          <button className="btn" onClick={() => onSave(stripAttachmentImageSrc(normalizeRichTextTypography((editableRef.current?.innerHTML || '').trim())))}>
             Übernehmen
           </button>
         </div>

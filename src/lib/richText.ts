@@ -23,10 +23,21 @@ export function plainTextToHtml(text: string): string {
   return '<p>' + escaped.replace(/\n+/g, '</p><p>') + '</p>';
 }
 
-const INBOX_HTML_ALLOWED_TAGS = new Set(['p', 'br', 'ul', 'ol', 'li', 'h3', 'strong', 'em', 'a']);
+const INBOX_HTML_ALLOWED_TAGS = new Set(['p', 'br', 'ul', 'ol', 'li', 'h3', 'strong', 'em', 'a', 'img']);
 
 function hasHtmlTag(text: string): boolean {
   return /<[a-z][a-z0-9]*(\s[^>]*)?\/?>|<\/[a-z][a-z0-9]*\s*>/i.test(text);
+}
+
+/** Erlaubte Attribute je Tag — bewusst eng gefasst: "img" darf NIE ein eigenes "src" mitbringen
+ * (das wäre beliebig, also Tracking/Exfiltration-Risiko), sondern nur "data-anhang-pfad" (Pfad im
+ * privaten Storage-Bucket, siehe attach_image im Connector) und "alt". Das src-Attribut setzt die
+ * App selbst beim Rendern aus data-anhang-pfad per zeitlich begrenzter signierter URL (siehe
+ * src/lib/attachments.ts) — nie eine vom Aufrufer mitgelieferte URL.*/
+function isAllowedAttr(tag: string, name: string): boolean {
+  if (tag === 'a') return name === 'href';
+  if (tag === 'img') return name === 'data-anhang-pfad' || name === 'alt';
+  return false;
 }
 
 function unwrapOrStrip(element: HTMLElement) {
@@ -38,7 +49,7 @@ function unwrapOrStrip(element: HTMLElement) {
   Array.from(element.children).forEach((child) => unwrapOrStrip(child as HTMLElement));
   if (INBOX_HTML_ALLOWED_TAGS.has(tag)) {
     Array.from(element.attributes).forEach((attr) => {
-      if (!(tag === 'a' && attr.name === 'href')) element.removeAttribute(attr.name);
+      if (!isAllowedAttr(tag, attr.name)) element.removeAttribute(attr.name);
     });
   } else {
     while (element.firstChild) element.parentNode!.insertBefore(element.firstChild, element);
