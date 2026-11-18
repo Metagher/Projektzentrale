@@ -279,6 +279,14 @@ function MainModal() {
     );
   }
 
+  if (modal.kind === 'imageLightbox') {
+    return (
+      <div className="modal-overlay image-lightbox" onClick={close}>
+        <img src={modal.url} alt={modal.alt} onClick={(e) => e.stopPropagation()} />
+      </div>
+    );
+  }
+
   return (
     <div className="modal-overlay">
       <TaskExtractionReview tasks={modal.tasks} resolve={modal.resolve} />
