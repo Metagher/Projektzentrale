@@ -3,7 +3,7 @@ import { useKnowledgeStore } from '../../store/knowledgeStore';
 import { useAiStore } from '../../store/aiStore';
 import { useModalStore } from '../../store/modalStore';
 import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
-import { fmtDateTime, htmlToPlainText } from '../../lib/format';
+import { fmtDateTime, htmlToPlainText, taskRef } from '../../lib/format';
 import { taskDocumentationTarget } from '../../lib/taskDocumentation';
 import RtfField from '../shared/RtfField';
 import AfnChipsField from '../shared/AfnChipsField';
@@ -106,7 +106,7 @@ export default function KnowledgeView() {
   async function acceptGlobalTask(task: TaskWithMeta) {
     setAcceptingTaskId(task.id);
     try {
-      const source = `<p><strong>Quelle:</strong> Projekt ${escapeHtml(task.projectName)}, Aufgabe ${task.nr || '—'}</p>`;
+      const source = `<p><strong>Quelle:</strong> Projekt ${escapeHtml(task.projectName)}, Aufgabe ${taskRef(task.nr)}</p>`;
       const content = task.aktuellerStand || task.anforderung || `<p>${escapeHtml(task.titel)}</p>`;
       await addManual({
         titel: task.titel,
@@ -158,7 +158,7 @@ export default function KnowledgeView() {
           {globalDokuTasks.map((task) => (
             <div className={`doku-list-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} key={`${task.projectId}-${task.id}`}>
               <div className="doku-inbox-copy">
-                <strong><span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong>
+                <strong><span className="task-nr">{taskRef(task.nr)}</span>{task.titel}</strong>
                 <small>{task.projectName} · Status: {task.status}</small>
               </div>
               <button className="btn secondary small" disabled={acceptingTaskId === task.id} onClick={() => acceptGlobalTask(task)}>

@@ -1,4 +1,4 @@
-import { fmtDate, fmtDateTime, isEmptyHtml, taskLinkLabel } from './format';
+import { commRef, fmtDate, fmtDateTime, isEmptyHtml, taskLinkLabel, taskRef } from './format';
 import { formatDuration } from './timeTracking';
 import { formatEuro } from './money';
 import { contactLinkLabel, linkedContactIds } from './contacts';
@@ -241,7 +241,7 @@ export function exportFullProjectToPdf({ project, data, docDefs, timeEntries, ab
     entry.className = 'entry';
     const head = doc.createElement('div');
     head.className = 'entry-head';
-    addText(head, 'time', `#${task.nr || '—'}`);
+    addText(head, 'time', taskRef(task.nr));
     addText(head, 'h3', task.titel);
     addText(head, 'span', task.status, 'badge');
     entry.appendChild(head);
@@ -294,7 +294,7 @@ export function exportFullProjectToPdf({ project, data, docDefs, timeEntries, ab
     entry.className = 'entry';
     const head = doc.createElement('div');
     head.className = 'entry-head';
-    addText(head, 'time', fmtDate(comm.datum));
+    addText(head, 'time', `${commRef(comm.nr)} · ${fmtDate(comm.datum)}`);
     addText(head, 'span', comm.kanal, 'badge');
     addText(head, 'h3', comm.betreff || '(kein Betreff)');
     entry.appendChild(head);
@@ -442,7 +442,7 @@ export function exportFullProjectToPdf({ project, data, docDefs, timeEntries, ab
     timeEntries.slice().sort((a, b) => b.startedAt.localeCompare(a.startedAt)).map((entry) => {
       const task = entry.taskId ? data.tasks.find((item) => item.id === entry.taskId) : undefined;
       const typeName = entry.timeTypeName || projectTimeTypes.find((type) => type.id === entry.timeTypeId)?.name;
-      const assignment = task ? `Aufgabe #${task.nr} · ${task.titel}` : typeName || '—';
+      const assignment = task ? `Aufgabe ${taskRef(task.nr)} · ${task.titel}` : typeName || '—';
       return [
         fmtDate(entry.startedAt.slice(0, 10)),
         new Date(entry.startedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),

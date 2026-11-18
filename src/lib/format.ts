@@ -105,12 +105,23 @@ export function latestProgressEntry<T extends { datum: string; updatedAt: string
   return entries.slice().sort((a, b) => b.datum.localeCompare(a.datum) || b.updatedAt.localeCompare(a.updatedAt))[0];
 }
 
-export function taskLinkLabel(t: { nr: number; titel: string }): string {
-  return `ID ${t.nr || '?'} ${t.titel}`;
+/** Kurzreferenz einer Aufgabe — "A" + fortlaufende Nummer, eigene Zählfolge (siehe Comm.nr). */
+export function taskRef(nr: number | undefined): string {
+  return nr ? `A${nr}` : '—';
 }
 
-export function commLinkLabel(c: { datum: string; kanal: string; betreff: string }): string {
-  const parts: string[] = [];
+/** Kurzreferenz eines Kommunikationseintrags — "K" + fortlaufende Nummer, eigene Zählfolge,
+ * überschneidet sich nie mit taskRef. */
+export function commRef(nr: number | undefined): string {
+  return nr ? `K${nr}` : '—';
+}
+
+export function taskLinkLabel(t: { nr: number; titel: string }): string {
+  return `${taskRef(t.nr)} ${t.titel}`;
+}
+
+export function commLinkLabel(c: { nr: number; datum: string; kanal: string; betreff: string }): string {
+  const parts: string[] = [commRef(c.nr)];
   if (c.datum) parts.push(fmtDate(c.datum));
   if (c.kanal) parts.push(c.kanal);
   parts.push(c.betreff || '(kein Betreff)');

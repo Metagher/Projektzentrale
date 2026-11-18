@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useUiStore } from '../../store/uiStore';
 import { buildCalendarWeeks, dateKey, MONTH_NAMES, WEEKDAY_LABELS } from '../../lib/calendar';
 import { openTaskInDashboard } from '../../lib/navigation';
+import { taskRef } from '../../lib/format';
 import { useDataStore, type CalendarTaskWithMeta } from '../../store/dataStore';
 import { isWorkday } from '../../lib/workdays';
 import TaskColorBadge from '../shared/TaskColorBadge';
@@ -79,7 +80,7 @@ export default function CalendarGrid({ tasksWithDate }: { tasksWithDate: Calenda
                   <div
                     key={t.calendarEntryId}
                     className={`cal-task${t.farbe ? ` task-color-border-${t.farbe}` : ''}`}
-                    title={`ID ${t.nr || '?'} · ${t.projectName}: ${t.titel}`}
+                    title={`${taskRef(t.nr)} · ${t.projectName}: ${t.titel}`}
                     onClick={() => openTaskInDashboard(t.id)}
                   >
                     <span><b className={`calendar-entry-kind ${t.calendarKind}`}>{t.calendarKind === 'appointment' ? 'Termin' : 'Fällig'}</b>{t.titel}</span>{t.farbe && <TaskColorBadge color={t.farbe} compact />}

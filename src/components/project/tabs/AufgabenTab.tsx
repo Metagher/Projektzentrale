@@ -11,7 +11,7 @@ import AiSummaryCard from '../AiSummaryCard';
 import type { Project, ProjectCache, Task, TaskStatus } from '../../../types/entities';
 import { compareTaskColors, compareWaitingPerson } from '../../../lib/taskColors';
 import { writeTaskDrag } from '../../../lib/taskDrag';
-import { todayStr, uid } from '../../../lib/format';
+import { taskRef, todayStr, uid } from '../../../lib/format';
 import { linkedContactIds } from '../../../lib/contacts';
 
 type BoardColumn = 'offen' | 'wartet' | 'erledigt';
@@ -193,7 +193,7 @@ export default function AufgabenTab({ project, data }: { project: Project; data:
       {editingTask && (
         <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten">
           <div className="task-edit-dialog">
-            <div className="task-edit-dialog-head"><div><span>Aufgabe bearbeiten</span><strong>ID {editingTask.nr} · {editingTask.titel}</strong></div></div>
+            <div className="task-edit-dialog-head"><div><span>Aufgabe bearbeiten</span><strong>{taskRef(editingTask.nr)} · {editingTask.titel}</strong></div></div>
             <ProjectTaskEditRow task={editingTask} projectId={project.id} data={data} contacts={data.contacts} />
           </div>
         </div>

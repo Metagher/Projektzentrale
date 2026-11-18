@@ -4,7 +4,7 @@ import { useProjectUiStore } from '../../../store/projectUiStore';
 import { useModalStore } from '../../../store/modalStore';
 import { useAiStore } from '../../../store/aiStore';
 import { CHANNELS } from '../../../lib/constants';
-import { escapeHtml, fmtDate, htmlToPlainText, isEmptyHtml, taskLinkLabel, todayStr, uid } from '../../../lib/format';
+import { commRef, escapeHtml, fmtDate, htmlToPlainText, isEmptyHtml, taskLinkLabel, taskRef, todayStr, uid } from '../../../lib/format';
 import { extractTasksFromComm } from '../../../lib/ai';
 import { contactLinkLabel, linkedContactIds } from '../../../lib/contacts';
 import RtfField from '../../shared/RtfField';
@@ -159,12 +159,12 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
       <section className="meeting-agenda">
         <header><div><span className="eyebrow">Nächste Besprechung</span><h3>Vorgemerkte Aufgaben</h3><p>Gesprächspunkte, die direkt an den Aufgaben markiert wurden.</p></div><strong>{meetingTasks.length}</strong></header>
         {meetingTasks.length === 0 ? <div className="meeting-agenda-empty">Noch keine Aufgaben für die nächste Besprechung vorgemerkt.</div> : <div>{meetingTasks.map((task) => <article key={task.id}>
-          <button type="button" className="meeting-agenda-task" onClick={() => jumpToTask(task.id)}><span className="task-nr">{task.nr || '—'}</span><strong>{task.titel}</strong><small>{task.status}{task.teilprojekt?.trim() ? ` · ${task.teilprojekt.trim()}` : ''}{task.faelligAm ? ` · fällig ${fmtDate(task.faelligAm)}` : ''}</small></button>
+          <button type="button" className="meeting-agenda-task" onClick={() => jumpToTask(task.id)}><span className="task-nr">{taskRef(task.nr)}</span><strong>{task.titel}</strong><small>{task.status}{task.teilprojekt?.trim() ? ` · ${task.teilprojekt.trim()}` : ''}{task.faelligAm ? ` · fällig ${fmtDate(task.faelligAm)}` : ''}</small></button>
           <button type="button" className="icon-btn" onClick={() => void saveTask(projectId, { ...task, naechsteBesprechung: false })}>Vormerkung entfernen</button>
         </article>)}</div>}
       </section>
       {showForm ? (
-        <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label={editObj ? 'Kommunikation bearbeiten' : 'Kommunikation anlegen'}><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Kommunikation</span><strong>{editObj ? editObj.betreff || 'Eintrag bearbeiten' : 'Neuer Kommunikationseintrag'}</strong></div><div className="btn-row">
+        <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label={editObj ? 'Kommunikation bearbeiten' : 'Kommunikation anlegen'}><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Kommunikation{editObj ? ` ${commRef(editObj.nr)}` : ''}</span><strong>{editObj ? editObj.betreff || 'Eintrag bearbeiten' : 'Neuer Kommunikationseintrag'}</strong></div><div className="btn-row">
             <button className="btn small" onClick={handleSave}>
               {editObj ? 'Speichern' : 'Hinzufügen'}
             </button>
@@ -260,7 +260,7 @@ export default function KommunikationTab({ projectId, data }: { projectId: strin
             <div className="list-item" key={c.id}>
               <div className="top-row">
                 <div>
-                  <span className="channel-tag">{c.kanal}</span> <span className="meta mono">{fmtDate(c.datum)}</span>
+                  <span className="task-nr">{commRef(c.nr)}</span> <span className="channel-tag">{c.kanal}</span> <span className="meta mono">{fmtDate(c.datum)}</span>
                   {contacts.length > 0 && <span className="meta">· {contacts.map((contact) => contact.name).join(', ')}</span>}
                   {c.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{c.teilprojekt.trim()}</span>}
                   {c.afns && c.afns.length > 0 && <AfnChipsView afns={c.afns} />}

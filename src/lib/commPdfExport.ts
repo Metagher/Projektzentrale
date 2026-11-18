@@ -1,4 +1,4 @@
-import { fmtDate, taskLinkLabel } from './format';
+import { commRef, fmtDate, taskLinkLabel } from './format';
 import { contactLinkLabel, linkedContactIds } from './contacts';
 import type { Comm, Contact, Project, Task } from '../types/entities';
 
@@ -61,7 +61,7 @@ export function exportCommsToPdf(project: Project, comms: Comm[], contacts: Cont
     const article = doc.createElement('article'); article.className = 'entry';
     const head = doc.createElement('div'); head.className = 'entry-head';
     addText(head, 'span', c.kanal, 'channel');
-    addText(head, 'time', fmtDate(c.datum));
+    addText(head, 'time', `${commRef(c.nr)} · ${fmtDate(c.datum)}`);
     const entryContacts = contacts.filter((contact) => linkedContactIds(c).includes(contact.id));
     if (entryContacts.length) addText(head, 'span', entryContacts.map(contactLinkLabel).join(', '), 'contacts');
     if (c.teilprojekt?.trim()) addText(head, 'span', c.teilprojekt.trim(), 'tag');

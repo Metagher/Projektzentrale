@@ -4,6 +4,7 @@ import { useModalStore } from '../../store/modalStore';
 import { toExternalHref } from '../../lib/externalLinks';
 import type { ProjectDocumentationArea, ProjectStatusEntry } from '../../types/entities';
 import { linkedContactIds } from '../../lib/contacts';
+import { taskRef } from '../../lib/format';
 
 interface Finding {
   id: string;
@@ -54,7 +55,7 @@ export default function DataValidationSettings() {
       data.tasks.forEach((task) => {
         const invalidWaitingSince = !!task.wartetSeit && !validDate(task.wartetSeit);
         const invalid = !task.titel?.trim() || !TASK_STATUSES.has(task.status) || (!!task.faelligAm && !validDate(task.faelligAm)) || invalidWaitingSince || (task.status === 'wartet' && !task.wartetAuf?.trim());
-        if (invalid) add({ ...prefix, area: 'Aufgabe', problem: !task.titel?.trim() ? 'Titel fehlt' : !TASK_STATUSES.has(task.status) ? `Ungültiger Status: ${task.status}` : task.status === 'wartet' && !task.wartetAuf?.trim() ? 'Wartet auf ohne Person' : invalidWaitingSince ? `Ungültiges Wartedatum: ${task.wartetSeit}` : `Ungültiges Datum: ${task.faelligAm}`, detail: `#${task.nr || '—'} · ${task.titel || task.id}`, actionLabel: 'Löschen', run: () => store.deleteTask(project.id, task.id) });
+        if (invalid) add({ ...prefix, area: 'Aufgabe', problem: !task.titel?.trim() ? 'Titel fehlt' : !TASK_STATUSES.has(task.status) ? `Ungültiger Status: ${task.status}` : task.status === 'wartet' && !task.wartetAuf?.trim() ? 'Wartet auf ohne Person' : invalidWaitingSince ? `Ungültiges Wartedatum: ${task.wartetSeit}` : `Ungültiges Datum: ${task.faelligAm}`, detail: `${taskRef(task.nr)} · ${task.titel || task.id}`, actionLabel: 'Löschen', run: () => store.deleteTask(project.id, task.id) });
         const validContactIds = linkedContactIds(task).filter((id) => contactIds.has(id));
         if (validContactIds.length !== linkedContactIds(task).length) add({ ...prefix, area: 'Aufgabe', problem: 'Mindestens ein Ansprechpartner existiert nicht mehr', detail: task.titel, actionLabel: 'Bereinigen', run: () => store.saveTask(project.id, { ...task, kontaktId: validContactIds[0] || '', kontaktIds: validContactIds }) });
         const validAppointments = (task.termine || []).filter(validDate);

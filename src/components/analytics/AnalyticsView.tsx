@@ -7,6 +7,7 @@ import AfnOverviewTab from './AfnOverviewTab';
 import GlobalPortfolioOverview from './GlobalPortfolioOverview';
 import TimeAnalyticsOverview, { type BilledTimeRow } from './TimeAnalyticsOverview';
 import AbrechnungOverview from './AbrechnungOverview';
+import { taskRef } from '../../lib/format';
 
 const ANALYTICS_TABS: { id: AnalyticsSubTab; label: string }[] = [
   { id: 'projekte', label: 'Projektauswertung' },
@@ -60,7 +61,7 @@ export default function AnalyticsView() {
     return Array.from(byProject.values());
   }, [abrechnungen]);
   const timeTaskLabels = useMemo(
-    () => Object.fromEntries((allTasks || []).map((task) => [task.id, `${task.nr} · ${task.titel}`])),
+    () => Object.fromEntries((allTasks || []).map((task) => [task.id, `${taskRef(task.nr)} · ${task.titel}`])),
     [allTasks],
   );
   const timeTaskCategories = useMemo(

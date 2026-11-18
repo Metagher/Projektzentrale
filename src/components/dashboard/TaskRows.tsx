@@ -1,6 +1,7 @@
 import { useUiStore } from '../../store/uiStore';
 import TaskListRow from './TaskListRow';
 import InlineEditTaskRow from './InlineEditTaskRow';
+import { taskRef } from '../../lib/format';
 import type { TaskWithMeta } from '../../store/dataStore';
 
 interface Props {
@@ -26,7 +27,7 @@ export default function TaskRows({ tasks, isCalendar, suppressEditor }: Props) {
   return (
     <>
       {tasks.map((t) => <TaskListRow key={t.id} task={t} onClick={() => { setDashboardEditingTaskId(t.id); if (isCalendar) setDashboardTab('liste'); }} />)}
-      {!suppressEditor && editingTask && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Aufgabe bearbeiten</span><strong>ID {editingTask.nr} · {editingTask.projectName}</strong></div></div><InlineEditTaskRow task={editingTask} onSave={() => setDashboardEditingTaskId(null)} onCancel={() => setDashboardEditingTaskId(null)} onDelete={() => setDashboardEditingTaskId(null)} /></div></div>}
+      {!suppressEditor && editingTask && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Aufgabe bearbeiten</span><strong>{taskRef(editingTask.nr)} · {editingTask.projectName}</strong></div></div><InlineEditTaskRow task={editingTask} onSave={() => setDashboardEditingTaskId(null)} onCancel={() => setDashboardEditingTaskId(null)} onDelete={() => setDashboardEditingTaskId(null)} /></div></div>}
     </>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useDataStore } from '../../store/dataStore';
-import { fmtDate, isEmptyHtml, latestProgressEntry, slug, todayStr, waitingDurationLabel } from '../../lib/format';
+import { fmtDate, isEmptyHtml, latestProgressEntry, slug, taskRef, todayStr, waitingDurationLabel } from '../../lib/format';
 import { localDateKey, nextWorkday } from '../../lib/workdays';
 import { commLinkLabel } from '../../lib/format';
 import LinkChipsView from '../shared/LinkChipsView';
@@ -76,7 +76,7 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
             <div className="task-card-kicker">
               {task.farbe && <TaskColorBadge color={task.farbe} compact />}
               {dailyRank > 0 && <span className={`project-task-rank${task.faelligAm === todayStr() ? '' : ' next-workday'}`} title={task.faelligAm === todayStr() ? 'Tagesrang heute' : `Tagesrang am ${fmtDate(task.faelligAm)}`}>#{dailyRank}</span>}
-              <span className="task-nr">{task.nr || '—'}</span>
+              <span className="task-nr">{taskRef(task.nr)}</span>
             </div>
             <strong className="task-card-title">{task.titel}</strong>
           </div>

@@ -3,7 +3,7 @@ import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
 import { getProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
-import { htmlToPlainText } from '../../lib/format';
+import { htmlToPlainText, taskRef } from '../../lib/format';
 import { linkedContactIds } from '../../lib/contacts';
 import type { ProjectCache, Task } from '../../types/entities';
 
@@ -11,7 +11,7 @@ function searchableText(task: Task, projectName: string, data: ProjectCache): st
   const contacts = data.contacts.filter((item) => linkedContactIds(task).includes(item.id));
   const history = (task.verlauf || []).flatMap((entry) => [entry.datum, entry.titel, htmlToPlainText(entry.content)]);
   return [
-    projectName, task.nr, task.titel, task.status, task.wartetAuf, task.wartetSeit, ...contacts.flatMap((contact) => [contact.name, contact.rolle]),
+    projectName, task.nr, taskRef(task.nr), task.titel, task.status, task.wartetAuf, task.wartetSeit, ...contacts.flatMap((contact) => [contact.name, contact.rolle]),
     task.teilprojekt, task.termine?.join(' '), task.naechsteBesprechung ? 'nächste Besprechung vorgemerkt' : '', task.afns?.join(' '), htmlToPlainText(task.anforderung), htmlToPlainText(task.aktuellerStand),
     ...history,
   ].filter(Boolean).join(' ').toLocaleLowerCase('de');
@@ -57,7 +57,7 @@ export default function TaskFullTextSearch() {
     </form>
     {results.length > 1 && <div className="task-search-results" role="listbox" aria-label={`${results.length} Aufgaben gefunden`}>
       <div className="task-search-results-head">{results.length} Aufgaben gefunden</div>
-      {results.map((task) => <button key={`${task.projectId}-${task.id}`} type="button" onClick={() => openTask(task)}><strong>#{task.nr || '—'} · {task.titel}</strong><span>{task.projectName}{task.teilprojekt ? ` · ${task.teilprojekt}` : ''}</span></button>)}
+      {results.map((task) => <button key={`${task.projectId}-${task.id}`} type="button" onClick={() => openTask(task)}><strong>{taskRef(task.nr)} · {task.titel}</strong><span>{task.projectName}{task.teilprojekt ? ` · ${task.teilprojekt}` : ''}</span></button>)}
     </div>}
   </div>;
 }
