@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useModalStore, type ContactModalSpec } from '../../store/modalStore';
-import { fmtDate } from '../../lib/format';
+import { fmtDate, taskRef } from '../../lib/format';
 import { formatDuration, fromLocalInputValue, toLocalInputValue } from '../../lib/timeTracking';
 import { contactLinkLabel } from '../../lib/contacts';
 import { useCreateContact } from '../../hooks/useCreateContact';
@@ -354,7 +354,7 @@ function TimeEntryReviewForm({ modal }: { modal: Extract<ReturnType<typeof useMo
           </optgroup>
           {modal.tasks.length > 0 && (
             <optgroup label="Aufgaben">
-              {modal.tasks.map((task) => <option value={`task:${task.id}`} key={task.id}>{task.nr} · {task.titel}</option>)}
+              {modal.tasks.map((task) => <option value={`task:${task.id}`} key={task.id}>{taskRef(task.nr)} · {task.titel}</option>)}
             </optgroup>
           )}
         </select>

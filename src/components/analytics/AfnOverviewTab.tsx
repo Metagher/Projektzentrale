@@ -3,6 +3,7 @@ import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
 import { getProjectUiStore } from '../../store/projectUiStore';
 import { normalizeAfn } from '../../lib/afn';
+import { taskRef } from '../../lib/format';
 
 interface AfnGroup {
   afn: string;
@@ -61,7 +62,7 @@ export default function AfnOverviewTab({ allTasks }: { allTasks: TaskWithMeta[] 
               <tr key={`${group.afn}-${task.id}`}>
                 {index === 0 && <td rowSpan={group.tasks.length}>AFN {group.afn}</td>}
                 <td>{task.projectName}</td>
-                <td><button type="button" className="link-btn" onClick={() => openTask(task)}>#{task.nr || '—'} · {task.titel}</button></td>
+                <td><button type="button" className="link-btn" onClick={() => openTask(task)}>{taskRef(task.nr)} · {task.titel}</button></td>
                 {index === 0 && (
                   <td rowSpan={group.tasks.length}>
                     <label className="doku-check-inline">

@@ -14,7 +14,7 @@ import TaskProjectAssignmentField from '../shared/TaskProjectAssignmentField';
 import TaskAppointmentsField from '../shared/TaskAppointmentsField';
 import SubprojectSelect from '../shared/SubprojectSelect';
 import { taskDocumentationTarget } from '../../lib/taskDocumentation';
-import { todayStr } from '../../lib/format';
+import { taskRef, todayStr } from '../../lib/format';
 import { contactLinkLabel, linkedContactIds } from '../../lib/contacts';
 import LinkChipsField from '../shared/LinkChipsField';
 import { useCreateContact } from '../../hooks/useCreateContact';
@@ -115,7 +115,7 @@ export default function InlineEditTaskRow({ task, onSave, onCancel, onDelete }: 
   return (
     <div className="list-item task-edit-row">
       <div className="top-row" style={{ marginBottom: 6 }}>
-        <span className="meta mono"><span className="task-nr">{task.nr || '—'}</span>{task.projectName}</span>
+        <span className="meta mono"><span className="task-nr">{taskRef(task.nr)}</span>{task.projectName}</span>
         <div className="btn-row">
           <button className="btn small" onClick={handleSave}>
             Speichern

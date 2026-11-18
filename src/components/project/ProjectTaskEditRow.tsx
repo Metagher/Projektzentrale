@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
-import { commLinkLabel, fmtDateTime, todayStr } from '../../lib/format';
+import { commLinkLabel, fmtDateTime, taskRef, todayStr } from '../../lib/format';
 import { contactLinkLabel, linkedContactIds } from '../../lib/contacts';
 import AfnChipsField from '../shared/AfnChipsField';
 import LinkChipsField from '../shared/LinkChipsField';
@@ -226,7 +226,7 @@ export default function ProjectTaskEditRow({ task, projectId, data, contacts }: 
   return (
     <div className="list-item task-edit-row">
       <div className="top-row" style={{ marginBottom: 6 }}>
-        <span className="meta mono"><span className="task-nr">{task.nr || '—'}</span></span>
+        <span className="meta mono"><span className="task-nr">{taskRef(task.nr)}</span></span>
         <div className="btn-row">
           <button className="btn small" onClick={handleSave}>
             Speichern

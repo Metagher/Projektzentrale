@@ -1,4 +1,4 @@
-import { fmtDate, todayStr, waitingDurationLabel } from '../../lib/format';
+import { fmtDate, taskRef, todayStr, waitingDurationLabel } from '../../lib/format';
 import type { TaskWithMeta } from '../../store/dataStore';
 import { toExternalHref } from '../../lib/externalLinks';
 import TaskColorBadge from '../shared/TaskColorBadge';
@@ -19,7 +19,7 @@ export default function TaskListRow({ task, onClick }: Props) {
       {task.farbe && <TaskColorBadge color={task.farbe} compact />}
       <span className="agg-project">{task.projectName}</span>
       <span className="agg-title">
-        <span className="task-nr">{task.nr || '—'}</span>
+        <span className="task-nr">{taskRef(task.nr)}</span>
         {task.titel}
         {task.teilprojekt?.trim() && <span className="badge teilprojekt" style={{ marginLeft: 6 }}>{task.teilprojekt.trim()}</span>}
         {task.kategorie && task.kategorie !== 'Sonstiges' && <span className={`badge kategorie-${task.kategorie.toLowerCase()}`} style={{ marginLeft: 4 }}>{task.kategorie}</span>}

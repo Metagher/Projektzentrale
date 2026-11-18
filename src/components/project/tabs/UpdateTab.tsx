@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDataStore } from '../../../store/dataStore';
 import { useProjectUiStore } from '../../../store/projectUiStore';
 import { useModalStore } from '../../../store/modalStore';
-import { fmtDate, isEmptyHtml, todayStr, uid } from '../../../lib/format';
+import { fmtDate, isEmptyHtml, taskRef, todayStr, uid } from '../../../lib/format';
 import RtfField from '../../shared/RtfField';
 import AfnChipsField from '../../shared/AfnChipsField';
 import AfnChipsView from '../../shared/AfnChipsView';
@@ -164,7 +164,7 @@ export default function UpdateTab({ project, data }: { project: Project; data: P
         {pendingUpdateTasks.map((task) => (
           <div className={`doku-list-row${task.farbe ? ` task-color-border-${task.farbe}` : ''}`} key={task.id} onClick={() => jumpToTask(task.id)}>
             <div className="doku-inbox-copy">
-              <strong><span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong>
+              <strong><span className="task-nr">{taskRef(task.nr)}</span>{task.titel}</strong>
               <small>{task.updateRevision ? `Revision: ${task.updateRevision}` : 'Keine Revision angegeben'}{task.abgeschlossenAm ? ` · Erledigt: ${fmtDate(task.abgeschlossenAm.slice(0, 10))}` : ''}</small>
             </div>
             <button className="btn secondary small" onClick={(event) => { event.stopPropagation(); moveTaskToUpdate(task.id); }}>Als Update-Punkt übernehmen</button>

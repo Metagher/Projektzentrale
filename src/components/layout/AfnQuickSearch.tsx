@@ -4,6 +4,7 @@ import { useUiStore } from '../../store/uiStore';
 import { getProjectUiStore } from '../../store/projectUiStore';
 import { useModalStore } from '../../store/modalStore';
 import { normalizeAfn } from '../../lib/afn';
+import { taskRef } from '../../lib/format';
 
 export default function AfnQuickSearch() {
   const projects = useDataStore((state) => state.projects) || [];
@@ -59,7 +60,7 @@ export default function AfnQuickSearch() {
           <div className="afn-search-results-head">{results.length} Aufgaben gefunden</div>
           {results.map((task) => (
             <button key={`${task.projectId}-${task.id}`} type="button" onClick={() => openTask(task)}>
-              <strong>#{task.nr || '—'} · {task.titel}</strong>
+              <strong>{taskRef(task.nr)} · {task.titel}</strong>
               <span>{task.projectName}</span>
             </button>
           ))}

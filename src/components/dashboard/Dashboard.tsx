@@ -3,6 +3,7 @@ import { useDataStore, type TaskWithMeta } from '../../store/dataStore';
 import { useUiStore } from '../../store/uiStore';
 import { getDashboardSummary } from '../../lib/dashboardModel';
 import { normalizeAfn } from '../../lib/afn';
+import { taskRef } from '../../lib/format';
 import DailyBriefingCard from './DailyBriefingCard';
 import DailyPlanner from './DailyPlanner';
 import DashboardCockpit from './DashboardCockpit';
@@ -55,7 +56,7 @@ export default function Dashboard() {
       {markedAfnTodos.map(({ afn, task }) => (
         <div className="doku-list-row" key={`${afn}-${task.id}`} onClick={() => setDashboardEditingTaskId(task.id)}>
           <div className="doku-inbox-copy">
-            <strong>AFN {afn} · <span className="task-nr">{task.nr || '—'}</span>{task.titel}</strong>
+            <strong>AFN {afn} · <span className="task-nr">{taskRef(task.nr)}</span>{task.titel}</strong>
             <small>{task.projectName}</small>
           </div>
           <button type="button" className="btn secondary small" onClick={(event) => { event.stopPropagation(); toggleMarkedAfn(afn); }}>Entfernen</button>
@@ -81,7 +82,7 @@ export default function Dashboard() {
       <div className="dashboard-task-list-result"><div><strong>{filteredTasks.length} Aufgabe{filteredTasks.length === 1 ? '' : 'n'}</strong><span>{actionFilter === 'all' ? 'Nicht erledigte Aufgaben' : actionFilter === 'active' ? 'Offene und in Arbeit befindliche Aufgaben' : actionFilter === 'overdue' ? 'Überfällige Aufgaben' : 'Wartende Aufgaben'}{colorFilter ? ` · Farbe ${colorLabels[colorFilter]}` : ''}</span></div>{(actionFilter !== 'all' || colorFilter) && <button className="btn secondary small" onClick={() => { setActionFilter('all'); setColorFilter(''); }}>Filter zurücksetzen</button>}</div>
       <TaskRows tasks={filteredTasks} suppressEditor />
     </section>
-    {editingTask && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Aufgabe bearbeiten</span><strong>ID {editingTask.nr} · {editingTask.projectName}</strong></div></div><InlineEditTaskRow task={editingTask} onSave={() => setDashboardEditingTaskId(null)} onCancel={() => setDashboardEditingTaskId(null)} onDelete={() => setDashboardEditingTaskId(null)} /></div></div>}
+    {editingTask && <div className="task-edit-overlay" role="dialog" aria-modal="true" aria-label="Aufgabe bearbeiten"><div className="task-edit-dialog"><div className="task-edit-dialog-head"><div><span>Aufgabe bearbeiten</span><strong>{taskRef(editingTask.nr)} · {editingTask.projectName}</strong></div></div><InlineEditTaskRow task={editingTask} onSave={() => setDashboardEditingTaskId(null)} onCancel={() => setDashboardEditingTaskId(null)} onDelete={() => setDashboardEditingTaskId(null)} /></div></div>}
   </div>;
 }
 
