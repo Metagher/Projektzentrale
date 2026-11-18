@@ -85,6 +85,13 @@ export interface InboxResultContact {
 export interface InboxResultTask {
   id: string;
   titel: string;
+  nr?: number;
+}
+
+export interface InboxResultComm {
+  id: string;
+  betreff: string;
+  nr?: number;
 }
 
 export interface InboxResult {
@@ -95,6 +102,12 @@ export interface InboxResult {
   /** Nur bei kommunikation mit "aufgaben": die dabei neu angelegten, bereits verknüpften Aufgaben
    * mit ihrer id — damit ein Tool-Aufruf von außen sie anschließend referenzieren kann. */
   angelegteAufgaben?: InboxResultTask[];
+  /** Bestehende Aufgaben, die (neu angelegt per "verknuepfteAufgaben" oder nachträglich per
+   * "aufgabenHinzufuegen") tatsächlich mit dem Kommunikationseintrag verknüpft wurden. */
+  verknuepfteAufgaben?: InboxResultTask[];
+  /** Bestehende Kommunikationseinträge, die (neu angelegt per "kommunikation" oder nachträglich
+   * per "kommunikationHinzufuegen") tatsächlich mit der Aufgabe verknüpft wurden. */
+  verknuepfteKommunikation?: InboxResultComm[];
   kontakte: InboxResultContact[];
 }
 

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import {
   claimInboxItem, deleteInboxItems, INBOX_TABLE, listInboxItems, markInboxError, markInboxResult,
-  purgeStaleProcessedItems, retryInboxItem, type InboxItem, type InboxResult, type InboxResultTask,
+  purgeStaleProcessedItems, retryInboxItem, type InboxItem, type InboxResult, type InboxResultComm, type InboxResultTask,
 } from '../lib/supabase';
 import {
   parseInboxPayload, peekInboxTyp, validateAbrechnung, validateAenderungAufgabe, validateAenderungBase,
@@ -10,7 +10,7 @@ import {
   type InboxAbrechnungPayload, type InboxAenderungPayload, type InboxAufgabePayload, type InboxKommunikationPayload,
   type InboxKontaktPayload, type InboxNotizPayload,
 } from '../lib/inboxFormat';
-import { resolveContacts, resolveProject, resolveSubprojectName, resolveTaskColor, type ContactMatch } from '../lib/inboxResolve';
+import { resolveContacts, resolveProject, resolveRefs, resolveSubprojectName, resolveTaskColor, type ContactMatch } from '../lib/inboxResolve';
 import { useConnectionStore } from './connectionStore';
 import { useDataStore } from './dataStore';
 import { useQuickNoteStore } from './quickNoteStore';
@@ -142,6 +142,8 @@ async function processItem(item: InboxItem): Promise<void> {
     projectId: result.projectId,
     kontakte: result.contacts,
     angelegteAufgaben: result.angelegteAufgaben,
+    verknuepfteAufgaben: result.verknuepfteAufgaben,
+    verknuepfteKommunikation: result.verknuepfteKommunikation,
   };
   if (result.warnings.length > 0) {
     await markInboxResult(client(), item.id, 'warnung', result.warnings.join(' '), inboxResult);
@@ -162,6 +164,12 @@ type ProcessResult =
       onOpen: () => void;
       /** Nur bei kommunikation mit "aufgaben": die dabei neu angelegten Aufgaben mit ihrer id. */
       angelegteAufgaben?: InboxResultTask[];
+      /** Tatsächlich verknüpfte bestehende Aufgaben (kommunikation: "verknuepfteAufgaben" oder
+       * aenderung "aufgabenHinzufuegen"). */
+      verknuepfteAufgaben?: InboxResultTask[];
+      /** Tatsächlich verknüpfte bestehende Kommunikationseinträge (aufgabe: "kommunikation" oder
+       * aenderung "kommunikationHinzufuegen"). */
+      verknuepfteKommunikation?: InboxResultComm[];
     }
   | { ok: false; error: string };
 
@@ -186,6 +194,17 @@ async function processAufgabe(payload: InboxAufgabePayload, projects: Project[])
   const kontaktIds = matched.map((m) => m.id);
   const now = new Date().toISOString();
 
+  let teilprojekt = '';
+  if (v.teilprojekt) {
+    const resolvedSp = resolveSubprojectName(data.subprojects, v.teilprojekt);
+    if (resolvedSp) teilprojekt = resolvedSp;
+    else warnings.push(`Teilprojekt "${v.teilprojekt}" wurde nicht gefunden — leer gelassen.`);
+  }
+
+  const commRefs = resolveRefs(data.comms, v.kommunikation, 'K', 'Kommunikationseintrag');
+  warnings.push(...commRefs.warnings);
+  const commIds = commRefs.matched.map((c) => c.id);
+
   const taskId = await createTask(project.id, {
     titel: v.titel,
     faelligAm: v.faelligAm,
@@ -198,13 +217,18 @@ async function processAufgabe(payload: InboxAufgabePayload, projects: Project[])
       ? [{ id: uid(), datum: now.slice(0, 10), titel: 'Beschreibung', content: inboxTextToHtml(v.beschreibung), createdAt: now, updatedAt: now }]
       : [],
     afns: v.afns.map(normalizeAfn),
-    commIds: [],
+    commIds,
     farbe: farbe.value,
     kategorie: v.kategorie,
+    teilprojekt,
     doku: v.doku,
     dokuErledigt: false,
     dokuZiel: v.doku ? 'project' : '',
   });
+
+  if (commIds.length > 0) {
+    await useDataStore.getState().syncCommLinksForTask(project.id, taskId, [], commIds);
+  }
 
   return {
     ok: true,
@@ -215,6 +239,9 @@ async function processAufgabe(payload: InboxAufgabePayload, projects: Project[])
     warnings,
     message: `Aufgabe „${v.titel}“ in ${project.name} angelegt.`,
     onOpen: () => openTaskInDashboard(taskId),
+    verknuepfteKommunikation: commRefs.matched.length > 0
+      ? commRefs.matched.map((c) => ({ id: c.id, betreff: c.betreff || '', nr: c.nr }))
+      : undefined,
   };
 }
 
@@ -254,6 +281,10 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
     angelegteAufgaben.push({ id: taskId, titel });
   }
 
+  const taskRefs = resolveRefs(data.tasks, v.verknuepfteAufgaben, 'A', 'Aufgabe');
+  warnings.push(...taskRefs.warnings);
+  const linkedExistingTaskIds = taskRefs.matched.map((t) => t.id);
+
   await saveComm(project.id, {
     id: commId,
     nr: 0,
@@ -264,9 +295,13 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
     betreff: v.betreff || `${v.kanal} ${fmtDate(datum)}`,
     notiz: inboxTextToHtml(v.inhalt),
     afns: [],
-    taskIds: newTaskIds,
+    taskIds: [...newTaskIds, ...linkedExistingTaskIds],
     teilprojekt,
   });
+
+  if (linkedExistingTaskIds.length > 0) {
+    await useDataStore.getState().syncTaskLinksForComm(project.id, commId, [], linkedExistingTaskIds);
+  }
 
   return {
     ok: true,
@@ -278,6 +313,9 @@ async function processKommunikation(payload: InboxKommunikationPayload, projects
     message: `Kommunikationseintrag in ${project.name} angelegt.`,
     onOpen: () => openCommInProject(project.id, commId),
     angelegteAufgaben: angelegteAufgaben.length > 0 ? angelegteAufgaben : undefined,
+    verknuepfteAufgaben: taskRefs.matched.length > 0
+      ? taskRefs.matched.map((t) => ({ id: t.id, titel: t.titel, nr: t.nr }))
+      : undefined,
   };
 }
 
@@ -500,6 +538,11 @@ async function applyAenderungAufgabe(project: Project, id: string, raw: Record<s
   if (fields.wartetAuf !== undefined) updated.wartetAuf = fields.wartetAuf;
   if (fields.afns !== undefined) updated.afns = fields.afns.map(normalizeAfn);
   if (fields.doku !== undefined) updated.doku = fields.doku;
+  if (fields.teilprojekt !== undefined) {
+    const resolvedSp = resolveSubprojectName(data.subprojects, fields.teilprojekt);
+    if (resolvedSp) updated.teilprojekt = resolvedSp;
+    else warnings.push(`Teilprojekt "${fields.teilprojekt}" wurde nicht gefunden — unverändert gelassen.`);
+  }
 
   if (fields.kontaktNamen !== undefined) {
     const r = resolveContacts(data.contacts, fields.kontaktNamen);
@@ -518,20 +561,38 @@ async function applyAenderungAufgabe(project: Project, id: string, raw: Record<s
     warnings = warnings.concat(r.warnings);
   }
 
-  // Verknüpfung zu Kommunikationseinträgen (additiv, symmetrisch zu kontaktNamenHinzufuegen) —
-  // unbekannte ids brechen VOR jeder Änderung ab (nichts wird geändert), siehe Validierung unten.
+  // Verknüpfung zu Kommunikationseinträgen — zwei Wege: die älteren *IdsHinzufuegen/*IdsEntfernen
+  // (nur App-ID, unbekannte ids brechen VOR jeder Änderung ab) bleiben unverändert bestehen; die
+  // neueren kommunikationHinzufuegen/kommunikationEntfernen lösen zusätzlich die kurze Referenz
+  // ("K150") auf und melden nicht auflösbare Werte als Warnung statt abzubrechen (wie kontaktNamen).
   const oldCommIds = task.commIds || [];
   let newCommIds: string[] | undefined;
-  if (fields.kommunikationIdsHinzufuegen !== undefined || fields.kommunikationIdsEntfernen !== undefined) {
-    const toAdd = fields.kommunikationIdsHinzufuegen || [];
-    const toRemove = fields.kommunikationIdsEntfernen || [];
-    const unknown = [...toAdd, ...toRemove].filter((cid) => !data.comms.some((c) => c.id === cid));
+  let verknuepfteKommunikation: InboxResultComm[] | undefined;
+  if (
+    fields.kommunikationIdsHinzufuegen !== undefined || fields.kommunikationIdsEntfernen !== undefined
+    || fields.kommunikationHinzufuegen !== undefined || fields.kommunikationEntfernen !== undefined
+  ) {
+    const strictAdd = fields.kommunikationIdsHinzufuegen || [];
+    const strictRemove = fields.kommunikationIdsEntfernen || [];
+    const unknown = [...strictAdd, ...strictRemove].filter((cid) => !data.comms.some((c) => c.id === cid));
     if (unknown.length > 0) {
       return { ok: false, error: `Kommunikationseintrag(e) mit id ${unknown.map((i) => `"${i}"`).join(', ')} in Projekt "${project.name}" nicht gefunden.` };
     }
-    const removeSet = new Set(toRemove);
+
+    const addRefs = resolveRefs(data.comms, fields.kommunikationHinzufuegen || [], 'K', 'Kommunikationseintrag');
+    const removeRefs = resolveRefs(data.comms, fields.kommunikationEntfernen || [], 'K', 'Kommunikationseintrag');
+    warnings = warnings.concat(addRefs.warnings, removeRefs.warnings);
+
+    const removeSet = new Set([...strictRemove, ...removeRefs.matched.map((c) => c.id)]);
+    const toAdd = [...strictAdd, ...addRefs.matched.map((c) => c.id)];
     newCommIds = Array.from(new Set([...oldCommIds.filter((cid) => !removeSet.has(cid)), ...toAdd]));
     updated.commIds = newCommIds;
+
+    const strictAddComms = strictAdd.map((cid) => data.comms.find((c) => c.id === cid)).filter((c): c is Comm => !!c);
+    const addedComms = [...strictAddComms, ...addRefs.matched].filter((c, i, arr) => arr.findIndex((x) => x.id === c.id) === i);
+    if (addedComms.length > 0) {
+      verknuepfteKommunikation = addedComms.map((c) => ({ id: c.id, betreff: c.betreff || '', nr: c.nr }));
+    }
   }
 
   const verlauf = [...(task.verlauf || [])];
@@ -557,6 +618,7 @@ async function applyAenderungAufgabe(project: Project, id: string, raw: Record<s
     warnings,
     message: `Aufgabe „${updated.titel}“ in ${project.name} geändert.`,
     onOpen: () => openTaskInDashboard(task.id),
+    verknuepfteKommunikation,
   };
 }
 
@@ -600,19 +662,38 @@ async function applyAenderungKommunikation(project: Project, id: string, raw: Re
     warnings = warnings.concat(r.warnings);
   }
 
-  // Verknüpfung zu Aufgaben (additiv) — unbekannte ids brechen VOR jeder Änderung ab.
+  // Verknüpfung zu Aufgaben — zwei Wege: die älteren *IdsHinzufuegen/*IdsEntfernen (nur App-ID,
+  // unbekannte ids brechen VOR jeder Änderung ab) bleiben unverändert bestehen; die neueren
+  // aufgabenHinzufuegen/aufgabenEntfernen lösen zusätzlich die kurze Referenz ("A204") auf und
+  // melden nicht auflösbare Werte als Warnung statt abzubrechen (wie kontaktNamen).
   const oldTaskIds = comm.taskIds || [];
   let newTaskIds: string[] | undefined;
-  if (fields.aufgabenIdsHinzufuegen !== undefined || fields.aufgabenIdsEntfernen !== undefined) {
-    const toAdd = fields.aufgabenIdsHinzufuegen || [];
-    const toRemove = fields.aufgabenIdsEntfernen || [];
-    const unknown = [...toAdd, ...toRemove].filter((tid) => !data.tasks.some((t) => t.id === tid));
+  let verknuepfteAufgaben: InboxResultTask[] | undefined;
+  if (
+    fields.aufgabenIdsHinzufuegen !== undefined || fields.aufgabenIdsEntfernen !== undefined
+    || fields.aufgabenHinzufuegen !== undefined || fields.aufgabenEntfernen !== undefined
+  ) {
+    const strictAdd = fields.aufgabenIdsHinzufuegen || [];
+    const strictRemove = fields.aufgabenIdsEntfernen || [];
+    const unknown = [...strictAdd, ...strictRemove].filter((tid) => !data.tasks.some((t) => t.id === tid));
     if (unknown.length > 0) {
       return { ok: false, error: `Aufgabe(n) mit id ${unknown.map((i) => `"${i}"`).join(', ')} in Projekt "${project.name}" nicht gefunden.` };
     }
-    const removeSet = new Set(toRemove);
+
+    const addRefs = resolveRefs(data.tasks, fields.aufgabenHinzufuegen || [], 'A', 'Aufgabe');
+    const removeRefs = resolveRefs(data.tasks, fields.aufgabenEntfernen || [], 'A', 'Aufgabe');
+    warnings = warnings.concat(addRefs.warnings, removeRefs.warnings);
+
+    const removeSet = new Set([...strictRemove, ...removeRefs.matched.map((t) => t.id)]);
+    const toAdd = [...strictAdd, ...addRefs.matched.map((t) => t.id)];
     newTaskIds = Array.from(new Set([...oldTaskIds.filter((tid) => !removeSet.has(tid)), ...toAdd]));
     updated.taskIds = newTaskIds;
+
+    const strictAddTasks = strictAdd.map((tid) => data.tasks.find((t) => t.id === tid)).filter((t): t is Task => !!t);
+    const addedTasks = [...strictAddTasks, ...addRefs.matched].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
+    if (addedTasks.length > 0) {
+      verknuepfteAufgaben = addedTasks.map((t) => ({ id: t.id, titel: t.titel, nr: t.nr }));
+    }
   }
 
   updated.notiz = (updated.notiz || '') + changedByClaudeMarker();
@@ -631,6 +712,7 @@ async function applyAenderungKommunikation(project: Project, id: string, raw: Re
     warnings,
     message: `Kommunikationseintrag in ${project.name} geändert.`,
     onOpen: () => openCommInProject(project.id, comm.id),
+    verknuepfteAufgaben,
   };
 }
 

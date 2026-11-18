@@ -116,3 +116,50 @@ export function resolveTaskColor(input: string, labels: TaskColorLabels): Valida
   const options = TASK_COLORS.map((color) => `${color} (${labels[color]})`).join(', ');
   return { ok: false, error: `Unbekannte Farbe oder Begriff "${input}" (erlaubt: ${options}).` };
 }
+
+export interface RefResolution<T> {
+  /** Aufgelöste Einträge, dedupliziert, in Reihenfolge der ersten Nennung. */
+  matched: T[];
+  /** Eine Meldung pro Wert, der nicht aufgelöst werden konnte — wird NIE stillschweigend
+   * verworfen, sondern dem Aufrufer als Warnung gemeldet (siehe inboxStore), analog zu
+   * resolveContacts. */
+  warnings: string[];
+}
+
+/** Löst eine Liste von Werten (App-ID oder Kurzreferenz wie "A204"/"K150", Groß-/Kleinschreibung
+ * des Präfix egal) gegen Aufgaben/Kommunikationseinträge auf — zum Verknüpfen über den Connector,
+ * wo Claude typischerweise nur die kurze Referenz aus find_entries/get_entry kennt, nicht die
+ * lange App-ID. Nicht auflösbare Werte werden wie bei resolveContacts nicht stillschweigend
+ * übersprungen, sondern als Warnung gemeldet — der Aufrufer legt/ändert den Eintrag trotzdem,
+ * nur mit den tatsächlich aufgelösten Verknüpfungen. */
+export function resolveRefs<T extends { id: string; nr?: number }>(
+  items: T[], refs: string[], prefix: string, bezeichnung: string,
+): RefResolution<T> {
+  const matched: T[] = [];
+  const warnings: string[] = [];
+  const seen = new Set<string>();
+
+  for (const raw of refs) {
+    const ref = raw.trim();
+    if (!ref) continue;
+
+    let found: T | undefined;
+    const refMatch = /^([A-Za-z])(\d+)$/.exec(ref);
+    if (refMatch && refMatch[1].toUpperCase() === prefix.toUpperCase()) {
+      const nr = Number(refMatch[2]);
+      found = items.find((i) => i.nr === nr);
+    } else {
+      found = items.find((i) => i.id === ref);
+    }
+
+    if (!found) {
+      warnings.push(`${bezeichnung} "${ref}" wurde nicht gefunden.`);
+      continue;
+    }
+    if (seen.has(found.id)) continue;
+    seen.add(found.id);
+    matched.push(found);
+  }
+
+  return { matched, warnings };
+}
