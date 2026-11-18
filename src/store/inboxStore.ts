@@ -10,7 +10,7 @@ import {
   type InboxAbrechnungPayload, type InboxAenderungPayload, type InboxAufgabePayload, type InboxKommunikationPayload,
   type InboxKontaktPayload, type InboxNotizPayload,
 } from '../lib/inboxFormat';
-import { resolveContacts, resolveProject, resolveSubprojectName, type ContactMatch } from '../lib/inboxResolve';
+import { resolveContacts, resolveProject, resolveSubprojectName, resolveTaskColor, type ContactMatch } from '../lib/inboxResolve';
 import { useConnectionStore } from './connectionStore';
 import { useDataStore } from './dataStore';
 import { useQuickNoteStore } from './quickNoteStore';
@@ -177,7 +177,10 @@ async function processAufgabe(payload: InboxAufgabePayload, projects: Project[])
   if (!resolved.ok) return { ok: false, error: resolved.error };
   const project = resolved.value;
 
-  const { createTask } = useDataStore.getState();
+  const { createTask, taskColorLabels } = useDataStore.getState();
+  const farbe = resolveTaskColor(v.farbe, taskColorLabels);
+  if (!farbe.ok) return { ok: false, error: farbe.error };
+
   const data = await useDataStore.getState().ensureProjectData(project.id);
   const { matched, warnings } = resolveContacts(data.contacts, v.kontaktNamen);
   const kontaktIds = matched.map((m) => m.id);
@@ -196,7 +199,7 @@ async function processAufgabe(payload: InboxAufgabePayload, projects: Project[])
       : [],
     afns: v.afns.map(normalizeAfn),
     commIds: [],
-    farbe: v.farbe,
+    farbe: farbe.value,
     kategorie: v.kategorie,
     doku: v.doku,
     dokuErledigt: false,
@@ -489,7 +492,11 @@ async function applyAenderungAufgabe(project: Project, id: string, raw: Record<s
   if (fields.prioritaet !== undefined) updated.prioritaet = fields.prioritaet;
   if (fields.faelligAm !== undefined) updated.faelligAm = fields.faelligAm;
   if (fields.kategorie !== undefined) updated.kategorie = fields.kategorie;
-  if (fields.farbe !== undefined) updated.farbe = fields.farbe;
+  if (fields.farbe !== undefined) {
+    const farbe = resolveTaskColor(fields.farbe, useDataStore.getState().taskColorLabels);
+    if (!farbe.ok) return { ok: false, error: farbe.error };
+    updated.farbe = farbe.value;
+  }
   if (fields.wartetAuf !== undefined) updated.wartetAuf = fields.wartetAuf;
   if (fields.afns !== undefined) updated.afns = fields.afns.map(normalizeAfn);
   if (fields.doku !== undefined) updated.doku = fields.doku;

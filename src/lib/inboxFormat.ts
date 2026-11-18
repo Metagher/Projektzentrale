@@ -1,5 +1,5 @@
-import { CHANNELS, TASK_COLORS, TASK_KATEGORIEN, TASK_PRIO } from './constants';
-import type { Kanal, TaskColor, TaskKategorie, TaskPrio, TaskStatus } from '../types/entities';
+import { CHANNELS, TASK_KATEGORIEN, TASK_PRIO } from './constants';
+import type { Kanal, TaskKategorie, TaskPrio, TaskStatus } from '../types/entities';
 
 export type InboxTyp = 'aufgabe' | 'kommunikation' | 'notiz' | 'kontakt' | 'abrechnung' | 'aenderung';
 export type AenderungZiel = 'aufgabe' | 'kommunikation' | 'kontakt';
@@ -157,7 +157,10 @@ export interface ValidatedAufgabe {
   status: TaskStatus;
   faelligAm: string;
   kategorie?: TaskKategorie;
-  farbe: TaskColor | '';
+  /** Roher Text — Farbname (z.B. "orange") oder konfigurierter Begriff (z.B. "Wichtig!").
+   * Wird erst in processAufgabe anhand der Live-Farbbegriffe aufgelöst (siehe resolveTaskColor),
+   * da die Zuordnung Farbe↔Begriff pro Nutzer konfigurierbar ist. */
+  farbe: string;
   wartetAuf: string;
   afns: string[];
   kontaktNamen: string[];
@@ -170,8 +173,7 @@ export function validateAufgabe(payload: InboxAufgabePayload): ValidationResult<
   if (!isNonEmptyString(payload.projekt)) return { ok: false, error: 'Pflichtfeld "projekt" fehlt.' };
   const status = validateEnum(payload.status, TASK_STATUS_VALUES, 'status');
   if (!status.ok) return status;
-  const farbe = validateEnum(payload.farbe, TASK_COLORS, 'farbe');
-  if (!farbe.ok) return farbe;
+  if (payload.farbe !== undefined && typeof payload.farbe !== 'string') return { ok: false, error: '"farbe" muss ein Text sein (Farbname oder konfigurierter Begriff).' };
   const kategorie = validateEnum(payload.kategorie, TASK_KATEGORIEN, 'kategorie');
   if (!kategorie.ok) return kategorie;
   if (payload.afns !== undefined && !isStringArray(payload.afns)) return { ok: false, error: '"afns" muss eine Liste von Texten sein.' };
@@ -184,7 +186,7 @@ export function validateAufgabe(payload: InboxAufgabePayload): ValidationResult<
       status: status.value || 'offen',
       faelligAm: payload.faelligAm || '',
       kategorie: kategorie.value,
-      farbe: farbe.value || '',
+      farbe: payload.farbe || '',
       wartetAuf: payload.wartetAuf || '',
       afns: payload.afns || [],
       kontaktNamen: payload.kontaktNamen || [],
@@ -373,7 +375,9 @@ export interface AenderungAufgabeFields {
   prioritaet?: TaskPrio;
   faelligAm?: string;
   kategorie?: TaskKategorie;
-  farbe?: TaskColor | '';
+  /** Roher Text — Farbname oder konfigurierter Begriff, wird erst in applyAenderungAufgabe
+   * anhand der Live-Farbbegriffe aufgelöst (siehe resolveTaskColor). */
+  farbe?: string;
   wartetAuf?: string;
   afns?: string[];
   kontaktNamen?: string[];
@@ -410,9 +414,8 @@ export function validateAenderungAufgabe(raw: Record<string, unknown>): Validati
     out.kategorie = r.value;
   }
   if ('farbe' in raw) {
-    const r = validateEnum(raw.farbe, TASK_COLORS, 'farbe');
-    if (!r.ok) return r;
-    out.farbe = r.value || '';
+    if (typeof raw.farbe !== 'string') return { ok: false, error: '"farbe" muss ein Text sein (Farbname oder konfigurierter Begriff).' };
+    out.farbe = raw.farbe;
   }
   if ('wartetAuf' in raw) {
     if (typeof raw.wartetAuf !== 'string') return { ok: false, error: '"wartetAuf" muss ein Text sein.' };

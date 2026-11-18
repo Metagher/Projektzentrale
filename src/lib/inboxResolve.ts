@@ -1,4 +1,6 @@
-import type { Contact, Project, Subproject } from '../types/entities';
+import { TASK_COLORS } from './constants';
+import type { TaskColorLabels } from './taskColors';
+import type { Contact, Project, Subproject, TaskColor } from '../types/entities';
 import type { ValidationResult } from './inboxFormat';
 
 /** Projektauflösung: zuerst exakte Id, dann Name oder Kunde (ohne Groß-/Kleinschreibung).
@@ -90,4 +92,27 @@ export function resolveSubprojectName(subprojects: Subproject[], query: string):
   const lower = query.trim().toLocaleLowerCase('de');
   if (!lower) return '';
   return subprojects.find((sp) => sp.name.trim().toLocaleLowerCase('de') === lower)?.name || '';
+}
+
+/** Löst eine Eingabe als Aufgaben-Farbmarkierung auf — entweder der Farbname selbst (z.B.
+ * "orange") oder der dafür konfigurierte Begriff (z.B. "Wichtig!", individuell pro Nutzer
+ * einstellbar — jede Farbe steht für einen eigenen Status). Leer löst zu "" (keine Farbe) auf.
+ * Mehrdeutigkeit (zwei Farben mit demselben Begriff) oder kein Treffer ist ein Fehler statt
+ * Raten; die Fehlermeldung listet alle aktuell gültigen Farben samt ihrer Begriffe. */
+export function resolveTaskColor(input: string, labels: TaskColorLabels): ValidationResult<TaskColor | ''> {
+  const trimmed = input.trim();
+  if (!trimmed) return { ok: true, value: '' };
+  const lower = trimmed.toLocaleLowerCase('de');
+
+  const byKey = TASK_COLORS.find((color) => color === lower);
+  if (byKey) return { ok: true, value: byKey };
+
+  const byLabel = TASK_COLORS.filter((color) => labels[color].trim().toLocaleLowerCase('de') === lower);
+  if (byLabel.length === 1) return { ok: true, value: byLabel[0] };
+  if (byLabel.length > 1) {
+    return { ok: false, error: `Farbe/Begriff "${input}" ist nicht eindeutig (mehrere Farben haben denselben Begriff "${trimmed}").` };
+  }
+
+  const options = TASK_COLORS.map((color) => `${color} (${labels[color]})`).join(', ');
+  return { ok: false, error: `Unbekannte Farbe oder Begriff "${input}" (erlaubt: ${options}).` };
 }
