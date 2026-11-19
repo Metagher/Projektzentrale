@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useProjectUiStore } from '../../store/projectUiStore';
 import { useDataStore } from '../../store/dataStore';
-import { fmtDate, isEmptyHtml, latestProgressEntry, slug, taskRef, todayStr, waitingDurationLabel } from '../../lib/format';
+import { fmtDate, isEmptyHtml, lastEditedLabel, latestProgressEntry, slug, taskRef, todayStr, waitingDurationLabel } from '../../lib/format';
 import { localDateKey, nextWorkday } from '../../lib/workdays';
 import { commLinkLabel } from '../../lib/format';
 import LinkChipsView from '../shared/LinkChipsView';
@@ -86,6 +86,7 @@ export default function ProjectTaskRow({ task, project, contacts, data, onDelete
         <div className="task-card-summary">
           <span className={`badge ${slug(task.status)}`}>{task.status === 'wartet' ? `wartet auf ${task.wartetAuf || 'jemanden'}${task.wartetSeit ? ` · ${waitingDurationLabel(task.wartetSeit)}` : ''}` : task.status}</span>
           {task.faelligAm && <span className="task-card-due">Fällig {fmtDate(task.faelligAm)}</span>}
+          <span className="task-card-edited" title={fmtDate((task.aktualisiertAm || task.erstelltAm)?.slice(0, 10))}>{lastEditedLabel(task.aktualisiertAm || task.erstelltAm)}</span>
         </div>
 
         {expanded && <>

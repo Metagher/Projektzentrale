@@ -34,6 +34,27 @@ export function waitingDurationLabel(waitingSince: string | null | undefined, no
   return `seit ${days} Tagen`;
 }
 
+/** Kalendertage zwischen einem ISO-Zeitpunkt und "now", gerundet auf lokale Tagesgrenzen (wie
+ * waitingDurationLabel) — null bei fehlendem/ungültigem Wert. */
+export function daysSince(iso: string | null | undefined, now = new Date()): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const dUtc = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.floor((today - dUtc) / 86400000));
+}
+
+/** Für die Anzeige an Aufgaben: wie viele Tage die letzte inhaltliche Änderung (Task.aktualisiertAm,
+ * siehe dataStore.saveTask) zurückliegt. */
+export function lastEditedLabel(aktualisiertAm: string | null | undefined, now = new Date()): string {
+  const days = daysSince(aktualisiertAm, now);
+  if (days === null) return '';
+  if (days === 0) return 'heute bearbeitet';
+  if (days === 1) return 'vor 1 Tag bearbeitet';
+  return `vor ${days} Tagen bearbeitet`;
+}
+
 export function slug(status: string): string {
   return status.toLowerCase().replace(/\s+/g, '-');
 }

@@ -293,6 +293,11 @@ export interface Task {
   /** Klassifizierung der Aufgabe für die Zeitauswertung. Fehlt der Wert, gilt die Aufgabe als "Sonstiges". */
   kategorie?: TaskKategorie;
   erstelltAm: string; // ISO datetime
+  /** Zeitpunkt der letzten inhaltlichen Änderung (ohne reine Tagesreihenfolge/tagesSortierung) —
+   * wird automatisch in dataStore.saveTask gepflegt, nie manuell gesetzt. Fehlt bei Aufgaben, die
+   * seit Einführung dieses Felds noch nicht gespeichert wurden (siehe Fallback auf erstelltAm an
+   * den Anzeige-/Connector-Stellen). */
+  aktualisiertAm?: string; // ISO datetime
   abgeschlossenAm: string | null; // ISO datetime
   doku: boolean;
   dokuErledigt: boolean;

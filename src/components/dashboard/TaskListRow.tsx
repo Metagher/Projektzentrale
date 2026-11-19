@@ -1,4 +1,4 @@
-import { fmtDate, taskRef, todayStr, waitingDurationLabel } from '../../lib/format';
+import { fmtDate, lastEditedLabel, taskRef, todayStr, waitingDurationLabel } from '../../lib/format';
 import type { TaskWithMeta } from '../../store/dataStore';
 import { toExternalHref } from '../../lib/externalLinks';
 import TaskColorBadge from '../shared/TaskColorBadge';
@@ -37,6 +37,7 @@ export default function TaskListRow({ task, onClick }: Props) {
         {overdue ? '⚠ ' : ''}
         {fmtDate(task.faelligAm)}
       </span>
+      <span className="agg-edited">{lastEditedLabel(task.aktualisiertAm || task.erstelltAm)}</span>
     </div>
   );
 }
