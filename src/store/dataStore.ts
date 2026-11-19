@@ -245,6 +245,17 @@ function taskWithoutMeta(task: TaskWithMeta): Task {
   return base;
 }
 
+/** Ob sich an einer Aufgabe inhaltlich etwas geändert hat — tagesSortierung (reine Tages-
+ * Reihenfolge, z.B. durch Drag&Drop im Tagesplan) und aktualisiertAm selbst zählen bewusst NICHT
+ * als Änderung, sonst würde reines Umsortieren den "zuletzt bearbeitet"-Zeitstempel zurücksetzen
+ * und die Anzeige nutzlos machen. */
+function taskContentChanged(previous: Task, next: Task): boolean {
+  const { tagesSortierung: _pSort, aktualisiertAm: _pAkt, ...prevRest } = previous;
+  const { tagesSortierung: _nSort, aktualisiertAm: _nAkt, ...nextRest } = next;
+  void _pSort; void _pAkt; void _nSort; void _nAkt;
+  return JSON.stringify(prevRest) !== JSON.stringify(nextRest);
+}
+
 export const useDataStore = create<DataStoreState>((set, get) => ({
   projects: null,
   docDefs: null,
@@ -661,9 +672,12 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
     const previous = origin.tasks.find((item) => item.id === task.id);
     const projectIds = linkedProjectIds(projects, projectId, task.projectIds);
     const taskWithContacts = normalizeContactLinks(task, linkedContactIds(task));
-    const normalizedTask = previous && previous.faelligAm !== task.faelligAm
+    const withProjectIds = previous && previous.faelligAm !== task.faelligAm
       ? { ...taskWithContacts, projectIds, tagesSortierung: 999 }
       : { ...taskWithContacts, projectIds };
+    const normalizedTask = !previous || taskContentChanged(previous, withProjectIds)
+      ? { ...withProjectIds, aktualisiertAm: new Date().toISOString() }
+      : { ...withProjectIds, aktualisiertAm: previous.aktualisiertAm };
     const cache = { ...get().cache };
     await Promise.all(projects.map(async (project) => {
       const data = cache[project.id] || emptyProjectCache();
@@ -683,12 +697,14 @@ export const useDataStore = create<DataStoreState>((set, get) => ({
   createTask: async (projectId, partial) => {
     const nr = await get().nextTaskNr();
     const projectIds = linkedProjectIds(get().projects || [], projectId, partial.projectIds);
+    const now = new Date().toISOString();
     const task: Task = normalizeContactLinks({
       ...partial,
       projectIds,
       id: uid(),
       nr,
-      erstelltAm: new Date().toISOString(),
+      erstelltAm: now,
+      aktualisiertAm: now,
       abgeschlossenAm: null,
       tagesSortierung: 999,
     }, linkedContactIds(partial));
