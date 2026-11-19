@@ -144,7 +144,7 @@ export default function AbrechnungTable({ project }: { project: Project }) {
       {abrechnungen.length > 0 ? (
         <div className="analytics-table-wrap">
           <table className="an-table an-table-selectable">
-            <thead><tr><th><input type="checkbox" checked={abrechnungen.length > 0 && abrechnungen.every((item) => selectedIds.has(item.id))} onChange={toggleSelectAllFiltered} /></th><th>Datum</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Status</th><th>Rechnung</th><th>Gehaltsmonat</th></tr></thead>
+            <thead><tr><th><input type="checkbox" checked={abrechnungen.length > 0 && abrechnungen.every((item) => selectedIds.has(item.id))} onChange={toggleSelectAllFiltered} /></th><th>Datum</th><th>Art</th><th>Stunden</th><th>Wert</th><th>Provision</th><th>Status</th><th>Rechnung</th><th>Gehaltsmonat</th><th>Beleg-Nr.</th></tr></thead>
             <tbody>
               {abrechnungen.map((item) => <tr key={item.id} className={`clickable-row${selectedIds.has(item.id) ? ' selected' : ''}`} onClick={() => setEditing(item)}>
                 <td onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} /></td>
@@ -156,6 +156,7 @@ export default function AbrechnungTable({ project }: { project: Project }) {
                 <td><span className={`badge ${abrechnungStatus(item)}`}>{ABRECHNUNG_STATUS_LABELS[abrechnungStatus(item)]}</span></td>
                 <td>{item.rechnungsdatum ? fmtDate(item.rechnungsdatum) : '–'}</td>
                 <td>{formatGehaltsMonat(item.gehaltsMonat) || '–'}</td>
+                <td>{item.belegNr || '–'}</td>
               </tr>)}
             </tbody>
           </table>
