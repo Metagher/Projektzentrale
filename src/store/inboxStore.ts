@@ -4,9 +4,9 @@ import {
   purgeStaleProcessedItems, retryInboxItem, type InboxItem, type InboxResult, type InboxResultComm, type InboxResultTask,
 } from '../lib/supabase';
 import {
-  parseInboxPayload, peekInboxTyp, validateAbrechnung, validateAenderungAufgabe, validateAenderungBase,
-  validateAenderungKommunikation, validateAenderungKontakt, validateAufgabe, validateKommunikation,
-  validateKontakt, validateNotiz,
+  parseInboxPayload, peekInboxTyp, validateAbrechnung, validateAenderungAbrechnung, validateAenderungAufgabe,
+  validateAenderungBase, validateAenderungKommunikation, validateAenderungKontakt, validateAufgabe,
+  validateKommunikation, validateKontakt, validateNotiz,
   type InboxAbrechnungPayload, type InboxAenderungPayload, type InboxAufgabePayload, type InboxKommunikationPayload,
   type InboxKontaktPayload, type InboxNotizPayload,
 } from '../lib/inboxFormat';
@@ -508,6 +508,7 @@ async function processAenderung(payload: InboxAenderungPayload, projects: Projec
 
   if (ziel === 'aufgabe') return applyAenderungAufgabe(project, id, raw);
   if (ziel === 'kommunikation') return applyAenderungKommunikation(project, id, raw);
+  if (ziel === 'abrechnung') return applyAenderungAbrechnung(project, id, raw);
   return applyAenderungKontakt(project, id, raw);
 }
 
@@ -713,6 +714,50 @@ async function applyAenderungKommunikation(project: Project, id: string, raw: Re
     message: `Kommunikationseintrag in ${project.name} geändert.`,
     onOpen: () => openCommInProject(project.id, comm.id),
     verknuepfteAufgaben,
+  };
+}
+
+/** Verknüpft eine bereits angelegte Abrechnung nachträglich mit einem Kommunikationseintrag (oder
+ * entfernt die Verknüpfung) — anders als bei Aufgabe/Kommunikation ist das eine einzelne, einseitige
+ * Verknüpfung (Abrechnung.commId), keine beidseitige Liste, daher kein sync*LinksFor*-Aufruf nötig. */
+async function applyAenderungAbrechnung(project: Project, id: string, raw: Record<string, unknown>): Promise<ProcessResult> {
+  const validated = validateAenderungAbrechnung(raw);
+  if (!validated.ok) return { ok: false, error: validated.error };
+  const fields = validated.value;
+  const abrechnung = useDataStore.getState().abrechnungen.find((a) => a.id === id && a.projectId === project.id);
+  if (!abrechnung) return { ok: false, error: `Abrechnung mit id "${id}" in Projekt "${project.name}" nicht gefunden.` };
+
+  const updated: Abrechnung = { ...abrechnung };
+  let warnings: string[] = [];
+  let verknuepfteKommunikation: InboxResultComm[] | undefined;
+
+  if (fields.kommunikation !== undefined) {
+    const trimmed = fields.kommunikation.trim();
+    if (!trimmed) {
+      updated.commId = undefined;
+    } else {
+      const data = await useDataStore.getState().ensureProjectData(project.id);
+      const refs = resolveRefs(data.comms, [trimmed], 'K', 'Kommunikationseintrag');
+      warnings = warnings.concat(refs.warnings);
+      if (refs.matched[0]) {
+        updated.commId = refs.matched[0].id;
+        verknuepfteKommunikation = [{ id: refs.matched[0].id, betreff: refs.matched[0].betreff || '', nr: refs.matched[0].nr }];
+      }
+    }
+  }
+
+  await useDataStore.getState().saveAbrechnung(updated);
+
+  return {
+    ok: true,
+    entityTyp: 'abrechnung',
+    entityId: abrechnung.id,
+    projectId: project.id,
+    contacts: [],
+    warnings,
+    message: `Abrechnung in ${project.name} geändert.`,
+    onOpen: () => openAuswertungInProject(project.id),
+    verknuepfteKommunikation,
   };
 }
 

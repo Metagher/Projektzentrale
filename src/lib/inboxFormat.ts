@@ -2,7 +2,7 @@ import { CHANNELS, TASK_KATEGORIEN, TASK_PRIO } from './constants';
 import type { Kanal, TaskKategorie, TaskPrio, TaskStatus } from '../types/entities';
 
 export type InboxTyp = 'aufgabe' | 'kommunikation' | 'notiz' | 'kontakt' | 'abrechnung' | 'aenderung';
-export type AenderungZiel = 'aufgabe' | 'kommunikation' | 'kontakt';
+export type AenderungZiel = 'aufgabe' | 'kommunikation' | 'kontakt' | 'abrechnung';
 
 export interface InboxAufgabePayload {
   typ: 'aufgabe';
@@ -116,7 +116,7 @@ export type InboxPayload =
   | InboxAenderungPayload;
 
 const TASK_STATUS_VALUES: TaskStatus[] = ['offen', 'in Arbeit', 'wartet', 'erledigt'];
-const AENDERUNG_ZIELE: AenderungZiel[] = ['aufgabe', 'kommunikation', 'kontakt'];
+const AENDERUNG_ZIELE: AenderungZiel[] = ['aufgabe', 'kommunikation', 'kontakt', 'abrechnung'];
 
 /**
  * Liest den rohen content-Text einer Posteingang-Zeile als strukturiertes JSON mit erkanntem
@@ -587,6 +587,22 @@ export function validateAenderungKontakt(raw: Record<string, unknown>): Validati
   if ('email' in raw) {
     if (typeof raw.email !== 'string') return { ok: false, error: '"email" muss ein Text sein.' };
     out.email = raw.email;
+  }
+  return { ok: true, value: out };
+}
+
+export interface AenderungAbrechnungFields {
+  /** App-ID oder Kurzreferenz ("K150") eines Kommunikationseintrags im selben Projekt, mit dem
+   * eine bereits angelegte Abrechnung nachträglich verknüpft wird (siehe resolveRefs). Ein leerer
+   * Text entfernt eine bestehende Verknüpfung. */
+  kommunikation?: string;
+}
+
+export function validateAenderungAbrechnung(raw: Record<string, unknown>): ValidationResult<AenderungAbrechnungFields> {
+  const out: AenderungAbrechnungFields = {};
+  if ('kommunikation' in raw) {
+    if (typeof raw.kommunikation !== 'string') return { ok: false, error: '"kommunikation" muss ein Text sein.' };
+    out.kommunikation = raw.kommunikation;
   }
   return { ok: true, value: out };
 }

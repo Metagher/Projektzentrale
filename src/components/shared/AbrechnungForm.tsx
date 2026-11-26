@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { useModalStore } from '../../store/modalStore';
 import { uid, todayStr } from '../../lib/format';
@@ -38,7 +38,7 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
 
   const [projectId, setProjectId] = useState(entry?.projectId ?? fixedProjectId ?? '');
   const [taskId] = useState(entry?.taskId ?? fixedTaskId);
-  const [commId] = useState(entry?.commId ?? fixedCommId);
+  const [commId, setCommId] = useState(entry?.commId ?? fixedCommId);
   const [kunde, setKunde] = useState(entry?.kunde ?? fixedKunde ?? '');
   const [datum, setDatum] = useState(entry?.datum || todayStr());
   const [art, setArt] = useState(entry?.art || ((fixedTaskId || fixedCommId) && arten.includes(linkedDefaultArt) ? linkedDefaultArt : arten[0]) || '');
@@ -68,10 +68,13 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
   const valid = !!datum && !!art && !!kunde.trim();
   const faktor = faktoren[art];
   const linkedTask = taskId && projectId ? cache[projectId]?.tasks.find((task) => task.id === taskId) : undefined;
-  const linkedComm = commId && projectId ? cache[projectId]?.comms.find((comm) => comm.id === commId) : undefined;
   // Falls der gespeicherte Wert (Altdaten) nicht mehr in der festen Liste steht, trotzdem als Option anbieten.
   const modulOptionen = modul && !abrechnungsModule.includes(modul) ? [...abrechnungsModule, modul].sort((a, b) => a.localeCompare(b, 'de')) : abrechnungsModule;
   const subprojects = (projectId && cache[projectId]?.subprojects) || [];
+  const comms = useMemo(
+    () => ((projectId && cache[projectId]?.comms) || []).slice().sort((a, b) => b.datum.localeCompare(a.datum)),
+    [projectId, cache],
+  );
 
   useEffect(() => {
     if (projectId) ensureProjectData(projectId);
@@ -90,6 +93,7 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
 
   function selectProject(id: string) {
     setProjectId(id);
+    setCommId(undefined);
     const project = projects.find((item) => item.id === id);
     if (project) setKunde(project.kunde);
   }
@@ -160,9 +164,9 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
             {onDelete && <button className="btn danger small" onClick={handleDelete}>Löschen</button>}
           </div>
         </div>
-        {(linkedTask || linkedComm) && (
+        {linkedTask && (
           <div className="field-help" style={{ marginBottom: 10 }}>
-            🔗 Verlinkt mit {[linkedTask ? `Aufgabe ${taskLinkLabel(linkedTask)}` : null, linkedComm ? `Kommunikation ${commLinkLabel(linkedComm)}` : null].filter(Boolean).join(' · ')}
+            🔗 Verlinkt mit Aufgabe {taskLinkLabel(linkedTask)}
           </div>
         )}
         <div className="field-grid">
@@ -210,6 +214,15 @@ export default function AbrechnungForm({ entry, fixedProjectId, fixedKunde, fixe
           {projectId
             ? <SubprojectSelect subprojects={subprojects} value={teilprojekt} onChange={setTeilprojekt} />
             : <div className="field"><label>Teilprojekt</label><input value="" disabled placeholder="Erst ein Projekt auswählen" /></div>}
+          <div className="field">
+            <label>Kommunikation</label>
+            {projectId
+              ? <select value={commId || ''} onChange={(event) => setCommId(event.target.value || undefined)}>
+                  <option value="">— keine Verknüpfung —</option>
+                  {comms.map((comm) => <option key={comm.id} value={comm.id}>{commLinkLabel(comm)}</option>)}
+                </select>
+              : <input value="" disabled placeholder="Erst ein Projekt auswählen" />}
+          </div>
         </div>
         {art === 'VO' && (
           <div className="field-grid">
